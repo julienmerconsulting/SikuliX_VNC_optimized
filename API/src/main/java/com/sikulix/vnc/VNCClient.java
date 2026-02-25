@@ -57,7 +57,7 @@ public class VNCClient extends CConnection implements FdInStreamBlockCallback, C
   private VNCClient(String address, int port, final String password, boolean shareConnection) {
     this.security = new ThreadLocalSecurityClient(new BasicUserPasswdGetter(password));
 
-    this.currentEncoding = Encodings.encodingTight;
+    this.currentEncoding = Encodings.encodingRaw;
     this.setShared(shareConnection);
 
     setServerName(address);

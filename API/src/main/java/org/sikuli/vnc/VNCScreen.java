@@ -208,6 +208,7 @@ public class VNCScreen extends Region implements IScreen {
     if (!isRunning()) {
       return null;
     }
+    client.refreshFramebuffer();
     BufferedImage image = client.getFrameBuffer(x, y, w, h);
     ScreenImage img = new ScreenImage(
             new Rectangle(x, y, w, h),
@@ -281,6 +282,43 @@ public class VNCScreen extends Region implements IScreen {
     }
 
     return simg;
+  }
+
+  public void waitForScreenStable() {
+    waitForScreenStable(5, 500);
+  }
+
+  public void waitForScreenStable(int maxRetries, int waitMs) {
+    if (!isRunning()) {
+      return;
+    }
+    BufferedImage prev = null;
+    for (int i = 0; i < maxRetries; i++) {
+      client.refreshFramebuffer();
+      this.wait((double) waitMs / 1000.0);
+      Rectangle bounds = getBounds();
+      BufferedImage current = client.getFrameBuffer(bounds.x, bounds.y, bounds.width, bounds.height);
+      if (prev != null && imagesEqual(prev, current)) {
+        Debug.log(3, "VNCScreen: waitForScreenStable: stable after %d iterations", i + 1);
+        return;
+      }
+      prev = current;
+    }
+    Debug.log(3, "VNCScreen: waitForScreenStable: not stable after %d iterations", maxRetries);
+  }
+
+  private boolean imagesEqual(BufferedImage a, BufferedImage b) {
+    if (a.getWidth() != b.getWidth() || a.getHeight() != b.getHeight()) {
+      return false;
+    }
+    for (int y = 0; y < a.getHeight(); y++) {
+      for (int x = 0; x < a.getWidth(); x++) {
+        if (a.getRGB(x, y) != b.getRGB(x, y)) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   public VNCClient getClient() {

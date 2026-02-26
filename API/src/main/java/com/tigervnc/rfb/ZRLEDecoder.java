@@ -30,9 +30,10 @@ public class ZRLEDecoder extends Decoder {
   public void readRect(Rect r, CMsgHandler handler) {
     InStream is = reader.getInStream();
     int[] buf = reader.getImageBuf(64 * 64 * 4);
-    int bpp = handler.cp.pf().bpp;
-    int bytesPerPixel = (bpp > 24 ? 3 : bpp / 8);
-    boolean bigEndian = handler.cp.pf().bigEndian;
+    PixelFormat pf = handler.cp.pf();
+    int bpp = pf.bpp;
+    int bytesPerPixel = pf.is888() ? 3 : bpp / 8;
+    boolean bigEndian = pf.bigEndian;
 
     int length = is.readU32();
     zis.setUnderlying(is, length);

@@ -125,6 +125,15 @@ abstract public class InStream {
     byte[] pix = new byte[4];
     readBytes(pix, 0, bytesPerPixel);
 
+    if (bytesPerPixel == 4) {
+      if (bigEndian) {
+        return (pix[0] & 0xff) << 24 | (pix[1] & 0xff) << 16 | (pix[2] & 0xff) << 8 | (pix[3] & 0xff);
+      } else {
+        return (pix[3] & 0xff) << 24 | (pix[2] & 0xff) << 16 | (pix[1] & 0xff) << 8 | (pix[0] & 0xff);
+      }
+    }
+
+    // 3-byte CPIXEL (or 1/2 byte)
     if (bigEndian) {
       return 0xff000000 | (pix[0] & 0xff)<<16 | (pix[1] & 0xff)<<8 | (pix[2] & 0xff);
     } else {
@@ -139,7 +148,13 @@ abstract public class InStream {
     for (int i = 0; i < length; i++) {
       byte[] pix = new byte[4];
       System.arraycopy(pixels, i*bytesPerPixel, pix, 0, bytesPerPixel);
-      if (bigEndian) {
+      if (bytesPerPixel == 4) {
+        if (bigEndian) {
+          buf[i] = (pix[0] & 0xff) << 24 | (pix[1] & 0xff) << 16 | (pix[2] & 0xff) << 8 | (pix[3] & 0xff);
+        } else {
+          buf[i] = (pix[3] & 0xff) << 24 | (pix[2] & 0xff) << 16 | (pix[1] & 0xff) << 8 | (pix[0] & 0xff);
+        }
+      } else if (bigEndian) {
         buf[i] = 0xff000000 | (pix[0] & 0xff)<<16 | (pix[1] & 0xff)<<8 | (pix[2] & 0xff);
       } else {
         buf[i] = 0xff000000 | (pix[2] & 0xff)<<16 | (pix[1] & 0xff)<<8 | (pix[0] & 0xff);

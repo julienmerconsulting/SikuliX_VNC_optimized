@@ -179,7 +179,7 @@ public class TightDecoder extends Decoder {
         if (cutZeros) {
           serverpf.bufferFromRGB(buf, ptr, netbuf, srcPtr, w*h);
         } else {
-          int pixelSize = (bpp >= 24) ? 3 : bpp/8;
+          int pixelSize = serverpf.bpp / 8;
           while (h > 0) {
             for (int i = 0; i < w; i++) {
               if (bpp == 8) {

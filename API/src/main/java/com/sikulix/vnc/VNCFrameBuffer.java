@@ -27,6 +27,10 @@ class VNCFrameBuffer extends PixelBuffer {
     return db;
   }
 
+  public PixelFormat getPixelFormat() {
+    return pixelFormat;
+  }
+
   public VNCFrameBuffer(int width, int height, PixelFormat serverPF) {
     PixelFormat nativePF = this.getNativePF();
     if (nativePF.depth > serverPF.depth) {

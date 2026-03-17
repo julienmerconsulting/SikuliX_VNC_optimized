@@ -62,7 +62,7 @@ public class TesseractEngine implements OCREngine {
     /**
      * Perform Tesseract OCR using reflection to avoid hard dependency on SikuliX OCR classes.
      */
-    private String recognizeWithTesseract(BufferedImage image) {
+    private String recognizeWithTesseract( BufferedImage image) {
         long startTime = System.currentTimeMillis();
 
         try {
@@ -73,7 +73,7 @@ public class TesseractEngine implements OCREngine {
             java.lang.reflect.Method readWordsMethod = null;
             for (java.lang.reflect.Method m : ocrClass.getMethods()) {
                 if (m.getName().equals("readWords") && m.getParameterCount() == 1
-                        && m.getParameterTypes()[0] == BufferedImage.class) {
+                        && m.getParameterTypes()[0] == Object.class) {
                     readWordsMethod = m;
                     break;
                 }
@@ -84,7 +84,7 @@ public class TesseractEngine implements OCREngine {
                 java.lang.reflect.Method readTextMethod = null;
                 for (java.lang.reflect.Method m : ocrClass.getMethods()) {
                     if (m.getName().equals("readText") && m.getParameterCount() == 1
-                            && m.getParameterTypes()[0] == BufferedImage.class) {
+                            && m.getParameterTypes()[0] == Object.class) {
                         readTextMethod = m;
                         break;
                     }
@@ -111,9 +111,13 @@ public class TesseractEngine implements OCREngine {
             SikuliLogger.warn("[Tesseract] org.sikuli.script.OCR not found, trying Tess4J directly");
             return recognizeWithTess4J(image, startTime);
         } catch (Exception e) {
-            SikuliLogger.error("[Tesseract] Reflection call failed: " + e.getMessage());
-            return createErrorJson("Tesseract reflection error: " + e.getMessage());
+            SikuliLogger.error("[Tesseract] Reflection call failed: " + e.getClass().getName() + ": " + e.getMessage());
+            if (e.getCause() != null) {
+                SikuliLogger.error("[Tesseract] Cause: " + e.getCause().getClass().getName() + ": " + e.getCause().getMessage());
+            }
+            return createErrorJson("Tesseract reflection error: " + e.getClass().getSimpleName() + " - " + e.getCause());
         }
+
     }
 
     /**

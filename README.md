@@ -30,6 +30,34 @@
 </div>
 
 ---
+## ⚔️ Why OculiX beats everything else
+
+<img src="https://community.appinventor.mit.edu/uploads/default/original/3X/2/a/2ad031bc25a55c4d3f55ff5ead8b2de63cdf28bf.png" width="20"/> **Google Vision API?**  
+Tells you what's on screen. Can't click it.
+
+<img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTBdcgkdcDy5z4PYGx_kDJB1AvvC_x1pCBbbQ&s" width="20"/>  **GPT-4o vision?**  
+Describes your UI beautifully. Can't touch it.
+
+<img src="https://avatars.githubusercontent.com/u/192012301?s=200&v=4" width="20"/>  **Browser Use / Claude Computer Use?**  
+Browser only. Needs a DOM. Fails on native apps.
+
+<img src="https://www.logiciels.pro/wp-content/uploads/2025/03/appium-avis-prix-fonctionnalites-alternatives.webp" width="20"/> **Appium?**  
+Requires accessibility, XPath, a server… and a PhD.
+
+<img src="https://raw.githubusercontent.com/RaiMan/SikuliX1/master/Support/sikulix-red.png" width="50"/> **SikuliX?**  
+Archived. Dead. March 3, 2026.
+
+---
+
+👁️⚡ **OculiX:**
+- Sees the screen. Clicks it. Types. Swipes. Scrolls.
+- Desktop. Android. VNC remote. Kiosk. POS. Legacy 1998 apps.
+- No API. No DOM. No selectors. No cloud. No bullshit.
+
+**If a human can see it — OculiX can automate it.**
+
+💰 **Price: €0. Forever.**
+
 
 ## ⚡ What OculiX adds over SikuliX
 

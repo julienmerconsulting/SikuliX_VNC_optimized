@@ -9,6 +9,10 @@ import org.sikuli.android.ADBScreen;
 import org.sikuli.basics.*;
 import org.sikuli.natives.WinUtil;
 import org.sikuli.script.*;
+import org.sikuli.support.FileManager;
+import org.sikuli.support.Observing;
+import org.sikuli.support.devices.RobotDesktop;
+import org.sikuli.support.devices.ScreenDevice;
 import org.sikuli.script.runnerSupport.JythonSupport;
 import org.sikuli.script.runners.ProcessRunner;
 import org.sikuli.support.runner.IRunner;
@@ -244,10 +248,9 @@ public class RunTime {
     if (isQuiet()) {
       Debug.quietOn();
     } else if (isVerbose()) {
-      Debug.setWithTimeElapsed(RunTime.getElapsedStart());
-      Debug.setGlobalDebug(3);
-      Debug.globalTraceOn();
-      Debug.setStartWithTrace();
+      Debug.startTimer();
+      Debug.setDebugLevel(3);
+      Debug.globalDebugOn();
     }
 
     if (!getLogFile().isEmpty()) {
@@ -344,7 +347,7 @@ public class RunTime {
       startLog(-1, "Did not find any valid option on command line!");
       cmdLineValid = false;
     } else {
-      setArgs(cmdArgs.getUserArgs(), cmdArgs.getSXArgs());
+      setArgs(cmdArgs.getUserArgs(), new String[0]);
     }
 
     if (cmdLineValid && cmdLine.hasOption("h")) {
@@ -621,10 +624,8 @@ public class RunTime {
   public static void setVerbose() {
     RunTime.verbose = true;
     Debug.setDebugLevel(3);
-    Debug.setWithTimeElapsed(RunTime.getElapsedStart());
-    Debug.setGlobalDebug(3);
-    Debug.globalTraceOn();
-    Debug.setStartWithTrace();
+    Debug.startTimer();
+    Debug.globalDebugOn();
   }
 
   private static boolean verbose = false;
@@ -866,7 +867,7 @@ public class RunTime {
     runTime.fSikulixStore = Commons.getAppDataStore();
     //</editor-fold>
 
-    sxOptions = Options.init(runTime);
+    sxOptions = Options.create();
     optTesting = sxOptions.isOption("testing", false);
     if (optTesting) {
       Debug.info("Options: testing = on");
@@ -878,7 +879,7 @@ public class RunTime {
       Debug.on(optDebugLevel);
     }
 
-    Settings.init(runTime); // force Settings initialization
+    // force Settings initialization (static class, no init needed)
 
     //TODO addShutdownHook
     hasDoneCleanUpTerminating = false;
@@ -917,14 +918,16 @@ public class RunTime {
   //</editor-fold>
 
   public Rectangle getMonitor(int n) {
-    if (Screen.isHeadless()) {
+    if (ScreenDevice.isHeadless()) {
       return new Rectangle();
     }
-    return Screen.getMonitor(n);
+    ScreenDevice sd = ScreenDevice.get(n);
+    return sd != null ? sd.asRectangle() : new Rectangle();
   }
 
   public Rectangle hasPoint(Point aPoint) {
-    return Screen.hasPoint(aPoint);
+    ScreenDevice sd = ScreenDevice.getScreenDeviceForPoint(aPoint);
+    return sd != null ? sd.asRectangle() : null;
   }
 
 
@@ -1052,7 +1055,7 @@ public class RunTime {
       String baseJarName = fSxBaseJar.getName();
       fSxBase = fSxBaseJar.getParentFile();
       log(4, "runningAs: %s (%s) in: %s", runningAs, baseJarName, fSxBase.getAbsolutePath());
-      Debug.setWithTimeElapsed();
+      Debug.startTimer();
       if (baseJarName.contains("classes")) {
         runningJar = false;
         fSxProject = fSxBase.getParentFile().getParentFile();
@@ -1179,9 +1182,9 @@ public class RunTime {
 
   private static void runShutdownHook() {
     isTerminating = true;
-    if (Debug.isStartWithTrace()) {
+    if (Debug.isGlobalDebug()) {
       Debug.on(3);
-      Debug.globalTraceOn();
+      Debug.globalDebugOn();
     }
     runTime.log(runTime.lvl, "***** final cleanup at System.exit() *****");
     cleanUp();

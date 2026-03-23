@@ -54,7 +54,7 @@ public class PythonRunner extends AbstractLocalFileScriptRunner {
     if (!isSupported()) {
       return -1;
     }
-    if (Debug.isGlobalTrace()) {
+    if (Debug.isGlobalDebug()) {
       Debug.setDebugLevel(3);
     }
 //    RunTime.startPythonServer();

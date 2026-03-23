@@ -272,8 +272,8 @@ public abstract class AbstractRunner implements IRunner {
     codeAfter.addAll(Arrays.asList(stmts));
   }
 
-  static ArrayList<String> codeBefore = null;
-  static ArrayList<String> codeAfter = null;
+  protected static ArrayList<String> codeBefore = null;
+  protected static ArrayList<String> codeAfter = null;
 
   public final boolean isRunning() {
     return running;

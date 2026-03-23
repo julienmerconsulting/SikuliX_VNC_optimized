@@ -11,16 +11,21 @@ import org.sikuli.script.Region;
 import org.sikuli.script.ScreenImage;
 import org.sikuli.support.devices.IRobot;
 import org.sikuli.support.devices.IScreen;
+import org.sikuli.support.devices.ScreenDevice;
+import org.sikuli.util.EventObserver;
+import org.sikuli.util.EventSubject;
 import org.sikuli.util.OverlayCapturePrompt;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public class VNCScreen extends Region implements IScreen {
+public class VNCScreen extends Region implements IScreen, EventObserver {
   private VNCClient client;
   private IRobot robot;
   private ScreenImage lastScreenImage;
@@ -286,7 +291,6 @@ public class VNCScreen extends Region implements IScreen {
     return 0;
   }
 
-  @Override
   public int getIdFromPoint(int srcx, int srcy) {
     return 0;
   }
@@ -305,82 +309,50 @@ public class VNCScreen extends Region implements IScreen {
     return lastScreenImage;
   }
 
+  private AtomicBoolean userCaptureActive = new AtomicBoolean(false);
+  private BufferedImage capturedImage = null;
+  private Rectangle capturedRectangle = null;
+
   @Override
   public ScreenImage userCapture(final String msg) {
     if (!isRunning()) {
       return null;
     }
 
-    final OverlayCapturePrompt prompt = new OverlayCapturePrompt(this);
-
+    userCaptureActive.set(true);
+    capturedImage = null;
     Thread th = new Thread() {
       @Override
       public void run() {
-        prompt.prompt(msg);
+        String message = (msg == null || msg.isEmpty()) ? "Select a region on the screen" : msg;
+        userCaptureActive.set(OverlayCapturePrompt.capturePrompt(VNCScreen.this, message));
       }
     };
-
     th.start();
 
-    boolean hasShot = false;
-    ScreenImage simg = null;
-    int count = 0;
-    while (!hasShot) {
-      this.wait(0.1f);
-      if (count++ > 300) {
-        break;
-      }
-      if (prompt.isComplete()) {
-        simg = prompt.getSelection();
-        if (simg != null) {
-          lastScreenImage = simg;
-        }
-        hasShot = true;
-        prompt.close();
-      }
+    while (userCaptureActive.get()) {
+      this.wait(0.5f);
     }
-    if (!hasShot) {
-      prompt.close();
+    if (capturedImage != null) {
+      ScreenImage simg = new ScreenImage(capturedRectangle, capturedImage);
+      lastScreenImage = simg;
+      return simg;
     }
-
-    return simg;
+    return null;
   }
 
-  public void waitForScreenStable() {
-    waitForScreenStable(5, 500);
-  }
-
-  public void waitForScreenStable(int maxRetries, int waitMs) {
-    if (!isRunning()) {
-      return;
-    }
-    BufferedImage prev = null;
-    for (int i = 0; i < maxRetries; i++) {
-      client.refreshFramebuffer();
-      this.wait((double) waitMs / 1000.0);
-      Rectangle bounds = getBounds();
-      BufferedImage current = client.getFrameBuffer(bounds.x, bounds.y, bounds.width, bounds.height);
-      if (prev != null && imagesEqual(prev, current)) {
-        Debug.log(3, "VNCScreen: waitForScreenStable: stable after %d iterations", i + 1);
-        return;
-      }
-      prev = current;
-    }
-    Debug.log(3, "VNCScreen: waitForScreenStable: not stable after %d iterations", maxRetries);
-  }
-
-  private boolean imagesEqual(BufferedImage a, BufferedImage b) {
-    if (a.getWidth() != b.getWidth() || a.getHeight() != b.getHeight()) {
-      return false;
-    }
-    for (int y = 0; y < a.getHeight(); y++) {
-      for (int x = 0; x < a.getWidth(); x++) {
-        if (a.getRGB(x, y) != b.getRGB(x, y)) {
-          return false;
-        }
+  @Override
+  public void update(EventSubject event) {
+    OverlayCapturePrompt ocp = (OverlayCapturePrompt) event;
+    if (!ocp.isCanceled()) {
+      capturedImage = ocp.getSelectionImage();
+      if (capturedImage != null) {
+        capturedRectangle = ocp.getSelectionRectangle();
       }
     }
-    return true;
+    ocp.close();
+    ScreenDevice.closeCapturePrompts();
+    userCaptureActive.set(false);
   }
 
   public VNCClient getClient() {
@@ -427,5 +399,19 @@ public class VNCScreen extends Region implements IScreen {
 
   public Region newRegion(Region reg) {
     return newRegion(reg.x, reg.y, reg.w, reg.h);
+  }
+
+  @Override
+  public void waitAfterAction() {
+  }
+
+  @Override
+  public Object action(String action, Object... args) {
+    return null;
+  }
+
+  @Override
+  public String getLastScreenImageFile(String path, String name) throws IOException {
+    return null;
   }
 }

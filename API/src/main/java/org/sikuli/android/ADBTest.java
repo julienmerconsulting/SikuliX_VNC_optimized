@@ -7,7 +7,7 @@ package org.sikuli.android;
 import org.sikuli.basics.Debug;
 import org.sikuli.script.*;
 import org.sikuli.script.Image;
-import org.sikuli.support.RunTime;
+import org.sikuli.support.Commons;
 
 import java.io.File;
 
@@ -73,7 +73,7 @@ public class ADBTest {
     adbs.aSwipeRight();
     adbs.wait(1f);
     ScreenImage sIMg = adbs.userCapture("Android");
-    sIMg.getFile(RunTime.get().fSikulixStore.getAbsolutePath(), "android");
+    sIMg.getFile(Commons.getAppDataStore().getAbsolutePath(), "android");
     if (Debug.getDebugLevel() > 2) {
       saveShot();
     }
@@ -84,8 +84,8 @@ public class ADBTest {
     if (Debug.getDebugLevel() < 3) {
       return;
     }
-    File fShot = new File(RunTime.get().fSikulixStore.getAbsolutePath(), "lastScreenShot.png");
-    File fShotAndroid = new File(RunTime.get().fSikulixStore.getAbsolutePath(), "lastScreenAndroid.png");
+    File fShot = new File(Commons.getAppDataStore().getAbsolutePath(), "lastScreenShot.png");
+    File fShotAndroid = new File(Commons.getAppDataStore().getAbsolutePath(), "lastScreenAndroid.png");
     if (fShotAndroid.exists()) {
       fShotAndroid.delete();
     }
@@ -119,7 +119,7 @@ public class ADBTest {
         int debugLevel = Debug.getDebugLevel();
         Debug.on(3);
         ScreenImage sIMg = aScr.userCapture("AndroidTest");
-        sIMg.getFile(RunTime.get().fSikulixStore.getAbsolutePath(), "android");
+        sIMg.getFile(Commons.getAppDataStore().getAbsolutePath(), "android");
         saveShot();
         Debug.on(debugLevel);
         try {

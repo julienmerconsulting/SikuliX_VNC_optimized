@@ -11,8 +11,10 @@ import org.sikuli.support.devices.IScreen;
 import org.sikuli.util.*;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by Törcsi on 2016. 06. 26.
@@ -29,8 +31,6 @@ public class ADBScreen extends Region implements EventObserver, IScreen {
   private ScreenImage lastScreenImage = null;
   private Rectangle bounds;
 
-  private boolean waitPrompt = false;
-  protected OverlayCapturePrompt prompt;
   private String promptMsg = "Select a region on the screen";
   private static int waitForScreenshot = 300;
 
@@ -156,8 +156,16 @@ public class ADBScreen extends Region implements EventObserver, IScreen {
   }
 
   @Override
-  public void update(EventSubject s) {
-    waitPrompt = false;
+  public void update(EventSubject event) {
+    OverlayCapturePrompt ocp = (OverlayCapturePrompt) event;
+    if (!ocp.isCanceled()) {
+      capturedImage = ocp.getSelectionImage();
+      if (capturedImage != null) {
+        capturedRectangle = ocp.getSelectionRectangle();
+      }
+    }
+    ocp.close();
+    userCaptureActive.set(false);
   }
 
   @Override
@@ -213,49 +221,37 @@ public class ADBScreen extends Region implements EventObserver, IScreen {
   }
 
   private EventObserver captureObserver = null;
+  private AtomicBoolean userCaptureActive = new AtomicBoolean(false);
+  private BufferedImage capturedImage = null;
+  private Rectangle capturedRectangle = null;
 
   @Override
   public ScreenImage userCapture(final String msg) {
     if (robot == null) {
       return null;
     }
-    waitPrompt = true;
+    userCaptureActive.set(true);
+    capturedImage = null;
     Thread th = new Thread() {
       @Override
       public void run() {
-        prompt = new OverlayCapturePrompt(ADBScreen.this);
-        prompt.prompt(msg);
+        String message = msg.isEmpty() ? promptMsg : msg;
+        userCaptureActive.set(OverlayCapturePrompt.capturePrompt(ADBScreen.this, message));
       }
     };
 
     th.start();
 
-    ScreenImage simg = null;
-    int count = 0;
-    while (true) {
-      this.wait(0.1f);
-      if (count++ > waitForScreenshot) {
-        break;
-      }
-      if (prompt == null) {
-        continue;
-      }
-      if (prompt.isComplete()) {
-        simg = prompt.getSelection();
-        if (simg != null) {
-          lastScreenImage = simg;
-        }
-        break;
-      }
+    while (userCaptureActive.get()) {
+      this.wait(0.5f);
     }
-    if (null != prompt) {
-      prompt.close();
-      prompt = null;
+    if (capturedImage != null) {
+      lastScreenImage = new ScreenImage(capturedRectangle, capturedImage);
+      return lastScreenImage;
     }
-    return simg;
+    return null;
   }
 
-  @Override
   public int getIdFromPoint(int srcx, int srcy) {
     return 0;
   }
@@ -301,5 +297,10 @@ public class ADBScreen extends Region implements EventObserver, IScreen {
   @Override
   public Location newLocation(Location loc) {
     return new Location(loc).setOtherScreen(this);
+  }
+
+  @Override
+  public Object action(String action, Object... args) {
+    return null;
   }
 }

@@ -6,6 +6,7 @@ package org.sikuli.script.runners;
 
 import java.io.File;
 
+import org.sikuli.support.Commons;
 import org.sikuli.support.FileManager;
 import org.sikuli.support.runner.IRunner;
 import org.sikuli.support.RunTime;
@@ -17,7 +18,6 @@ public class AppleScriptRunner extends AbstractLocalFileScriptRunner {
   public static final String[] EXTENSIONS = new String[] {"script"};
 
   private static final int LVL = 3;
-  private static final RunTime RUN_TIME = RunTime.get();
 
   @Override
   protected int doEvalScript(String script, IRunner.Options options) {
@@ -31,9 +31,9 @@ public class AppleScriptRunner extends AbstractLocalFileScriptRunner {
 
     if (retcode != 0) {
       if (options != null && options.isSilent()) {
-        log(LVL, "AppleScript:\n%s\nreturned:\n%s", script, RUN_TIME.getLastCommandResult());
+        log(LVL, "AppleScript:\n%s\nreturned:\n%s", script, RunTime.getLastCommandResult());
       } else {
-        log(-1, "AppleScript:\n%s\nreturned:\n%s", script, RUN_TIME.getLastCommandResult());
+        log(-1, "AppleScript:\n%s\nreturned:\n%s", script, RunTime.getLastCommandResult());
       }
     }
     return retcode;
@@ -43,7 +43,7 @@ public class AppleScriptRunner extends AbstractLocalFileScriptRunner {
   protected int doRunScript(String scriptFile, String[] scriptArgs, IRunner.Options options) {
     String prefix = options != null && options.isSilent() ? "!" : "";
 
-    String retVal = RUN_TIME.runcmd(new String[]{prefix + new File(scriptFile).getAbsolutePath()});
+    String retVal = RunTime.runcmd(new String[]{prefix + new File(scriptFile).getAbsolutePath()});
     String[] parts = retVal.split("\n");
     int retcode = -1;
     try {
@@ -55,7 +55,7 @@ public class AppleScriptRunner extends AbstractLocalFileScriptRunner {
 
   @Override
   public boolean isSupported() {
-    return RunTime.get().runningMac;
+    return Commons.runningMac();
   }
 
   @Override

@@ -6,8 +6,8 @@ package org.sikuli.script.runners;
 import org.sikuli.basics.Debug;
 import org.sikuli.script.Sikulix;
 import org.sikuli.script.runnerSupport.JythonSupport;
+import org.sikuli.support.Commons;
 import org.sikuli.support.runner.IRunner;
-import org.sikuli.support.RunTime;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -24,8 +24,6 @@ public class JythonRunner extends AbstractLocalFileScriptRunner {
   public static final String NAME = "Jython";
   public static final String TYPE = "text/jython";
   public static final String[] EXTENSIONS = new String[]{"py"};
-
-  private static RunTime runTime = RunTime.get();
 
   private int lvl = 3;
 
@@ -86,7 +84,7 @@ public class JythonRunner extends AbstractLocalFileScriptRunner {
 
       jythonSupport = JythonSupport.get();
       jythonSupport.getSysPath();
-      String fpAPILib = runTime.fSikulixLib.getAbsolutePath();
+      String fpAPILib = Commons.getLibFolder().getAbsolutePath();
       jythonSupport.putSysPath(fpAPILib, 0);
       jythonSupport.setSysPath();
       jythonSupport.addSitePackages();
@@ -97,9 +95,8 @@ public class JythonRunner extends AbstractLocalFileScriptRunner {
       if (interpreterVersion.isEmpty()) {
         interpreterVersion = "could not be evaluated";
       }
-      Debug.setWithTimeElapsed();
+      Debug.startTimer();
       log(lvl, "ready: version %s", interpreterVersion);
-      Debug.unsetWithTimeElapsed();
     }
   }
 

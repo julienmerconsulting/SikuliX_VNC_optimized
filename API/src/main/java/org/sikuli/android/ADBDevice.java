@@ -8,6 +8,7 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.sikuli.basics.Debug;
+import org.sikuli.support.Commons;
 import org.sikuli.support.FileManager;
 import org.sikuli.support.RunTime;
 import org.sikuli.script.ScreenImage;
@@ -32,7 +33,7 @@ public class ADBDevice {
 
 /*
   static {
-    RunTime.loadLibrary(RunTime.libOpenCV);
+    Commons.loadOpenCV();
   }
 */
 
@@ -79,7 +80,7 @@ public class ADBDevice {
       } else {
         adbDevice.initDevice(adbDevice);
         adbDevice.adbExec = ADBClient.getADB();
-        RunTime.loadLibrary(RunTime.libOpenCV);
+        Commons.loadOpenCV();
       }
     }
     return adbDevice;
@@ -93,7 +94,7 @@ public class ADBDevice {
       } else {
         adbDevice.initDevice(adbDevice);
         adbDevice.adbExec = ADBClient.getADB();
-        RunTime.loadLibrary(RunTime.libOpenCV);
+        Commons.loadOpenCV();
       }
     return adbDevice;
   }
@@ -372,7 +373,7 @@ public class ADBDevice {
   public String printDump() {
     String dump = dumpsys("all");
     if (!dump.isEmpty()) {
-      File out = new File(RunTime.get().fSikulixStore, "android_dump_" + getDeviceSerial() + ".txt");
+      File out = new File(Commons.getAppDataStore(), "android_dump_" + getDeviceSerial() + ".txt");
       System.out.println("***** Android device dump all services");
       System.out.println("written to file: " + out.getAbsolutePath());
       FileManager.writeStringToFile(dump, out);

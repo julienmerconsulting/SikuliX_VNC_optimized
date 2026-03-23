@@ -6,7 +6,7 @@ package org.sikuli.script.runners;
 
 import org.sikuli.support.runner.AbstractRunner;
 
-import org.sikuli.support.RunTime;
+import org.sikuli.support.Commons;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -203,9 +203,8 @@ public class ProcessRunner extends AbstractRunner{
   }
 
   public static boolean closeApp(List<String> givenCmd) {
-    RunTime runTime = RunTime.get();
     int exitValue = 0;
-    if (runTime.runningWindows) {
+    if (Commons.runningWindows()) {
       List<String> cmd = new ArrayList<>();
       cmd.add("cmd");
       cmd.add("/C");
@@ -239,9 +238,8 @@ public class ProcessRunner extends AbstractRunner{
   }
 
   public static boolean startApp(List<String> givenCmd) {
-    RunTime runTime = RunTime.get();
     int exitValue = 0;
-    if (runTime.runningWindows) {
+    if (Commons.runningWindows()) {
       List<String> cmd = new ArrayList<>();
       cmd.add("cmd");
       cmd.add("/C");

@@ -334,7 +334,7 @@ public class SX {
     } else {
       timeoutJob.cancel(false);
     }
-    timeoutScheduler.shutdown();
+    TIMEOUT_EXECUTOR.shutdown();
     return returnValue;
   }
 

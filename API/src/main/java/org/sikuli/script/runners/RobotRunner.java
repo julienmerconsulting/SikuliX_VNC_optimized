@@ -5,6 +5,7 @@ package org.sikuli.script.runners;
 
 import java.io.File;
 
+import org.sikuli.support.Commons;
 import org.sikuli.support.FileManager;
 import org.sikuli.basics.Settings;
 import org.sikuli.script.App;
@@ -17,8 +18,6 @@ public class RobotRunner extends JythonRunner {
   public static final String NAME = "Robot";
   public static final String TYPE = "text/robot";
   public static final String[] EXTENSIONS = new String[] {"robot"};
-
-  private static final RunTime RUN_TIME = RunTime.get();
 
   @Override
   protected int doEvalScript(String code, IRunner.Options options) {
@@ -74,7 +73,7 @@ public class RobotRunner extends JythonRunner {
                     + "outputdir=\"%s\")", fRobot, fRobotWork);
     File fReport = new File(fRobotWork, "report.html");
     String urlReport = fReport.getAbsolutePath();
-    if (RunTime.get().runningWindows) {
+    if (Commons.runningWindows()) {
       robotCmd = robotCmd.replaceAll("\\\\", "\\\\\\\\");
       urlReport = "/" + urlReport.replaceAll("\\\\", "/");
     }
@@ -89,7 +88,7 @@ public class RobotRunner extends JythonRunner {
 
   @Override
   public boolean isSupported() {
-    File fLibRobot = new File(RunTime.get().fSikulixLib, "robot");
+    File fLibRobot = new File(Commons.getLibFolder(), "robot");
     return fLibRobot.exists();
   }
 

@@ -7,7 +7,6 @@ package org.sikuli.android;
 
 import org.sikuli.basics.Debug;
 import org.sikuli.support.Commons;
-import org.sikuli.support.RunTime;
 import se.vidstige.jadb.AdbServerLauncher;
 import se.vidstige.jadb.JadbConnection;
 import se.vidstige.jadb.JadbDevice;
@@ -36,10 +35,10 @@ public class ADBClient {
     if (jadb == null) {
       if (adbWhereIs == null || adbWhereIs.isEmpty()) {
         adbExec = adbExecBase;
-        if (RunTime.get().runningWindows) {
+        if (Commons.runningWindows()) {
           adbExec += ".exe";
         }
-        File fAdbPath = new File(RunTime.get().fSikulixExtensions, "android/" + adbExec);
+        File fAdbPath = new File(Commons.getExtensionsFolder(), "android/" + adbExec);
         adbFilePath = fAdbPath.getAbsolutePath();
         if (!fAdbPath.exists()) {
           adbPath = System.getenv("sikulixadb");

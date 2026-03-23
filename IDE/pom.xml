@@ -12,7 +12,7 @@
   <artifactId>sikulixide</artifactId>
   <version>3.0.0</version>
 
-  <name>SikuliX IDE</name>
+  <name>Oculix IDE</name>
   <description>... edit and run SikuliX scripts</description>
 
   <url>http://www.sikulix.com</url>

@@ -12,6 +12,7 @@
   <artifactId>sikulix</artifactId>
   <version>3.0.0</version>
 
+  <name>oculix</name>
   <packaging>pom</packaging>
   
   <modules>

@@ -37,6 +37,16 @@ public class ADBScreen extends Region implements EventObserver, IScreen {
   public boolean needsUnLock = false;
   public int waitAfterAction = 1;
 
+  @Override
+  public void waitAfterAction() {
+    if (waitAfterAction > 0) {
+      try {
+        Thread.sleep(waitAfterAction);
+      } catch (InterruptedException e) {
+      }
+    }
+  }
+
   //---------------------------Inits
   private ADBDevice device = null;
   private static ADBScreen screen = null;

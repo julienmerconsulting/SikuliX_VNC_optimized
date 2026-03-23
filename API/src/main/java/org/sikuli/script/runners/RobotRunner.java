@@ -81,7 +81,10 @@ public class RobotRunner extends JythonRunner {
             String.format("print \"robot.run output is here:\\n%s\";",
             fRobotWork.getAbsolutePath().replaceAll("\\\\", "\\\\\\\\")));
     if (showReport && new File(fRobotWork, "report.html").exists()) {
-      App.openLink("file:" + urlReport);
+      try {
+        java.awt.Desktop.getDesktop().browse(new java.net.URL("file:" + urlReport).toURI());
+      } catch (Exception ex) {
+      }
     }
     return 0;
   }

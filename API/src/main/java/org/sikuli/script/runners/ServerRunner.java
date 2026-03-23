@@ -74,7 +74,7 @@ public class ServerRunner extends AbstractRunner {
 
   public static boolean run() {
     String userArgs = "";
-    for (String userArg : RunTime.getUserArgs()) {
+    for (String userArg : Commons.getUserArgs()) {
       userArgs += userArg + " ";
     }
     if (!userArgs.isEmpty()) {

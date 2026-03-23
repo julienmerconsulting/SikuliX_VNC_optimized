@@ -1103,39 +1103,22 @@ public class Commons {
   private static String libOpenCVresname = "opencv/%s/x86_64/";
   private static boolean libOpenCVloaded = false;
 
-  public static void loadOpenCV() {
-    if (!libOpenCVloaded) {
-      String libFileName = libOpenCV;
-      String resName = libOpenCVresname;
-      Class classRef = null;
-      try {
-        classRef = Class.forName(libOpenCVclassref);
-      } catch (ClassNotFoundException e) {
-        RunTime.terminate(999, "Commons.loadLib: %s: load failed",
-                resName + "::" + libFileName);
-      }
-      if (Commons.runningWindows()) {
-        libFileName += ".dll";
-        resName = String.format(resName, "windows");
-      } else if (Commons.runningMac()) {
-        libFileName = "lib" + libOpenCV + ".dylib";
-        resName = String.format(resName, "osx");
-      } else if (Commons.runningLinux()) {
-        libFileName = "lib" + libOpenCV + ".so";
-        resName = String.format(resName, "linux");
-      }
-      if (doLoadLib(classRef, resName, libFileName)) {
-        libOpenCVloaded = true;
-      }
-    }
-  }
+public static void loadOpenCV() {
+    // opencv géré par Apertix/JNA
+    libOpenCVloaded = true;
+}
 
   private static final String jarLibsPath = "/sikulixlibs/";
   private static List<String> libsLoaded = new ArrayList<>();
   public static final String LIB_JXGRABKEY = "JXGrabKey";
 
-  public static boolean loadLib(String libName) {
+public static boolean loadLib(String libName) {
     if (!libsLoaded.contains(libName)) {
+      // opencv géré par Apertix/JNA - skip chargement natif
+      if (libName.startsWith("opencv_java")) {
+        libsLoaded.add(libName);
+        return true;
+      }
       String libFileName = libName;
       if (Commons.runningWindows()) {
         libFileName += ".dll";

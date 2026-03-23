@@ -243,17 +243,12 @@ public class ADBDevice {
                 endOfStream = true;
               }
             }
-            if (!endOfStream) {
-              if (pixel[3] == -1) {
-                if (npr >= y && npc >= x && npc < maxC) {
-                  image[atImage++] = pixel[0];
-                  image[atImage++] = pixel[1];
-                  image[atImage++] = pixel[2];
-                  image[atImage++] = pixel[3];
-                }
-              } else {
-                log(-1, "buffer problem: %d", nPixels);
-                return null;
+	    if (!endOfStream) {
+              if (npr >= y && npc >= x && npc < maxC) {
+                image[atImage++] = pixel[0];
+                image[atImage++] = pixel[1];
+                image[atImage++] = pixel[2];
+                image[atImage++] = pixel[3];
               }
             } else {
               break;
@@ -318,22 +313,28 @@ public class ADBDevice {
     return null;
   }
 
-  private Dimension getDisplayDimension() {
+private Dimension getDisplayDimension() {
     String dump = dumpsys("display");
-    String token = "mDefaultViewport= ... deviceWidth=1200, deviceHeight=1920}";
     Dimension dim = null;
-    Pattern displayDimension = Pattern.compile(
-            "mDefaultViewport.*?=.*?deviceWidth=(\\d*).*?deviceHeight=(\\d*)");
-    Matcher match = displayDimension.matcher(dump);
+    // Android < 12
+    Pattern p1 = Pattern.compile(
+        "mDefaultViewport.*?deviceWidth=(\\d+).*?deviceHeight=(\\d+)");
+    // Android 12+
+    Pattern p2 = Pattern.compile(
+        "deviceWidth=(\\d+).*?deviceHeight=(\\d+)");
+    Matcher match = p1.matcher(dump);
+    if (!match.find()) {
+        match = p2.matcher(dump);
+    }
     if (match.find()) {
-      int w = Integer.parseInt(match.group(1));
-      int h = Integer.parseInt(match.group(2));
-      dim = new Dimension(w, h);
+        int w = Integer.parseInt(match.group(1));
+        int h = Integer.parseInt(match.group(2));
+        dim = new Dimension(w, h);
     } else {
-      log(-1, "getDisplayDimension: dumpsys display: token not found: %s", token);
+        log(-1, "getDisplayDimension: could not detect device dimensions");
     }
     return dim;
-  }
+}
 
   public String exec(String command, String... args) {
     String out = "";

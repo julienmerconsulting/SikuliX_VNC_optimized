@@ -76,10 +76,10 @@
       <version>2.3.1</version>
     </dependency>
     <dependency>
-      <groupId>org.openpnp</groupId>
+      <groupId>io.github.julienmerconsulting.apertix</groupId>
       <artifactId>opencv</artifactId>
-      <version>4.5.4-0</version>
-      <!-- https://github.com/openpnp/opencv -->
+      <version>4.10.0-0</version>
+      <!-- https://github.com/julienmerconsulting/Apertix -->
     </dependency>
     <dependency>
       <groupId>commons-cli</groupId>

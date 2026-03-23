@@ -21,3 +21,6 @@ original/
 *.java.ignore
 .DS_Store
 native/
+*.class 
+Test*.java 
+*.txt 

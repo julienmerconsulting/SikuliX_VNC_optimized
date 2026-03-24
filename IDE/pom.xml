@@ -40,8 +40,18 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- language runtimes -->
     <sikulixjythonversion>2.7.2</sikulixjythonversion>
     <sikulixjrubyversion>9.2.11.1</sikulixjrubyversion>
+    <!-- dependency versions -->
+    <jackson.version>2.18.3</jackson.version>
+    <undertow.version>2.3.18.Final</undertow.version>
+    <commons-io.version>2.18.0</commons-io.version>
+    <mac-widgets.version>0.9.5</mac-widgets.version>
+    <swing-layout.version>1.0.3</swing-layout.version>
+    <!-- plugin versions -->
+    <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+    <maven-assembly-plugin.version>3.7.1</maven-assembly-plugin.version>
   </properties>
 
   <dependencies>
@@ -64,32 +74,32 @@
     <dependency>
       <groupId>com.explodingpixels</groupId>
       <artifactId>mac_widgets</artifactId>
-      <version>0.9.5</version>
+      <version>${mac-widgets.version}</version>
     </dependency>
     <dependency>
       <groupId>org.swinglabs</groupId>
       <artifactId>swing-layout</artifactId>
-      <version>1.0.3</version>
+      <version>${swing-layout.version}</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
-      <version>2.18.3</version>
+      <version>${jackson.version}</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <version>2.18.3</version>
+      <version>${jackson.version}</version>
     </dependency>
     <dependency>
       <groupId>io.undertow</groupId>
       <artifactId>undertow-core</artifactId>
-      <version>2.3.18.Final</version>
+      <version>${undertow.version}</version>
     </dependency>
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
-      <version>2.18.0</version>
+      <version>${commons-io.version}</version>
     </dependency>
   </dependencies>
 
@@ -104,7 +114,7 @@
         <plugins>
           <plugin>
             <artifactId>maven-assembly-plugin</artifactId>
-            <version>3.1.1</version>
+            <version>${maven-assembly-plugin.version}</version>
             <configuration>
               <archive>
                 <manifest>
@@ -138,7 +148,7 @@
         <plugins>
           <plugin>
             <artifactId>maven-assembly-plugin</artifactId>
-            <version>3.1.1</version>
+            <version>${maven-assembly-plugin.version}</version>
             <configuration>
               <archive>
                 <manifest>
@@ -172,7 +182,7 @@
         <plugins>
           <plugin>
             <artifactId>maven-assembly-plugin</artifactId>
-            <version>3.1.1</version>
+            <version>${maven-assembly-plugin.version}</version>
             <configuration>
               <archive>
                 <manifest>
@@ -206,7 +216,7 @@
         <plugins>
           <plugin>
             <artifactId>maven-assembly-plugin</artifactId>
-            <version>3.1.1</version>
+            <version>${maven-assembly-plugin.version}</version>
             <configuration>
               <archive>
                 <manifest>
@@ -236,7 +246,7 @@
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>${maven-compiler-plugin.version}</version>
         <configuration>
           <source>1.8</source>
           <target>1.8</target>

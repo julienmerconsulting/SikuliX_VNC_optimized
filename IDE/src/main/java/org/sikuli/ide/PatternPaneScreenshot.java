@@ -117,7 +117,7 @@ class PatternPaneScreenshot extends JPanel implements ChangeListener, ComponentL
     sldSimilar.setMajorTickSpacing(10);
     sldSimilar.setPaintTicks(true);
 
-    Hashtable<Integer, JLabel> labelTable = new Hashtable<Integer, JLabel>();
+    Hashtable<Integer, JLabel> labelTable = new Hashtable<>();
     labelTable.put(new Integer(0), new JLabel("00"));
     labelTable.put(new Integer(50), new JLabel("50"));
     labelTable.put(new Integer(100), new JLabel("99"));

@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.net.URISyntaxException;
 import java.security.CodeSource;
 import java.util.regex.Matcher;
@@ -33,13 +34,10 @@ public class Util {
     StringBuilder builder = new StringBuilder();
     String line;
 
-    try {
-      BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8"));
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
       while ((line = reader.readLine()) != null) {
         builder.append(line).append("\n");
       }
-    } finally {
-      stream.close();
     }
 
     return builder.toString();

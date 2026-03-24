@@ -148,8 +148,7 @@ public class Lexer extends Grammar
 			try
 			{
 				File jarFile = new File( Jygments.class.getProtectionDomain().getCodeSource().getLocation().toURI() );
-				JarInputStream jarInputStream = new JarInputStream( new FileInputStream( jarFile ) );
-				try
+				try( JarInputStream jarInputStream = new JarInputStream( new FileInputStream( jarFile ) ) )
 				{
 					for( JarEntry jarEntry = jarInputStream.getNextJarEntry(); jarEntry != null; jarEntry = jarInputStream.getNextJarEntry() )
 					{
@@ -164,10 +163,6 @@ public class Lexer extends Grammar
 									lexerMap.put( filename.substring( filename.lastIndexOf( '.' ) ), lexer );
 						}
 					}
-				}
-				finally
-				{
-					jarInputStream.close();
 				}
 			}
 			catch( URISyntaxException x )

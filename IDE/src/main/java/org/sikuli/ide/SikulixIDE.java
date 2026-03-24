@@ -1063,8 +1063,8 @@ public class SikulixIDE extends JFrame {
     public boolean save() {
       String msg = "";
       boolean success = true;
-      try {
-        pane.write(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF8")));
+      try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
+        pane.write(bw);
         notDirty();
       } catch (IOException e) {
         msg = String.format(" did not work: %s", e.getMessage());
@@ -1079,9 +1079,7 @@ public class SikulixIDE extends JFrame {
     }
 
     public boolean load(File file) {
-      InputStreamReader isr;
-      try {
-        isr = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8);
+      try (InputStreamReader isr = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
         pane.loadContent(isr);
       } catch (Exception ex) {
         log("PaneContext: loadFile: %s ERROR(%s)", file, ex.getMessage());
@@ -1284,9 +1282,7 @@ public class SikulixIDE extends JFrame {
   }
 
   private static void zipDir(File zipDir, File zipFile, String fScript) throws IOException {
-    ZipOutputStream zos = null;
-    try {
-      zos = new ZipOutputStream(new FileOutputStream(zipFile));
+    try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFile))) {
       String[] dirList = zipDir.list();
       byte[] readBuffer = new byte[1024];
       int bytesIn;
@@ -1302,19 +1298,16 @@ public class SikulixIDE extends JFrame {
           } else {
             anEntry = new ZipEntry(f.getName());
           }
-          FileInputStream fis = new FileInputStream(f);
-          zos.putNextEntry(anEntry);
-          while ((bytesIn = fis.read(readBuffer)) != -1) {
-            zos.write(readBuffer, 0, bytesIn);
+          try (FileInputStream fis = new FileInputStream(f)) {
+            zos.putNextEntry(anEntry);
+            while ((bytesIn = fis.read(readBuffer)) != -1) {
+              zos.write(readBuffer, 0, bytesIn);
+            }
           }
-          fis.close();
         }
       }
     } catch (Exception ex) {
-      String msg = "";
-      msg = ex.getMessage() + "";
-    } finally {
-      zos.close();
+      String msg = ex.getMessage() + "";
     }
   }
 

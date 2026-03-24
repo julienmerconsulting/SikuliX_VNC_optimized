@@ -306,16 +306,19 @@ public class GifDecoder {
    */
   public int read(String name) {
     status = STATUS_OK;
+    name = name.trim().toLowerCase();
     try {
-      name = name.trim().toLowerCase();
+      InputStream is;
       if ((name.indexOf("file:") >= 0) ||
         (name.indexOf(":/") > 0)) {
-        URL url = new URL(name);
-        in = new BufferedInputStream(url.openStream());
+        is = new URL(name).openStream();
       } else {
-        in = new BufferedInputStream(new FileInputStream(name));
+        is = new FileInputStream(name);
       }
-      status = read(in);
+      try (BufferedInputStream bis = new BufferedInputStream(is)) {
+        in = bis;
+        status = read(in);
+      }
     } catch (IOException e) {
       status = STATUS_OPEN_ERROR;
     }

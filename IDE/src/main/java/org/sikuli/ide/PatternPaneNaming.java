@@ -181,8 +181,8 @@ class AutoCompleteCombo extends JComboBox {
 
 	public void setHook() {
 		ComboBoxEditor anEditor = this.getEditor();
-		if (anEditor.getEditorComponent() instanceof JTextField) {
-			editor = (JTextField) anEditor.getEditorComponent();
+		if (anEditor.getEditorComponent() instanceof JTextField textField) {
+			editor = textField;
 			editor.setColumns(TXT_FILENAME_LENGTH);
 			editor.addKeyListener(new KeyAdapter() {
 				public void keyReleased(KeyEvent ev) {

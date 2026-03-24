@@ -51,9 +51,8 @@ public class RegexLexer extends Lexer
 			// System.out.println("Text: " + text.substring( pos ));
 			for( Rule rule : new ArrayList<Rule>( state.getRules() ) )
 			{
-				if( rule instanceof PatternRule )
+				if( rule instanceof PatternRule patternRule )
 				{
-					PatternRule patternRule = (PatternRule) rule;
 					// System.out.println( "Trying pattern: " +
 					// rule.getPattern().pattern() );
 					Matcher matcher = patternRule.getPattern().matcher( text );
@@ -67,9 +66,8 @@ public class RegexLexer extends Lexer
 						// rule );
 
 						// Yes, so apply it!
-						if( rule instanceof TokenRule )
+						if( rule instanceof TokenRule tokenRule )
 						{
-							TokenRule tokenRule = (TokenRule) rule;
 							List<TokenType> tokenTypes = tokenRule.getTokenTypes();
 							if( tokenTypes.size() == 1 )
 								// Single token
@@ -100,9 +98,8 @@ public class RegexLexer extends Lexer
 							{
 								for( State nextState : nextStates )
 								{
-									if( nextState instanceof RelativeState )
+									if( nextState instanceof RelativeState relativeState )
 									{
-										RelativeState relativeState = (RelativeState) nextState;
 										if( relativeState.isPush() )
 											// Push
 											stateStack.addLast( state );
@@ -124,9 +121,8 @@ public class RegexLexer extends Lexer
 							 * stateStack.removeLast(); }
 							 */
 						}
-						else if( rule instanceof UsingRule )
+						else if( rule instanceof UsingRule usingRule )
 						{
-							UsingRule usingRule = (UsingRule) rule;
 							// System.err.println( "!!!!!!!" +
 							// rule.getPattern().pattern() );
 							// System.err.println( "!!!!!!!!!!!!!!" +
@@ -144,9 +140,8 @@ public class RegexLexer extends Lexer
 						break;
 					}
 				}
-				else if( rule instanceof SaveRule )
+				else if( rule instanceof SaveRule saveRule )
 				{
-					SaveRule saveRule = (SaveRule) rule;
 					State saveState = saveRule.getState();
 					if( saveState != state )
 					{

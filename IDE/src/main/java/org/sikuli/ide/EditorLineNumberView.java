@@ -325,11 +325,11 @@ public class EditorLineNumberView extends JComponent implements MouseListener {
       Object newValue = evt.getNewValue();
       String propertyName = evt.getPropertyName();
       if ("document".equals(propertyName)) {
-        if (oldValue != null && oldValue instanceof Document) {
-          ((Document) oldValue).removeDocumentListener(this);
+        if (oldValue instanceof Document oldDoc) {
+          oldDoc.removeDocumentListener(this);
         }
-        if (newValue != null && newValue instanceof Document) {
-          ((Document) newValue).addDocumentListener(this);
+        if (newValue instanceof Document newDoc) {
+          newDoc.addDocumentListener(this);
         }
       }
       updateCachedMetrics();

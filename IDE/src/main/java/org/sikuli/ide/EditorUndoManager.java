@@ -55,8 +55,7 @@ public class EditorUndoManager extends AbstractUndoableEdit
 	@Override
    public void undoableEditHappened(UndoableEditEvent e) {
       UndoableEdit edit=e.getEdit();
-      if (edit instanceof AbstractDocument.DefaultDocumentEvent) {
-         AbstractDocument.DefaultDocumentEvent event=(AbstractDocument.DefaultDocumentEvent)edit;
+      if (edit instanceof AbstractDocument.DefaultDocumentEvent event) {
          int start=event.getOffset();
          int len=event.getLength();
          Debug.log(9, "undoableEditHappened " + start + "," + len);

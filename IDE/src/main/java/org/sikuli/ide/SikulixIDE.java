@@ -264,12 +264,12 @@ public class SikulixIDE extends JFrame {
       initMessageArea();
     }
     Debug.log("IDE: creating combined work window");
-    JPanel codePane = new JPanel(new BorderLayout(10, 10));
+    var codePane = new JPanel(new BorderLayout(10, 10));
     codePane.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
     codePane.add(tabs, BorderLayout.CENTER);
 
     Debug.log("IDE: Putting all together");
-    JPanel editPane = new JPanel(new BorderLayout(0, 0));
+    var editPane = new JPanel(new BorderLayout(0, 0));
     mainPane = null;
     if (messageArea != null) {
       if (prefs.getPrefMoreMessage() == PreferencesUser.VERTICAL) {
@@ -1245,7 +1245,7 @@ public class SikulixIDE extends JFrame {
 
   public void exportAsZip() {
     PaneContext context = getActiveContext();
-    SikulixFileChooser chooser = new SikulixFileChooser(SikulixIDE.get());
+    var chooser = new SikulixFileChooser(SikulixIDE.get());
     File file = chooser.export();
     if (file == null) {
       return;
@@ -1433,7 +1433,7 @@ public class SikulixIDE extends JFrame {
   }
 
   private boolean reparseRenameImages(List<Integer> poss, String oldName, String newName) {
-    StringBuilder text = new StringBuilder(getActiveContext().getPane().getText());
+    var text = new StringBuilder(getActiveContext().getPane().getText());
     int lenOld = oldName.length();
     for (int pos : poss) {
       text.replace(pos - lenOld, pos, newName);
@@ -1560,7 +1560,7 @@ public class SikulixIDE extends JFrame {
   }
 
   public void showPreferencesWindow() {
-    PreferencesWin pwin = new PreferencesWin();
+    var pwin = new PreferencesWin();
     pwin.setAlwaysOnTop(true);
     pwin.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
     pwin.setVisible(true);
@@ -1646,7 +1646,7 @@ public class SikulixIDE extends JFrame {
   }
 
   JMenuItem createMenuItem(String name, KeyStroke shortcut, ActionListener listener) {
-    JMenuItem item = new JMenuItem(name);
+    var item = new JMenuItem(name);
     return createMenuItem(item, shortcut, listener);
   }
 
@@ -1960,7 +1960,7 @@ public class SikulixIDE extends JFrame {
             new EditAction(EditAction.SELECT_ALL)));
 
     _editMenu.addSeparator();
-    JMenu findMenu = new JMenu(_I("menuFind"));
+    var findMenu = new JMenu(_I("menuFind"));
     findMenu.setMnemonic(KeyEvent.VK_F);
     findMenu.add(createMenuItem(_I("menuFindFind"),
             KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, scMask),
@@ -2583,32 +2583,40 @@ public class SikulixIDE extends JFrame {
 
     public void openAsk(ActionEvent ae) {
       String title = "SikuliX - Ask a question";
-      String msg = "If you want to ask a question about SikuliX\n%s\n"
-              + "\nplease do the following:"
-              + "\n- after having clicked yes"
-              + "\n   the page on Launchpad should open in your browser."
-              + "\n- You should first check using Launchpad's search funktion,"
-              + "\n   wether similar questions have already been asked."
-              + "\n- If you decide to ask a new question,"
-              + "\n   try to enter a short but speaking title"
-              + "\n- In a new questions's text field first paste using ctrl/cmd-v"
-              + "\n   which should enter the SikuliX version/system/java info"
-              + "\n   that was internally stored in the clipboard before"
-              + "\n\nIf you do not want to ask a question now: click No";
+      String msg = """
+              If you want to ask a question about SikuliX
+              %s
+
+              please do the following:
+              - after having clicked yes
+                 the page on Launchpad should open in your browser.
+              - You should first check using Launchpad's search funktion,
+                 wether similar questions have already been asked.
+              - If you decide to ask a new question,
+                 try to enter a short but speaking title
+              - In a new questions's text field first paste using ctrl/cmd-v
+                 which should enter the SikuliX version/system/java info
+                 that was internally stored in the clipboard before
+
+              If you do not want to ask a question now: click No""";
       askBugOrAnswer(msg, title, "https://answers.launchpad.net/sikuli");
     }
 
     public void openBugReport(ActionEvent ae) {
       String title = "SikuliX - Report a bug";
-      String msg = "If you want to report a bug for SikuliX\n%s\n"
-              + "\nplease do the following:"
-              + "\n- after having clicked yes"
-              + "\n   the page on Launchpad should open in your browser"
-              + "\n- fill in a short but speaking bug title and create the bug"
-              + "\n- in the bug's text field first paste using ctrl/cmd-v"
-              + "\n   which should enter the SikuliX version/system/java info"
-              + "\n   that was internally stored in the clipboard before"
-              + "\n\nIf you do not want to report a bug now: click No";
+      String msg = """
+              If you want to report a bug for SikuliX
+              %s
+
+              please do the following:
+              - after having clicked yes
+                 the page on Launchpad should open in your browser
+              - fill in a short but speaking bug title and create the bug
+              - in the bug's text field first paste using ctrl/cmd-v
+                 which should enter the SikuliX version/system/java info
+                 that was internally stored in the clipboard before
+
+              If you do not want to report a bug now: click No""";
       askBugOrAnswer(msg, title, "https://bugs.launchpad.net/sikuli/+filebug");
     }
 
@@ -2651,7 +2659,7 @@ public class SikulixIDE extends JFrame {
     boolean checkUpdate(boolean isAutoCheck) {
       String ver = "";
       String details;
-      AutoUpdater au = new AutoUpdater();
+      var au = new AutoUpdater();
       PreferencesUser pref = PreferencesUser.get();
       log("being asked to check update");
       int whatUpdate = au.checkUpdate();
@@ -2686,14 +2694,14 @@ public class SikulixIDE extends JFrame {
   private ButtonRecord btnRecord;
 
   private JToolBar initToolbar() {
-    JToolBar toolbar = new JToolBar();
-    JButton btnInsertImage = new ButtonInsertImage();
-    JButton btnSubregion = new ButtonSubregion();
-    JButton btnLocation = new ButtonLocation();
-    JButton btnOffset = new ButtonOffset();
+    var toolbar = new JToolBar();
+    var btnInsertImage = new ButtonInsertImage();
+    var btnSubregion = new ButtonSubregion();
+    var btnLocation = new ButtonLocation();
+    var btnOffset = new ButtonOffset();
 //TODO ButtonShow/ButtonShowIn
-    JButton btnShow = new ButtonShow();
-    JButton btnShowIn = new ButtonShowIn();
+    var btnShow = new ButtonShow();
+    var btnShowIn = new ButtonShowIn();
 
     btnCapture = new ButtonCapture();
     toolbar.add(btnCapture);

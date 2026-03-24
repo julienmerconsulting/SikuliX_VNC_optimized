@@ -661,8 +661,8 @@ public class SikuliEditorKit extends StyledEditorKit {
         AttributeSet attr = element.getAttributes();
         Component comp = StyleConstants.getComponent(attr);
         out.write(comp.toString());
-        if (copiedImgs != null && comp instanceof EditorImageButton) {
-          final String absPath = ((EditorImageButton) comp).getFilename();
+        if (copiedImgs != null && comp instanceof EditorImageButton imgBtn) {
+          final String absPath = imgBtn.getFilename();
           String fname = (new File(absPath)).getName();
           copiedImgs.put(fname, absPath);
           Debug.log(3, "SikuliEditorKit: image: %s",absPath);

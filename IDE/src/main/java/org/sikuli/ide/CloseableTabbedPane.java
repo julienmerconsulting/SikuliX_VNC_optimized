@@ -370,8 +370,8 @@ public class CloseableTabbedPane extends JTabbedPane implements MouseListener,
     // Guaranteed to return a non-null array
     Object[] listeners = listenerList.getListenerList();
     for (Object listener : listeners) {
-      if (listener instanceof CloseableTabbedPaneListener) {
-        boolean tabCanBeClosed = ((CloseableTabbedPaneListener) listener).closeTab(tabIndexToClose);
+      if (listener instanceof CloseableTabbedPaneListener closeListener) {
+        boolean tabCanBeClosed = closeListener.closeTab(tabIndexToClose);
         if (!tabCanBeClosed) {
           closeit = false;
           break;

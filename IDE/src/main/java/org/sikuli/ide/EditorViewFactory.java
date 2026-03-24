@@ -446,8 +446,8 @@ class SyntaxHighlightLabelView extends LabelView {
     if (_fMetrics == null) {
       _fMetrics = g2d.getFontMetrics();
     }
-    Rectangle alloc = (shape instanceof Rectangle)
-            ? (Rectangle) shape : shape.getBounds();
+    Rectangle alloc = (shape instanceof Rectangle rect)
+            ? rect : shape.getBounds();
 
     int sx = alloc.x;
     int sy = alloc.y + alloc.height - _fMetrics.getDescent();
@@ -550,7 +550,7 @@ class ButtonView extends ComponentView {
   @Override
   public void paint(Graphics g, Shape shape) {
     JComponent comp = (JComponent) getComponent();
-    Rectangle alloc = (shape instanceof Rectangle) ? (Rectangle) shape : shape.getBounds();
+    Rectangle alloc = (shape instanceof Rectangle rect) ? rect : shape.getBounds();
   }
 }
 //</editor-fold>

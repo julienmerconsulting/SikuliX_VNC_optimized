@@ -114,7 +114,7 @@ public class EditorPane extends JTextPane {
     }
 
     if (paneType != null) {
-      SikuliEditorKit editorKit = new SikuliEditorKit();
+      var editorKit = new SikuliEditorKit();
       setEditorKit(editorKit);
       setContentType(paneType);
 
@@ -830,7 +830,7 @@ public class EditorPane extends JTextPane {
       int sel_start = aTextPane.getSelectionStart();
       int sel_end = aTextPane.getSelectionEnd();
 
-      StringWriter writer = new StringWriter();
+      var writer = new StringWriter();
       try {
         _copiedImgs.clear();
         kit.write(writer, doc, sel_start, sel_end - sel_start, _copiedImgs);

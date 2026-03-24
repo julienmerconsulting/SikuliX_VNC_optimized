@@ -300,12 +300,10 @@ class PatternPaneScreenshot extends JPanel implements ChangeListener, ComponentL
   @Override
   public void stateChanged(javax.swing.event.ChangeEvent e) {
     Object src = e.getSource();
-    if (src instanceof JSlider) {
-      JSlider source = (JSlider) e.getSource();
+    if (src instanceof JSlider source) {
       int val = (int) source.getValue();
       setSimilarity((double) val / 100);
-    } else if (src instanceof JSpinner) {
-      JSpinner source = (JSpinner) e.getSource();
+    } else if (src instanceof JSpinner source) {
       int val = (Integer) source.getValue();
       setNumMatches(val);
     }

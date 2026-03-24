@@ -167,9 +167,8 @@ public class HtmlFormatter extends Formatter
 			writer.write( " { " );
 			for( StyleElement styleElement : styleElementsForTokenType )
 			{
-				if( styleElement instanceof ColorStyleElement )
+				if( styleElement instanceof ColorStyleElement colorStyleElement )
 				{
-					ColorStyleElement colorStyleElement = (ColorStyleElement) styleElement;
 					if( colorStyleElement.getType() == ColorStyleElement.Type.Foreground )
 						writer.write( "color: " );
 					else if( colorStyleElement.getType() == ColorStyleElement.Type.Background )

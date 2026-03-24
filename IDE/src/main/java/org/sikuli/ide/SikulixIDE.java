@@ -45,7 +45,7 @@ import java.io.*;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
 import java.util.List;
 import java.util.*;
@@ -1081,7 +1081,7 @@ public class SikulixIDE extends JFrame {
     public boolean load(File file) {
       InputStreamReader isr;
       try {
-        isr = new InputStreamReader(new FileInputStream(file), Charset.forName("utf-8"));
+        isr = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8);
         pane.loadContent(isr);
       } catch (Exception ex) {
         log("PaneContext: loadFile: %s ERROR(%s)", file, ex.getMessage());
@@ -1093,8 +1093,8 @@ public class SikulixIDE extends JFrame {
     public boolean load(String content) {
       InputStreamReader isr;
       try {
-        isr = new InputStreamReader(new ByteArrayInputStream(content.getBytes(Charset.forName("utf-8"))),
-                Charset.forName("utf-8"));
+        isr = new InputStreamReader(new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)),
+                StandardCharsets.UTF_8);
         pane.loadContent(isr);
       } catch (Exception ex) {
         log("PaneContext: loadString: ERROR(%s)", ex.getMessage());
@@ -1220,7 +1220,7 @@ public class SikulixIDE extends JFrame {
       InputStreamReader isr;
       try {
         isr = new InputStreamReader(new ByteArrayInputStream(
-                pane.getText().getBytes(Charset.forName("utf-8"))), Charset.forName("utf-8"));
+                pane.getText().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
         pane.read(new BufferedReader(isr), null);
       } catch (Exception ex) {
         error("readContent: from String (%s)", ex.getMessage());

@@ -3,7 +3,8 @@
  */
 package org.sikuli.support.ide;
 
-import java.util.Stack;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -141,12 +142,12 @@ public class PythonState {
 
    private int tabsize = DEFAULT_TABSIZE;
 
-   private Stack<State> state;
+   private Deque<State> state;
 
    private StringBuilder logicalLineStructure;
 
    public PythonState(){
-      state = new Stack<State>();
+      state = new ArrayDeque<>();
       state.push(State.DEFAULT);
       physicalLine = new StringBuilder();
       logicalLine = new StringBuilder();
@@ -181,7 +182,8 @@ public class PythonState {
     * document.
     */
    public void reset(){
-      state.setSize(1);
+      state.clear();
+      state.push(State.DEFAULT);
       physicalLine.setLength(0);
       logicalLine.setLength(0);
       unmatchedChunk.setLength(0);

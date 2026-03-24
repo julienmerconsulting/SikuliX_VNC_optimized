@@ -309,7 +309,7 @@ public class SikulixIDE extends JFrame {
   PaneContext lastContext = null;
 
   PaneContext getActiveContext() {
-    final int ix = tabs.getSelectedIndex();
+    final int ix = getTabs().getSelectedIndex();
     if (ix < 0) {
       fatal("PaneContext: no context available"); //TODO possible?
     }
@@ -317,7 +317,7 @@ public class SikulixIDE extends JFrame {
   }
 
   PaneContext setActiveContext(int pos) {
-    tabs.setSelectedIndex(pos);
+    getTabs().setSelectedIndex(pos);
     PaneContext context = contexts.get(pos);
     showContext(context);
     return context;
@@ -1599,7 +1599,7 @@ public class SikulixIDE extends JFrame {
   //</editor-fold>
 
   //<editor-fold defaultstate="collapsed" desc="20 Init ToolBar Buttons — delegated to IDEWindowManager">
-  ButtonRecord getBtnRecord() {
+  IDEWindowManager.ButtonRecord getBtnRecord() {
     return windowManager.getBtnRecord();
   }
 //</editor-fold>

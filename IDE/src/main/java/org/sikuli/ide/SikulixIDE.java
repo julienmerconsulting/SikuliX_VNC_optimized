@@ -3,28 +3,20 @@
  */
 package org.sikuli.ide;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.sikuli.basics.*;
 import org.sikuli.support.FileManager;
 import org.sikuli.support.ide.*;
 import org.sikuli.script.Sikulix;
 import org.sikuli.script.*;
 import org.sikuli.support.ide.Runner;
-import org.sikuli.support.runner.InvalidRunner;
 import org.sikuli.support.runner.TextRunner;
 import org.sikuli.support.Commons;
 import org.sikuli.support.devices.IScreen;
-import org.sikuli.support.recorder.Recorder;
 import org.sikuli.support.RunTime;
-import org.sikuli.support.devices.ScreenDevice;
-import org.sikuli.support.recorder.generators.ICodeGenerator;
 import org.sikuli.support.gui.SXDialog;
-import org.sikuli.support.recorder.actions.IRecordedAction;
 import org.sikuli.util.*;
 
 import javax.swing.*;
-import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultEditorKit;
 import javax.swing.text.Element;
 import javax.swing.undo.CannotRedoException;
@@ -38,14 +30,10 @@ import java.io.*;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class SikulixIDE extends JFrame {
 
@@ -78,6 +66,7 @@ public class SikulixIDE extends JFrame {
 
   final IDEFileManager fileManager = new IDEFileManager(this);
   final IDERunManager runManager = new IDERunManager(this);
+  final IDEWindowManager windowManager = new IDEWindowManager(this);
 
   private SikulixIDE() {
     prefs = PreferencesUser.get();
@@ -174,7 +163,7 @@ public class SikulixIDE extends JFrame {
   //</editor-fold>
 
   //<editor-fold desc="01 startup / quit">
-  private static AtomicBoolean ideIsReady = new AtomicBoolean(false);
+  static AtomicBoolean ideIsReady = new AtomicBoolean(false);
 
   protected static void start() {
 
@@ -183,7 +172,7 @@ public class SikulixIDE extends JFrame {
     IDEDesktopSupport.init();
     IDESupport.initIDESupport();
     if (!Commons.hasOption(CommandArgsEnum.CONSOLE)) {
-      get().messages = new EditorConsolePane();
+      get().windowManager.setMessages(new EditorConsolePane());
     }
     IDESupport.initRunners();
     Commons.startLog(1, "IDESupport ready --- GUI start (%4.1f)", Commons.getSinceStart());
@@ -241,7 +230,7 @@ public class SikulixIDE extends JFrame {
   private void startGUI() {
     setWindow();
 
-    installCaptureHotkey();
+    windowManager.installCaptureHotkey();
     runManager.installStopHotkey();
 
     ideWindow.setSize(ideWindowRect.getSize());
@@ -251,39 +240,8 @@ public class SikulixIDE extends JFrame {
     initMenuBars(ideWindow);
     final Container ideContainer = ideWindow.getContentPane();
     ideContainer.setLayout(new BorderLayout());
-    Debug.log("IDE: creating tabbed editor");
-    initTabs();
-    Debug.log("IDE: creating message area");
-    if (messages != null) {
-      initMessageArea();
-    }
-    Debug.log("IDE: creating combined work window");
-    var codePane = new JPanel(new BorderLayout(10, 10));
-    codePane.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
-    codePane.add(tabs, BorderLayout.CENTER);
 
-    Debug.log("IDE: Putting all together");
-    var editPane = new JPanel(new BorderLayout(0, 0));
-    mainPane = null;
-    if (messageArea != null) {
-      if (prefs.getPrefMoreMessage() == PreferencesUser.VERTICAL) {
-        mainPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, codePane, messageArea);
-      } else {
-        mainPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, codePane, messageArea);
-      }
-      mainPane.setResizeWeight(0.6);
-      mainPane.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
-      editPane.add(mainPane, BorderLayout.CENTER);
-    } else {
-      editPane.add(codePane, BorderLayout.CENTER);
-    }
-
-    ideContainer.add(editPane, BorderLayout.CENTER);
-    Debug.log("IDE: Putting all together - after main pane");
-
-    JToolBar tb = initToolbar();
-    ideContainer.add(tb, BorderLayout.NORTH);
-    Debug.log("IDE: Putting all together - after toolbar");
+    windowManager.buildLayout(ideContainer);
 
     _status = new SikuliIDEStatusBar();
     ideContainer.add(_status, BorderLayout.SOUTH);
@@ -315,71 +273,20 @@ public class SikulixIDE extends JFrame {
     ToolTipManager.sharedInstance().setDismissDelay(30000);
 
     createEmptyScriptContext();
-    if (messages != null) {
-      messages.initRedirect();
+    EditorConsolePane msgs = windowManager.getMessages();
+    if (msgs != null) {
+      msgs.initRedirect();
     }
     Debug.log("IDE: Putting all together - Restore last Session");
     restoreSession();
 
-    initShortcutKeys();
+    windowManager.initShortcutKeys();
     ideIsReady.set(true);
     Commons.startLog(3, "IDE ready: on Java %d (%4.1f sec)", Commons.getJavaVersion(), Commons.getSinceStart());
   }
 
   public static void showAfterStart() {
-    while (!ideIsReady.get()) {
-      RunTime.pause(100);
-    }
-    org.sikuli.ide.Sikulix.stopSplash();
-    ideWindow.setVisible(true);
-    if (sikulixIDE.mainPane != null) {
-      sikulixIDE.mainPane.setDividerLocation(0.6); //TODO saved value
-    }
-    sikulixIDE.getActiveContext().focus();
-  }
-
-  //TODO initShortcutKey
-  private void initShortcutKeys() {
-    Toolkit.getDefaultToolkit().addAWTEventListener(new AWTEventListener() {
-      private boolean isKeyNextTab(java.awt.event.KeyEvent ke) {
-        if (ke.getKeyCode() == java.awt.event.KeyEvent.VK_TAB
-                && ke.getModifiersEx() == InputEvent.CTRL_DOWN_MASK) {
-          return true;
-        }
-        if (ke.getKeyCode() == java.awt.event.KeyEvent.VK_CLOSE_BRACKET
-                && ke.getModifiersEx() == (InputEvent.META_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)) {
-          return true;
-        }
-        return false;
-      }
-
-      private boolean isKeyPrevTab(java.awt.event.KeyEvent ke) {
-        if (ke.getKeyCode() == java.awt.event.KeyEvent.VK_TAB
-                && ke.getModifiersEx() == (InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)) {
-          return true;
-        }
-        if (ke.getKeyCode() == java.awt.event.KeyEvent.VK_OPEN_BRACKET
-                && ke.getModifiersEx() == (InputEvent.META_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)) {
-          return true;
-        }
-        return false;
-      }
-
-      public void eventDispatched(AWTEvent e) {
-        java.awt.event.KeyEvent ke = (java.awt.event.KeyEvent) e;
-        if (ke.getID() == java.awt.event.KeyEvent.KEY_PRESSED) {
-          if (isKeyNextTab(ke)) {
-            int i = tabs.getSelectedIndex();
-            int next = (i + 1) % tabs.getTabCount();
-            tabs.setSelectedIndex(next);
-          } else if (isKeyPrevTab(ke)) {
-            int i = tabs.getSelectedIndex();
-            int prev = (i - 1 + tabs.getTabCount()) % tabs.getTabCount();
-            tabs.setSelectedIndex(prev);
-          }
-        }
-      }
-    }, AWTEvent.KEY_EVENT_MASK);
+    IDEWindowManager.showAfterStart(sikulixIDE, sikulixIDE.windowManager);
   }
 
   static SikuliIDEStatusBar getStatusbar() {
@@ -388,27 +295,9 @@ public class SikulixIDE extends JFrame {
 
   private SikuliIDEStatusBar _status;
 
-  private JSplitPane mainPane;
-
-  private void initTabs() {
-    tabs = new CloseableTabbedPane();
-    tabs.setUI(new AquaCloseableTabbedPaneUI());
-    tabs.addCloseableTabbedPaneListener(tabIndexToClose -> {
-      getContextAt(tabIndexToClose).close();
-      return false;
-    });
-    tabs.addChangeListener(e -> {
-      JTabbedPane tab = (JTabbedPane) e.getSource();
-      int ix = tab.getSelectedIndex();
-      switchContext(ix);
-    });
-  }
-
   CloseableTabbedPane getTabs() {
-    return tabs;
+    return windowManager.getTabs();
   }
-
-  private CloseableTabbedPane tabs;
   //</editor-fold>
 
   //<editor-fold desc="03 PaneContext">
@@ -1709,368 +1598,9 @@ public class SikulixIDE extends JFrame {
   }
   //</editor-fold>
 
-  //<editor-fold defaultstate="collapsed" desc="20 Init ToolBar Buttons">
-  private ButtonCapture btnCapture;
-  private ButtonRecord btnRecord;
-
+  //<editor-fold defaultstate="collapsed" desc="20 Init ToolBar Buttons — delegated to IDEWindowManager">
   ButtonRecord getBtnRecord() {
-    return btnRecord;
-  }
-
-  private JToolBar initToolbar() {
-    var toolbar = new JToolBar();
-    var btnInsertImage = new ButtonInsertImage();
-    var btnSubregion = new ButtonSubregion();
-    var btnLocation = new ButtonLocation();
-    var btnOffset = new ButtonOffset();
-//TODO ButtonShow/ButtonShowIn
-    var btnShow = new ButtonShow();
-    var btnShowIn = new ButtonShowIn();
-
-    btnCapture = new ButtonCapture();
-    toolbar.add(btnCapture);
-    toolbar.add(btnInsertImage);
-    toolbar.add(btnSubregion);
-    toolbar.add(btnLocation);
-    toolbar.add(btnOffset);
-/*
-    toolbar.add(btnShow);
-    toolbar.add(btnShowIn);
-*/
-    toolbar.add(Box.createHorizontalGlue());
-    toolbar.add(runManager.createBtnRun());
-    toolbar.add(runManager.createBtnRunSlow());
-    toolbar.add(Box.createHorizontalGlue());
-
-    toolbar.add(Box.createRigidArea(new Dimension(7, 0)));
-    toolbar.setFloatable(false);
-
-    btnRecord = new ButtonRecord();
-    toolbar.add(btnRecord);
-
-//    JComponent jcSearchField = createSearchField();
-//    toolbar.add(jcSearchField);
-
-    return toolbar;
-  }
-
-  class ButtonInsertImage extends ButtonOnToolbar {
-
-    ButtonInsertImage() {
-      super();
-      buttonText = SikulixIDE._I("btnInsertImageLabel");
-      buttonHint = SikulixIDE._I("btnInsertImageHint");
-      iconFile = "/icons/insert-image-icon.png";
-      init();
-    }
-
-    @Override
-    public void actionPerformed(ActionEvent ae) {
-      final String name = sikulixIDE.getImageNameFromLine();
-      final PaneContext context = getActiveContext();
-      EditorPane codePane = context.getPane();
-      File file = new SikulixFileChooser(ideWindow).loadImage();
-      if (file == null) {
-        return;
-      }
-      File imgFile = codePane.copyFileToBundle(file); //TODO context
-      if (!name.isEmpty()) {
-        final File newFile = new File(imgFile.getParentFile(), name + "." + FilenameUtils.getExtension(imgFile.getName()));
-        if (!newFile.exists()) {
-          if (imgFile.renameTo(newFile)) {
-            imgFile = newFile;
-          }
-        } else {
-          final String msg = String.format("%s already exists - stored as %s", newFile.getName(), imgFile.getName());
-          Sikulix.popError(msg, "IDE: Insert Image");
-        }
-      }
-      if (context.getShowThumbs()) {
-        codePane.insertComponent(new EditorImageButton(imgFile));
-      } else {
-        codePane.insertString("\"" + imgFile.getName() + "\"");
-      }
-    }
-  }
-
-  class ButtonSubregion extends ButtonOnToolbar implements EventObserver {
-
-    String promptText;
-    Point start = new Point(0, 0);
-    Point end = new Point(0, 0);
-
-    ButtonSubregion() {
-      super();
-      buttonText = "Region"; // SikuliIDE._I("btnRegionLabel");
-      buttonHint = SikulixIDE._I("btnRegionHint");
-      iconFile = "/icons/region-icon.png";
-      promptText = SikulixIDE._I("msgCapturePrompt");
-      init();
-    }
-
-    @Override
-    public void runAction(ActionEvent ae) {
-      if (shouldRun()) {
-        OverlayCapturePrompt.capturePrompt(this, promptText);
-      }
-    }
-
-    @Override
-    public void update(EventSubject es) {
-      OverlayCapturePrompt ocp = (OverlayCapturePrompt) es;
-      Rectangle selectedRectangle = ocp.getSelectionRectangle();
-      start = ocp.getStart();
-      end = ocp.getEnd();
-      ocp.close();
-      ScreenDevice.closeCapturePrompts();
-      captureComplete(selectedRectangle);
-      SikulixIDE.showAgain();
-    }
-
-    void captureComplete(Rectangle selectedRectangle) {
-      int x, y, w, h;
-      EditorPane codePane = getCurrentCodePane();
-      if (selectedRectangle != null) {
-        Rectangle roi = selectedRectangle;
-        x = (int) roi.getX();
-        y = (int) roi.getY();
-        w = (int) roi.getWidth();
-        h = (int) roi.getHeight();
-        if (codePane.context.getShowThumbs()) {
-          if (prefs.getPrefMoreImageThumbs()) { //TODO
-            codePane.insertComponent(new EditorRegionButton(codePane, x, y, w, h));
-          } else {
-            codePane.insertComponent(new EditorRegionLabel(codePane,
-                    new EditorRegionButton(codePane, x, y, w, h).toString()));
-          }
-        } else {
-          codePane.insertString(codePane.getRegionString(x, y, w, h));
-        }
-      }
-    }
-  }
-
-  class ButtonLocation extends ButtonSubregion {
-
-    ButtonLocation() {
-      super();
-      buttonText = "Location";
-      buttonHint = "Location as center of selection";
-      iconFile = "/icons/region-icon.png";
-      promptText = "Select a Location";
-      init();
-    }
-
-    @Override
-    public void captureComplete(Rectangle selectedRectangle) {
-      int x, y, w, h;
-      if (selectedRectangle != null) {
-        Rectangle roi = selectedRectangle;
-        x = (int) (roi.getX() + roi.getWidth() / 2);
-        y = (int) (roi.getY() + roi.getHeight() / 2);
-        getCurrentCodePane().insertString(String.format("Location(%d, %d)", x, y));
-      }
-    }
-  }
-
-  class ButtonOffset extends ButtonSubregion {
-
-    ButtonOffset() {
-      super();
-      buttonText = "Offset";
-      buttonHint = "Offset as width/height of selection";
-      iconFile = "/icons/region-icon.png";
-      promptText = "Select an Offset";
-      init();
-    }
-
-    @Override
-    public void captureComplete(Rectangle selectedRectangle) {
-      int x, y, ox, oy;
-      if (selectedRectangle != null) {
-        Rectangle roi = selectedRectangle;
-        ox = (int) roi.getWidth();
-        oy = (int) roi.getHeight();
-        Location start = new Location(super.start);
-        Location end = new Location(super.end);
-        if (end.x < start.x) {
-          ox *= -1;
-        }
-        if (end.y < start.y) {
-          oy *= -1;
-        }
-        getCurrentCodePane().insertString(String.format("Offset(%d, %d)", ox, oy));
-      }
-    }
-  }
-
-  class ButtonShow extends ButtonOnToolbar {
-
-    ButtonShow() {
-      super();
-      buttonText = "Show";
-      buttonHint = "Find and highlight the image in current line";
-      iconFile = "/icons/region-icon.png";
-      init();
-    }
-
-    @Override
-    public void actionPerformed(ActionEvent e) {
-      EditorPane codePane = getActiveContext().getPane();
-      String line = codePane.getLineTextAtCaret();
-      final String item = codePane.parseLineText(line);
-      if (!item.isEmpty()) {
-        SikulixIDE.doHide();
-        new Thread(new Runnable() {
-          @Override
-          public void run() {
-            String eval = "";
-            eval = item.replaceAll("\"", "\\\"");
-            if (item.startsWith("Region")) {
-              if (item.contains(".asOffset()")) {
-                eval = item.replace(".asOffset()", "");
-              }
-              eval = "Region.create" + eval.substring(6) + ".highlight(2);";
-            } else if (item.startsWith("Location")) {
-              eval = "new " + item + ".grow(10).highlight(2);";
-            } else if (item.startsWith("Pattern")) {
-              eval = "m = Screen.all().exists(new " + item + ", 0);";
-              eval += "if (m != null) m.highlight(2);";
-            } else if (item.startsWith("\"")) {
-              eval = "m = Screen.all().exists(" + item + ", 0); ";
-              eval += "if (m != null) m.highlight(2);";
-            }
-            log("ButtonShow:\n%s", eval); //TODO eval ButtonShow
-            SikulixIDE.doShow();
-          }
-        }).start();
-        return;
-      }
-      Sikulix.popup("ButtonShow: Nothing to show!" +
-              "\nThe line with the cursor should contain:" +
-              "\n- an absolute Region or Location" +
-              "\n- an image file name or" +
-              "\n- a Pattern with an image file name");
-    }
-  }
-
-  class ButtonShowIn extends ButtonSubregion {
-
-    String item = "";
-
-    ButtonShowIn() {
-      super();
-      buttonText = "Show in";
-      buttonHint = "Like Show, but in selected region";
-      iconFile = "/icons/region-icon.png";
-      init();
-    }
-
-    public boolean shouldRun() {
-      EditorPane codePane = getCurrentCodePane();
-      String line = codePane.getLineTextAtCaret();
-      item = codePane.parseLineText(line);
-      item = item.replaceAll("\"", "\\\"");
-      if (item.startsWith("Pattern")) {
-        item = "m = null; r = #region#; "
-                + "if (r != null) m = r.exists(new " + item + ", 0); "
-                + "if (m != null) m.highlight(2); else print(m);";
-      } else if (item.startsWith("\"")) {
-        item = "m = null; r = #region#; "
-                + "if (r != null) m = r.exists(" + item + ", 0); "
-                + "if (m != null) m.highlight(2); else print(m);";
-      } else {
-        item = "";
-      }
-      return !item.isEmpty();
-    }
-
-    public void captureComplete(Rectangle selectedRectangle) {
-      if (selectedRectangle != null) {
-        Region reg = new Region(selectedRectangle);
-        String itemReg = String.format("new Region(%d, %d, %d, %d)", reg.x, reg.y, reg.w, reg.h);
-        item = item.replace("#region#", itemReg);
-        final String evalText = item;
-        new Thread(new Runnable() {
-          @Override
-          public void run() {
-            log("ButtonShowIn:\n%s", evalText);
-            //TODO ButtonShowIn perform show
-          }
-        }).start();
-        RunTime.pause(2.0f);
-      } else {
-        SikulixIDE.showAgain();
-        Sikulix.popup("ButtonShowIn: Nothing to show!" +
-                "\nThe line with the cursor should contain:" +
-                "\n- an image file name or" +
-                "\n- a Pattern with an image file name");
-      }
-    }
-  }
-
-  class ButtonRecord extends ButtonOnToolbar {
-
-    private Recorder recorder = new Recorder();
-
-    ButtonRecord() {
-      super();
-
-      URL imageURL = SikulixIDE.class.getResource("/icons/record.png");
-      setIcon(new ImageIcon(imageURL));
-      initTooltip();
-      addActionListener(this);
-      setText(_I("btnRecordLabel"));
-      // setMaximumSize(new Dimension(45,45));
-    }
-
-    private void initTooltip() {
-      PreferencesUser pref = PreferencesUser.get();
-      String strHotkey = Key.convertKeyToText(pref.getStopHotkey(), pref.getStopHotkeyModifiers());
-      String stopHint = _I("btnRecordStopHint", strHotkey);
-      setToolTipText(_I("btnRecord", stopHint));
-    }
-
-    @Override
-    public void actionPerformed(ActionEvent ae) {
-      ideWindow.setVisible(false);
-      recorder.start();
-    }
-
-    public void stopRecord() {
-      SikulixIDE.showAgain();
-
-      if (isRunning()) {
-        PaneContext context = getActiveContext();
-        EditorPane pane = context.getPane();
-        ICodeGenerator generator = pane.getCodeGenerator();
-
-        ProgressMonitor progress = new ProgressMonitor(pane, _I("processingWorkflow"), "", 0, 0);
-        progress.setMillisToDecideToPopup(0);
-        progress.setMillisToPopup(0);
-
-        new Thread(() -> {
-          try {
-            List<IRecordedAction> actions = recorder.stop(progress);
-
-            if (!actions.isEmpty()) {
-              List<String> actionStrings = actions.stream().map((a) -> a.generate(generator)).collect(Collectors.toList());
-
-              EventQueue.invokeLater(() -> {
-                pane.insertString("\n" + String.join("\n", actionStrings) + "\n");
-                context.reparse();
-              });
-            }
-          } finally {
-            progress.close();
-          }
-        }).start();
-      }
-    }
-
-    public boolean isRunning() {
-      return recorder.isRunning();
-    }
+    return windowManager.getBtnRecord();
   }
 //</editor-fold>
 
@@ -2084,109 +1614,31 @@ public class SikulixIDE extends JFrame {
   }
   //</editor-fold>
 
-  //<editor-fold desc="30 MsgArea">
-  private JTabbedPane messageArea = null;
-  private EditorConsolePane messages = null;
-
-  private boolean SHOULD_WRAP_LINE = false;
-
-  private void initMessageArea() {
-    messages.init(SHOULD_WRAP_LINE);
-    messageArea = new JTabbedPane();
-    messageArea.addTab(_I("paneMessage"), null, messages, "DoubleClick to hide/unhide");
-    if (Settings.isWindows() || Settings.isLinux()) {
-      messageArea.setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));
-    }
-    messageArea.addMouseListener(new MouseListener() {
-      @Override
-      public void mouseClicked(MouseEvent me) {
-        if (me.getClickCount() < 2) {
-          return;
-        }
-        toggleCollapsed();
-      }
-      //<editor-fold defaultstate="collapsed" desc="mouse events not used">
-
-      @Override
-      public void mousePressed(MouseEvent me) {
-      }
-
-      @Override
-      public void mouseReleased(MouseEvent me) {
-      }
-
-      @Override
-      public void mouseEntered(MouseEvent me) {
-      }
-
-      @Override
-      public void mouseExited(MouseEvent me) {
-      }
-      //</editor-fold>
-    });
-  }
-
+  //<editor-fold desc="30 MsgArea — delegated to IDEWindowManager">
   void clearMessageArea() {
-    if (messages == null) {
-      return;
-    }
-    messages.clear();
+    windowManager.clearMessageArea();
   }
 
   void collapseMessageArea() {
-    if (messages == null) {
-      return;
-    }
-    if (messageAreaCollapsed) {
-      return;
-    }
-    toggleCollapsed();
+    windowManager.collapseMessageArea();
   }
 
   void uncollapseMessageArea() {
-    if (messages == null) {
-      return;
-    }
-    if (messageAreaCollapsed) {
-      toggleCollapsed();
-    }
+    windowManager.uncollapseMessageArea();
   }
-
-  private void toggleCollapsed() {
-    if (messages == null) {
-      return;
-    }
-    if (messageAreaCollapsed) {
-      mainPane.setDividerLocation(mainPane.getLastDividerLocation());
-      messageAreaCollapsed = false;
-    } else {
-      int pos = mainPane.getWidth() - 35;
-      mainPane.setDividerLocation(pos);
-      messageAreaCollapsed = true;
-    }
-  }
-
-  private boolean messageAreaCollapsed = false;
 
   public EditorConsolePane getConsole() {
-    return messages;
+    return windowManager.getConsole();
   }
   //</editor-fold>
 
-  //<editor-fold defaultstate="collapsed" desc="25 Init ShortCuts HotKeys">
+  //<editor-fold defaultstate="collapsed" desc="25 Init ShortCuts HotKeys — delegated">
   void removeCaptureHotkey() {
-    HotkeyManager.getInstance().removeHotkey("Capture");
+    windowManager.removeCaptureHotkey();
   }
 
   void installCaptureHotkey() {
-    HotkeyManager.getInstance().addHotkey("Capture", new HotkeyListener() {
-      @Override
-      public void hotkeyPressed(HotkeyEvent e) {
-        if (sikulixIDE.isVisible()) {
-          btnCapture.capture(0);
-        }
-      }
-    });
+    windowManager.installCaptureHotkey();
   }
 
   void onStopRunning() {

@@ -14,8 +14,9 @@ import java.util.List;
 /**
  * Accès SQLite pour le stockage des patterns et relations.
  * Crée la DB automatiquement au premier lancement.
+ * Implémente AutoCloseable pour garantir la fermeture de la connexion.
  */
-public class DataStore {
+public class DataStore implements AutoCloseable {
 
     private final String projectId;
     private Connection connection;
@@ -343,6 +344,22 @@ public class DataStore {
         return results;
     }
 
+    /**
+     * Ferme la connexion SQLite.
+     */
+    @Override
+    public void close() {
+        if (connection != null) {
+            try {
+                if (!connection.isClosed()) {
+                    connection.close();
+                }
+            } catch (SQLException e) {
+                throw new OculixPatternException("Failed to close database connection", e);
+            }
+        }
+    }
+
     public String getProjectId() {
         return projectId;
     }
@@ -369,7 +386,7 @@ public class DataStore {
                 rs.getInt("image_height_pixels"),
                 rs.getString("perceptual_hash"),
                 rs.getString("pattern_type"),
-                LocalDateTime.now() // SQLite timestamp parsing simplifié
+                parseTimestamp(rs.getString("created_at"))
         );
     }
 
@@ -390,6 +407,21 @@ public class DataStore {
         rel.setActive(rs.getBoolean("is_active"));
         rel.setParentIsRequired(rs.getBoolean("parent_is_required"));
         return rel;
+    }
+
+    /**
+     * Parse un timestamp SQLite (format "yyyy-MM-dd HH:mm:ss") en LocalDateTime.
+     * Retourne now() en fallback si le format est invalide ou null.
+     */
+    private LocalDateTime parseTimestamp(String timestamp) {
+        if (timestamp == null || timestamp.isEmpty()) {
+            return LocalDateTime.now();
+        }
+        try {
+            return LocalDateTime.parse(timestamp.replace(" ", "T"));
+        } catch (Exception e) {
+            return LocalDateTime.now();
+        }
     }
 
     /**

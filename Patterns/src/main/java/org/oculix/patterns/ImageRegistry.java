@@ -3,31 +3,39 @@ package org.oculix.patterns;
 import org.sikuli.script.Image;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Registre central des patterns avec cache en mémoire.
- * Façade statique pour l'accès aux patterns.
+ * Façade statique thread-safe pour l'accès aux patterns.
  * Appelé UNE FOIS au démarrage via initialize().
  */
 public class ImageRegistry {
 
-    private static DataStore dataStore;
-    private static Map<String, PatternMetadata> cache = new HashMap<>();
+    private static volatile DataStore dataStore;
+    private static final Map<String, PatternMetadata> cache =
+            Collections.synchronizedMap(new HashMap<>());
+    private static final Object LOCK = new Object();
 
     private ImageRegistry() {
     }
 
     /**
      * Initialise le registre: lance DataStore, charge patterns en mémoire.
-     * Appelé UNE FOIS au démarrage.
+     * Appelé UNE FOIS au démarrage. Thread-safe.
      */
     public static void initialize(String projectId) {
-        dataStore = new DataStore(projectId);
-        dataStore.initializeDatabase();
-        reloadCache();
+        synchronized (LOCK) {
+            if (dataStore != null) {
+                dataStore.close();
+            }
+            dataStore = new DataStore(projectId);
+            dataStore.initializeDatabase();
+            reloadCache();
+        }
     }
 
     /**
@@ -35,10 +43,12 @@ public class ImageRegistry {
      * Sauvegarde en DB puis recharge le cache.
      */
     public static PatternMetadata register(String name, File imageFile) {
-        checkInitialized();
-        PatternMetadata meta = dataStore.registerPattern(name, imageFile);
-        reloadCache();
-        return meta;
+        synchronized (LOCK) {
+            checkInitialized();
+            PatternMetadata meta = dataStore.registerPattern(name, imageFile);
+            reloadCache();
+            return meta;
+        }
     }
 
     /**
@@ -75,8 +85,23 @@ public class ImageRegistry {
      * Recharge le cache depuis la DB.
      */
     public static void reload() {
-        checkInitialized();
-        reloadCache();
+        synchronized (LOCK) {
+            checkInitialized();
+            reloadCache();
+        }
+    }
+
+    /**
+     * Ferme le DataStore et vide le cache.
+     */
+    public static void shutdown() {
+        synchronized (LOCK) {
+            if (dataStore != null) {
+                dataStore.close();
+                dataStore = null;
+            }
+            cache.clear();
+        }
     }
 
     /**

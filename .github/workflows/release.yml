@@ -13,6 +13,8 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+    - name: Install API to local repo
+      run: mvn -B -pl API install -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Build API fat JAR (Windows)
       run: mvn -B -pl API -P complete-win-jar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Build IDE fat JAR (Windows)
@@ -34,6 +36,8 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+    - name: Install API to local repo
+      run: mvn -B -pl API install -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Build API fat JAR (macOS)
       run: mvn -B -pl API -P complete-mac-jar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Build IDE fat JAR (macOS)
@@ -55,6 +59,8 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+    - name: Install API to local repo
+      run: mvn -B -pl API install -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Build API fat JAR (Linux)
       run: mvn -B -pl API -P complete-lux-jar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Build IDE fat JAR (Linux)

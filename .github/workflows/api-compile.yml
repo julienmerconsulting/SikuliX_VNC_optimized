@@ -1,7 +1,7 @@
 name: Compile API
 
 on:
-  push:
+  workflow_dispatch:
     branches:
       - master
     paths:

@@ -16,6 +16,4 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     - name: Build with Maven
-      run: mvn -B -pl API compile -s $GITHUB_WORKSPACE/.github/maven-settings.xml | egrep -v "^\[INFO\].*?Download.*?http"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: mvn -B -pl API compile | egrep -v "^\[INFO\].*?Download.*?http"

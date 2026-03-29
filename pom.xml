@@ -15,13 +15,6 @@
   <name>oculix</name>
   <packaging>pom</packaging>
 
-  <repositories>
-    <repository>
-      <id>github-apertix</id>
-      <url>https://maven.pkg.github.com/julienmerconsulting/Apertix</url>
-    </repository>
-  </repositories>
-  
   <modules>
     <module>API</module>
     <module>IDE</module>

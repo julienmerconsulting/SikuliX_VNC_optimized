@@ -19,9 +19,7 @@ jobs:
           # server-password: MAVEN_PASSWORD
 
       - name: Build with Maven
-        run: mvn -B -pl API package -s $GITHUB_WORKSPACE/.github/maven-settings.xml | egrep -v "^\[INFO\].*?Download.*?http"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn -B -pl API package | egrep -v "^\[INFO\].*?Download.*?http"
 
       # - name: Publish to OSSRH
       #   run: mvn -B -pl API deploy | egrep -v "^\[INFO\].*?Download.*?http"

@@ -40,13 +40,6 @@
     <url>git@github.com:RaiMan/SikuliX1.git</url>
   </scm>
 
-  <repositories>
-    <repository>
-      <id>github-apertix</id>
-      <url>https://maven.pkg.github.com/julienmerconsulting/Apertix</url>
-    </repository>
-  </repositories>
-
   <distributionManagement>
     <repository>
       <id>maven</id>

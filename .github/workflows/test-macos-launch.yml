@@ -26,7 +26,10 @@ jobs:
           echo "=== Architecture ==="
           uname -m
           echo "=== Lancement OculiX ==="
-          timeout 30 java -jar oculix.jar -v 2>&1 || true
+          java -jar oculix.jar -v &
+          PID=$!
+          sleep 30
+          kill $PID 2>/dev/null || true
 
       - name: Vérifier les natifs extraits
         run: |

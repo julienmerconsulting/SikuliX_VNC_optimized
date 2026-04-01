@@ -344,7 +344,7 @@ Operix       → Python wrapper via py4j (coming soon)
 
 **Julien MER** — QA Architect · 20+ years in defense, biotech, aerospace, retail  
 Katalon Top Partner Europe &nbsp;|&nbsp; JMer Consulting  
-Newsletter [Bonnes Pratiques QA](https://www.linkedin.com/newsletters/bonnes-pratiques-qa) — 3574 abonnés  
+Newsletter [Bonnes Pratiques QA](https://www.linkedin.com/newsletters/bonnes-pratiques-qa-6878703775620636672) — 3574 abonnés  
 [Clean QA Academy](https://qa-julienmer-course.pages.dev/) — 100% free QA training
 
 </td>

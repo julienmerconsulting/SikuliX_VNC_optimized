@@ -51,6 +51,7 @@ public class Commons {
 
   private static final String osName = System.getProperty("os.name").toLowerCase();
   private static final String osVersion = System.getProperty("os.version").toLowerCase();
+  private static final String osArch = System.getProperty("os.arch").toLowerCase();
 
   private static final String sxTempDir = System.getProperty("java.io.tmpdir");
   private static File sxTempFolder = null;
@@ -87,6 +88,11 @@ public class Commons {
 
     if (!"64".equals(System.getProperty("sun.arch.data.model"))) {
       throw new SikuliXception("SikuliX fatal Error: Java must be 64-Bit");
+    }
+
+    if (runningArm64()) {
+      System.out.println("[OculiX] Running on ARM64/Apple Silicon (" + osArch + ")");
+      System.out.println("[OculiX] Native library path: " + getNativeLibDir());
     }
 
     Properties sxProps = new Properties();
@@ -489,6 +495,37 @@ public class Commons {
 
   public static boolean runningLinux() {
     return !runningMac() && !runningWindows();
+  }
+
+  /**
+   * Check if running on ARM64/aarch64 architecture (e.g. Apple Silicon M1/M2/M3).
+   */
+  public static boolean runningArm64() {
+    return osArch.equals("aarch64") || osArch.equals("arm64");
+  }
+
+  /**
+   * Get the normalized architecture name for native library paths.
+   * Returns "aarch64" for ARM64 systems, "x86-64" for x86-64 systems.
+   */
+  public static String getArchName() {
+    return runningArm64() ? "aarch64" : "x86-64";
+  }
+
+  /**
+   * Get the native library resource path prefix for the current platform.
+   * E.g. "darwin-aarch64", "darwin-x86-64", "win32-x86-64", "linux-x86-64"
+   */
+  public static String getNativeLibDir() {
+    String os;
+    if (runningWindows()) {
+      os = "win32";
+    } else if (runningMac()) {
+      os = "darwin";
+    } else {
+      os = "linux";
+    }
+    return os + "-" + getArchName();
   }
 
   public static String getSXVersion() {
@@ -1100,7 +1137,7 @@ public class Commons {
   //<editor-fold desc="20 library handling">
   private static final String libOpenCV = Core.NATIVE_LIBRARY_NAME;
   private static final String libOpenCVclassref = "nu.pattern.OpenCV";
-  private static String libOpenCVresname = "opencv/%s/x86_64/";
+  private static String libOpenCVresname = "opencv/%s/" + (runningArm64() ? "aarch64" : "x86_64") + "/";
   private static boolean libOpenCVloaded = false;
 
 public static void loadOpenCV() {
@@ -1135,14 +1172,15 @@ public static void loadOpenCV() {
     try {
       String resource = null;
       String fileName = null;
+      String nativeDir = getNativeLibDir();
       if (runningWindows()) {
-        resource = "win32-x86-64/" + libName + ".dll";
+        resource = nativeDir + "/" + libName + ".dll";
         fileName = libName + ".dll";
       } else if (runningMac()) {
-        resource = "darwin-x86-64/lib" + libName + ".dylib";
+        resource = nativeDir + "/lib" + libName + ".dylib";
         fileName = "lib" + libName + ".dylib";
       } else if (runningLinux()) {
-        resource = "linux-x86-64/lib" + libName + ".so";
+        resource = nativeDir + "/lib" + libName + ".so";
         fileName = "lib" + libName + ".so";
       }
       if (resource != null) {

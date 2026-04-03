@@ -460,22 +460,29 @@ private static Map<String, Object> parseJson(String json) {
         if (idx >= 0) {
             int arrStart = json.indexOf('[', idx);
             if (arrStart >= 0) {
-                int depth = 0;
+                int braceDepth = 0;   // tracks { }
+                int bracketDepth = 0; // tracks [ ]
                 int objStart = -1;
                 for (int i = arrStart; i < json.length(); i++) {
                     char c = json.charAt(i);
-                    if (c == '{') {
-                        if (depth == 0) objStart = i;
-                        depth++;
+                    if (c == '[') {
+                        bracketDepth++;
+                    } else if (c == ']') {
+                        bracketDepth--;
+                        if (bracketDepth == 0) {
+                            // End of the results array
+                            break;
+                        }
+                    } else if (c == '{') {
+                        if (braceDepth == 0) objStart = i;
+                        braceDepth++;
                     } else if (c == '}') {
-                        depth--;
-                        if (depth == 0 && objStart >= 0) {
+                        braceDepth--;
+                        if (braceDepth == 0 && objStart >= 0) {
                             String objStr = json.substring(objStart, i + 1);
                             results.add(parseResultItem(objStr));
                             objStart = -1;
                         }
-                    } else if (c == ']' && depth == 1) {
-                        break;
                     }
                 }
             }

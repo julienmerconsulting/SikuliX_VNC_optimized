@@ -3,6 +3,9 @@
  */
 package com.sikulix.ocr;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -17,11 +20,11 @@ import java.util.stream.Collectors;
  * HTTP client for an external PaddleOCR server (Python).
  *
  * Architecture:
- *   SikuliX (Java) ---HTTP POST---> PaddleOCR (Python, localhost:5000)
+ *   OculiX (Java) ---HTTP POST---> PaddleOCR (Python, localhost:5000)
  *
  * The Python server is an external prerequisite; it is NOT launched by this class.
  * If the server is unavailable, methods return empty results and callers
- * should fall back to Tesseract (OCR.readWords()).
+ * should fall back to Tesseract.
  *
  * Expected JSON format from the server:
  * <pre>
@@ -40,11 +43,9 @@ import java.util.stream.Collectors;
  *
  * bbox = 4 polygon points (top-left, top-right, bottom-right, bottom-left)
  *
- * Zero external dependencies - built-in JSON parsing.
- * If org.json is on the classpath, it is used automatically; otherwise
- * falls back to a minimal internal parser.
+ * JSON parsing via org.json (already in OculiX dependencies).
  *
- * @version 2.0
+ * @version 3.0
  */
 public class PaddleOCRClient {
 
@@ -59,15 +60,10 @@ public class PaddleOCRClient {
 
     // --- Constructors ---
 
-    /**
-     * @param host PaddleOCR server host
-     * @param port PaddleOCR server port
-     */
     public PaddleOCRClient(String host, int port) {
         this.serverUrl = "http://" + host + ":" + port;
     }
 
-    /** Default constructor: localhost:5000 */
     public PaddleOCRClient() {
         this(DEFAULT_HOST, DEFAULT_PORT);
     }
@@ -76,19 +72,10 @@ public class PaddleOCRClient {
     // HEALTH CHECK
     // =========================================================================
 
-    /**
-     * Check if the PaddleOCR server is responding.
-     * @return true if the server is ready
-     */
     public boolean isServerAlive() {
         return isServerAlive(SERVER_CHECK_TIMEOUT_MS);
     }
 
-    /**
-     * Check if the PaddleOCR server is responding with custom timeout.
-     * @param timeoutMs timeout in milliseconds
-     * @return true if the server responds with status "ready"
-     */
     public boolean isServerAlive(int timeoutMs) {
         HttpURLConnection conn = null;
         try {
@@ -110,10 +97,6 @@ public class PaddleOCRClient {
         return false;
     }
 
-    /**
-     * Get server info (status, uptime).
-     * @return raw JSON from /status, or null if unavailable
-     */
     public String getServerInfo() {
         HttpURLConnection conn = null;
         try {
@@ -138,12 +121,6 @@ public class PaddleOCRClient {
     // OCR RECOGNITION
     // =========================================================================
 
-    /**
-     * Send an image to the PaddleOCR server and return the raw JSON.
-     *
-     * @param imagePath absolute path to a PNG/JPG image
-     * @return raw JSON response
-     */
     public String recognize(String imagePath) {
         if (imagePath == null || imagePath.trim().isEmpty()) {
             return createErrorJson("Invalid image path");
@@ -160,44 +137,34 @@ public class PaddleOCRClient {
         return performOCRRequest(imagePath);
     }
 
-    /**
-     * Shortcut: recognize + extract texts in one operation.
-     *
-     * @param imagePath absolute path to the image
-     * @return list of detected texts (empty if error)
-     */
     public List<String> recognizeAndParseTexts(String imagePath) {
         String json = recognize(imagePath);
         return parseTextFromOCRResponse(json);
     }
 
     // =========================================================================
-    // JSON PARSING
+    // JSON PARSING (via org.json)
     // =========================================================================
 
     /**
      * Extract the list of texts from a PaddleOCR JSON response.
-     *
-     * @param json raw JSON response
-     * @return list of detected texts (never null)
      */
     public static List<String> parseTextFromOCRResponse(String json) {
         List<String> texts = new ArrayList<>();
         if (json == null || json.trim().isEmpty()) return texts;
 
         try {
-            Map<String, Object> parsed = parseJson(json);
-            if (!Boolean.TRUE.equals(parsed.get("success"))) return texts;
+            JSONObject parsed = new JSONObject(json);
+            if (!parsed.optBoolean("success", false)) return texts;
 
-            Object resultsObj = parsed.get("results");
-            if (resultsObj instanceof List) {
-                for (Object item : (List<?>) resultsObj) {
-                    if (item instanceof Map) {
-                        Object textObj = ((Map<?, ?>) item).get("text");
-                        if (textObj != null && !textObj.toString().trim().isEmpty()) {
-                            texts.add(textObj.toString().trim());
-                        }
-                    }
+            JSONArray results = parsed.optJSONArray("results");
+            if (results == null) return texts;
+
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject item = results.getJSONObject(i);
+                String text = item.optString("text", "").trim();
+                if (!text.isEmpty()) {
+                    texts.add(text);
                 }
             }
         } catch (Exception e) {
@@ -209,29 +176,24 @@ public class PaddleOCRClient {
 
     /**
      * Extract texts with their confidence scores.
-     *
-     * @param json raw JSON response
-     * @return Map of text -> confidence (0.0 to 1.0)
      */
     public static Map<String, Double> parseTextWithConfidence(String json) {
         Map<String, Double> result = new HashMap<>();
         if (json == null || json.trim().isEmpty()) return result;
 
         try {
-            Map<String, Object> parsed = parseJson(json);
-            if (!Boolean.TRUE.equals(parsed.get("success"))) return result;
+            JSONObject parsed = new JSONObject(json);
+            if (!parsed.optBoolean("success", false)) return result;
 
-            Object resultsObj = parsed.get("results");
-            if (resultsObj instanceof List) {
-                for (Object item : (List<?>) resultsObj) {
-                    if (item instanceof Map) {
-                        Map<?, ?> itemMap = (Map<?, ?>) item;
-                        Object textObj = itemMap.get("text");
-                        Object confObj = itemMap.get("confidence");
-                        if (textObj != null && confObj != null) {
-                            result.put(textObj.toString().trim(), ((Number) confObj).doubleValue());
-                        }
-                    }
+            JSONArray results = parsed.optJSONArray("results");
+            if (results == null) return result;
+
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject item = results.getJSONObject(i);
+                String text = item.optString("text", "").trim();
+                double confidence = item.optDouble("confidence", 0.0);
+                if (!text.isEmpty()) {
+                    result.put(text, confidence);
                 }
             }
         } catch (Exception e) {
@@ -253,71 +215,54 @@ public class PaddleOCRClient {
      * @param searchText text to find
      * @return int[] {x, y, width, height} or null if not found
      */
-public static int[] findTextCoordinates(String json, String searchText) {
-    if (json == null || searchText == null) return null;
-    try {
-        org.json.JSONObject parsed = new org.json.JSONObject(json);
-        if (!parsed.optBoolean("success", false)) return null;
-        org.json.JSONArray results = parsed.getJSONArray("results");
-        for (int i = 0; i < results.length(); i++) {
-            org.json.JSONObject item = results.getJSONObject(i);
-            String text = item.getString("text");
-            if (text.toLowerCase().contains(searchText.toLowerCase())) {
-                org.json.JSONArray bbox = item.getJSONArray("bbox");
-                int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
-                int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
-                for (int j = 0; j < bbox.length(); j++) {
-                    org.json.JSONArray point = bbox.getJSONArray(j);
-                    int px = point.getInt(0);
-                    int py = point.getInt(1);
-                    minX = Math.min(minX, px);
-                    minY = Math.min(minY, py);
-                    maxX = Math.max(maxX, px);
-                    maxY = Math.max(maxY, py);
+    public static int[] findTextCoordinates(String json, String searchText) {
+        if (json == null || searchText == null) return null;
+        try {
+            JSONObject parsed = new JSONObject(json);
+            if (!parsed.optBoolean("success", false)) return null;
+
+            JSONArray results = parsed.getJSONArray("results");
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject item = results.getJSONObject(i);
+                String text = item.getString("text");
+                if (text.toLowerCase().contains(searchText.toLowerCase())) {
+                    return bboxToRect(item.getJSONArray("bbox"));
                 }
-                return new int[]{minX, minY, maxX - minX, maxY - minY};
             }
+        } catch (Exception e) {
+            System.err.println("[PaddleOCR] findTextCoordinates error: " + e.getMessage());
         }
-    } catch (Exception e) {
-        System.err.println("[PaddleOCR] findTextCoordinates error: " + e.getMessage());
+        return null;
     }
-    return null;
-}
 
     /**
      * Return ALL occurrences of a text with their coordinates.
      * Handles OCR whitespace artifacts ("AR TICHAUT" matches "ARTICHAUT").
-     *
-     * @param json       raw JSON response
-     * @param searchText text to find
-     * @return list of int[] {x, y, width, height} (never null)
      */
     public static List<int[]> findAllTextCoordinates(String json, String searchText) {
         List<int[]> matches = new ArrayList<>();
         if (json == null || searchText == null) return matches;
 
         try {
-            Map<String, Object> parsed = parseJson(json);
-            if (!Boolean.TRUE.equals(parsed.get("success"))) return matches;
+            JSONObject parsed = new JSONObject(json);
+            if (!parsed.optBoolean("success", false)) return matches;
 
-            Object resultsObj = parsed.get("results");
-            if (!(resultsObj instanceof List)) return matches;
+            JSONArray results = parsed.optJSONArray("results");
+            if (results == null) return matches;
 
             String searchNoSpace = searchText.toLowerCase().replaceAll("\\s", "");
 
-            for (Object item : (List<?>) resultsObj) {
-                if (!(item instanceof Map)) continue;
-                Map<?, ?> itemMap = (Map<?, ?>) item;
-                String text = String.valueOf(itemMap.get("text"));
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject item = results.getJSONObject(i);
+                String text = item.optString("text", "");
                 String textNoSpace = text.toLowerCase().replaceAll("\\s", "");
 
-                // Bidirectional match: "AR TICHAUT" contains "ARTICHAUT" and vice versa
                 boolean isMatch = textNoSpace.contains(searchNoSpace)
                     || (text.length() >= 5 && searchNoSpace.contains(textNoSpace));
 
                 if (isMatch) {
-                    int[] bbox = extractBbox(itemMap);
-                    if (bbox != null) matches.add(bbox);
+                    int[] rect = bboxToRect(item.getJSONArray("bbox"));
+                    if (rect != null) matches.add(rect);
                 }
             }
         } catch (Exception e) {
@@ -330,43 +275,31 @@ public static int[] findTextCoordinates(String json, String searchText) {
     // DEBUG / STATS
     // =========================================================================
 
-    /**
-     * Print OCR quality statistics (confidence, timing).
-     *
-     * @param json raw JSON response
-     */
     public static void printOCRStats(String json) {
         try {
-            Map<String, Object> parsed = parseJson(json);
-            if (!Boolean.TRUE.equals(parsed.get("success"))) {
+            JSONObject parsed = new JSONObject(json);
+            if (!parsed.optBoolean("success", false)) {
                 System.out.println("[PaddleOCR] No stats (OCR failed)");
                 return;
             }
 
-            Object resultsObj = parsed.get("results");
-            Object timeObj = parsed.get("recognition_time");
+            JSONArray results = parsed.optJSONArray("results");
+            if (results == null) return;
 
-            if (!(resultsObj instanceof List)) return;
-            List<?> results = (List<?>) resultsObj;
-
-            int total = results.size(), high = 0, medium = 0, low = 0;
-            for (Object item : results) {
-                if (item instanceof Map) {
-                    Object confObj = ((Map<?, ?>) item).get("confidence");
-                    if (confObj != null) {
-                        double conf = ((Number) confObj).doubleValue();
-                        if (conf >= 0.9) high++;
-                        else if (conf >= 0.7) medium++;
-                        else low++;
-                    }
-                }
+            int total = results.length(), high = 0, medium = 0, low = 0;
+            for (int i = 0; i < results.length(); i++) {
+                double conf = results.getJSONObject(i).optDouble("confidence", 0.0);
+                if (conf >= 0.9) high++;
+                else if (conf >= 0.7) medium++;
+                else low++;
             }
 
             System.out.println("[PaddleOCR] --- STATS ---");
             System.out.printf("[PaddleOCR]   Total: %d | High(>=90%%): %d | Med(70-90%%): %d | Low(<70%%): %d%n",
                 total, high, medium, low);
-            if (timeObj != null) {
-                System.out.printf("[PaddleOCR]   Time: %.2fs%n", ((Number) timeObj).doubleValue());
+            double time = parsed.optDouble("recognition_time", -1);
+            if (time >= 0) {
+                System.out.printf("[PaddleOCR]   Time: %.2fs%n", time);
             }
         } catch (Exception e) {
             System.err.println("[PaddleOCR] Stats error: " + e.getMessage());
@@ -377,7 +310,27 @@ public static int[] findTextCoordinates(String json, String searchText) {
     // INTERNALS
     // =========================================================================
 
-    /** HTTP POST to /ocr */
+    /**
+     * Convert a bbox JSONArray [[x1,y1],[x2,y2],[x3,y3],[x4,y4]] to {x, y, w, h}.
+     */
+    private static int[] bboxToRect(JSONArray bbox) {
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+
+        for (int j = 0; j < bbox.length(); j++) {
+            JSONArray point = bbox.getJSONArray(j);
+            int px = point.getInt(0);
+            int py = point.getInt(1);
+            minX = Math.min(minX, px);
+            minY = Math.min(minY, py);
+            maxX = Math.max(maxX, px);
+            maxY = Math.max(maxY, py);
+        }
+
+        if (minX == Integer.MAX_VALUE) return null;
+        return new int[]{minX, minY, maxX - minX, maxY - minY};
+    }
+
     private String performOCRRequest(String imagePath) {
         HttpURLConnection conn = null;
         try {
@@ -391,7 +344,7 @@ public static int[] findTextCoordinates(String json, String searchText) {
             conn.setDoOutput(true);
             conn.setDoInput(true);
 
-            String jsonPayload = "{\"image_path\":\"" + escapeJson(imagePath) + "\"}";
+            String jsonPayload = new JSONObject().put("image_path", imagePath).toString();
 
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(jsonPayload.getBytes(StandardCharsets.UTF_8));
@@ -416,214 +369,18 @@ public static int[] findTextCoordinates(String json, String searchText) {
         }
     }
 
-    /** Read an InputStream to a UTF-8 String */
     private static String readResponse(InputStream stream) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
             return reader.lines().collect(Collectors.joining("\n"));
         }
     }
 
-    /** Generate an error JSON without external dependencies */
     private static String createErrorJson(String message) {
-        return "{\"success\":false,\"error\":\"" + escapeJson(message) + "\",\"results\":[]}";
-    }
-
-    /** Escape special characters for JSON string insertion */
-    private static String escapeJson(String value) {
-        if (value == null) return "";
-        return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
-    }
-
-    /**
-     * Parse JSON: uses org.json if available, otherwise minimal internal parser.
-     */
-    @SuppressWarnings("unchecked")
-private static Map<String, Object> parseJson(String json) {
-    // on utilise toujours le parser minimal - org.json retourne des JSONArray
-    // imbriqués incompatibles avec extractBbox (attend des List<List<Integer>>)
-    return parseJsonMinimal(json);
-}
-
-    /**
-     * Minimal JSON parser covering strictly the PaddleOCR server format.
-     * Does NOT handle generic JSON - only the known server response structure.
-     * Replace with org.json as soon as possible.
-     */
-    private static Map<String, Object> parseJsonMinimal(String json) {
-        Map<String, Object> result = new HashMap<>();
-        // Detect success
-        result.put("success", json.contains("\"success\":true") || json.contains("\"success\": true"));
-
-        // Extract results (list of objects with text, confidence, bbox)
-        List<Map<String, Object>> results = new ArrayList<>();
-        int idx = json.indexOf("\"results\"");
-        if (idx >= 0) {
-            int arrStart = json.indexOf('[', idx);
-            if (arrStart >= 0) {
-                int braceDepth = 0;   // tracks { }
-                int bracketDepth = 0; // tracks [ ]
-                int objStart = -1;
-                for (int i = arrStart; i < json.length(); i++) {
-                    char c = json.charAt(i);
-                    if (c == '[') {
-                        bracketDepth++;
-                    } else if (c == ']') {
-                        bracketDepth--;
-                        if (bracketDepth == 0) {
-                            // End of the results array
-                            break;
-                        }
-                    } else if (c == '{') {
-                        if (braceDepth == 0) objStart = i;
-                        braceDepth++;
-                    } else if (c == '}') {
-                        braceDepth--;
-                        if (braceDepth == 0 && objStart >= 0) {
-                            String objStr = json.substring(objStart, i + 1);
-                            results.add(parseResultItem(objStr));
-                            objStart = -1;
-                        }
-                    }
-                }
-            }
-        }
-        result.put("results", results);
-
-        // Extract recognition_time
-        int timeIdx = json.indexOf("\"recognition_time\"");
-        if (timeIdx >= 0) {
-            int colon = json.indexOf(':', timeIdx);
-            if (colon >= 0) {
-                StringBuilder numStr = new StringBuilder();
-                for (int i = colon + 1; i < json.length(); i++) {
-                    char c = json.charAt(i);
-                    if (Character.isDigit(c) || c == '.') numStr.append(c);
-                    else if (numStr.length() > 0) break;
-                }
-                if (numStr.length() > 0) {
-                    result.put("recognition_time", Double.parseDouble(numStr.toString()));
-                }
-            }
-        }
-
-        return result;
-    }
-
-    /** Parse an OCR result item: {"text":"...", "confidence":0.98, "bbox":[[...], ...]} */
-    private static Map<String, Object> parseResultItem(String objStr) {
-        Map<String, Object> item = new HashMap<>();
-
-        // Extract text
-        String text = extractJsonString(objStr, "text");
-        if (text != null) item.put("text", text);
-
-        // Extract confidence
-        int confIdx = objStr.indexOf("\"confidence\"");
-        if (confIdx >= 0) {
-            int colon = objStr.indexOf(':', confIdx);
-            if (colon >= 0) {
-                StringBuilder numStr = new StringBuilder();
-                for (int i = colon + 1; i < objStr.length(); i++) {
-                    char c = objStr.charAt(i);
-                    if (Character.isDigit(c) || c == '.') numStr.append(c);
-                    else if (numStr.length() > 0) break;
-                }
-                if (numStr.length() > 0) {
-                    item.put("confidence", Double.parseDouble(numStr.toString()));
-                }
-            }
-        }
-
-        // Extract bbox: [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]
-        int bboxIdx = objStr.indexOf("\"bbox\"");
-        if (bboxIdx >= 0) {
-            int arrStart = objStr.indexOf("[[", bboxIdx);
-            int arrEnd = objStr.indexOf("]]", bboxIdx);
-            if (arrStart >= 0 && arrEnd >= 0) {
-                String bboxStr = objStr.substring(arrStart, arrEnd + 2);
-                item.put("bbox", parseBbox(bboxStr));
-            }
-        }
-
-        return item;
-    }
-
-    /** Parse [[x1,y1],[x2,y2],[x3,y3],[x4,y4]] into List<List<Integer>> */
-    private static List<List<Integer>> parseBbox(String bboxStr) {
-        List<List<Integer>> bbox = new ArrayList<>();
-        String inner = bboxStr.substring(1, bboxStr.length() - 1);
-        int depth = 0;
-        int start = -1;
-        for (int i = 0; i < inner.length(); i++) {
-            char c = inner.charAt(i);
-            if (c == '[') {
-                if (depth == 0) start = i + 1;
-                depth++;
-            } else if (c == ']') {
-                depth--;
-                if (depth == 0 && start >= 0) {
-                    String pair = inner.substring(start, i);
-                    String[] parts = pair.split(",");
-                    if (parts.length == 2) {
-                        List<Integer> point = new ArrayList<>();
-                        point.add((int) Double.parseDouble(parts[0].trim()));
-                        point.add((int) Double.parseDouble(parts[1].trim()));
-                        bbox.add(point);
-                    }
-                    start = -1;
-                }
-            }
-        }
-        return bbox;
-    }
-
-    /** Extract a JSON string value: "key":"value" */
-    private static String extractJsonString(String json, String key) {
-        String search = "\"" + key + "\"";
-        int idx = json.indexOf(search);
-        if (idx < 0) return null;
-        int colon = json.indexOf(':', idx + search.length());
-        if (colon < 0) return null;
-        int quoteStart = json.indexOf('"', colon + 1);
-        if (quoteStart < 0) return null;
-        int quoteEnd = quoteStart + 1;
-        while (quoteEnd < json.length()) {
-            if (json.charAt(quoteEnd) == '"' && json.charAt(quoteEnd - 1) != '\\') break;
-            quoteEnd++;
-        }
-        return json.substring(quoteStart + 1, quoteEnd);
-    }
-
-    /**
-     * Extract a bounding box rectangle from an OCR result item.
-     * Computes min/max over the 4 polygon points.
-     *
-     * @param itemMap one element from the "results" list
-     * @return int[] {x, y, width, height} or null
-     */
-    @SuppressWarnings("unchecked")
-    private static int[] extractBbox(Map<?, ?> itemMap) {
-        Object bbox = itemMap.get("bbox");
-        if (!(bbox instanceof List)) return null;
-
-        List<?> bboxList = (List<?>) bbox;
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
-
-        for (Object point : bboxList) {
-            if (point instanceof List) {
-                List<?> coords = (List<?>) point;
-                int px = ((Number) coords.get(0)).intValue();
-                int py = ((Number) coords.get(1)).intValue();
-                minX = Math.min(minX, px);
-                minY = Math.min(minY, py);
-                maxX = Math.max(maxX, px);
-                maxY = Math.max(maxY, py);
-            }
-        }
-
-        if (minX == Integer.MAX_VALUE) return null;
-        return new int[]{minX, minY, maxX - minX, maxY - minY};
+        return new JSONObject()
+            .put("success", false)
+            .put("error", message)
+            .put("results", new JSONArray())
+            .toString();
     }
 
     public String getServerUrl() {

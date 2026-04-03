@@ -160,8 +160,11 @@ try:
     if paddle.isAvailable():
         testImg = s.capture(window)
         testPath = testImg.getFile(tmpdir, "debug_paddle")
+        print("PaddleOCR: sending image " + testPath)
+        rawJson = paddle.getClient().recognize(testPath)
+        print("PaddleOCR raw response: " + str(rawJson)[:500])
         testTexts = paddle.getClient().recognizeAndParseTexts(testPath)
-        print("PaddleOCR sees in window: " + str(testTexts))
+        print("PaddleOCR parsed texts: " + str(testTexts))
         if len(testTexts) > 0:
             kw.setOcrEngine(paddle)
             ocrReady = True

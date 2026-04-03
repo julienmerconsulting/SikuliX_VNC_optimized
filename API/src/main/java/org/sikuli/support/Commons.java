@@ -513,19 +513,20 @@ public class Commons {
   }
 
   /**
-   * Get the native library resource path prefix for the current platform.
-   * E.g. "darwin-aarch64", "darwin-x86-64", "win32-x86-64", "linux-x86-64"
+   * Get the native library resource path prefix for the current platform,
+   * following JNA naming conventions used by Apertix:
+   * "darwin" (macOS x86-64), "darwin-aarch64" (macOS M1),
+   * "linux-x86-64", "linux-aarch64",
+   * "win32-x86-64", "win32-x86"
    */
   public static String getNativeLibDir() {
-    String os;
-    if (runningWindows()) {
-      os = "win32";
-    } else if (runningMac()) {
-      os = "darwin";
+    if (runningMac()) {
+      return runningArm64() ? "darwin-aarch64" : "darwin";
+    } else if (runningWindows()) {
+      return "win32-x86-64";
     } else {
-      os = "linux";
+      return runningArm64() ? "linux-aarch64" : "linux-x86-64";
     }
-    return os + "-" + getArchName();
   }
 
   public static String getSXVersion() {

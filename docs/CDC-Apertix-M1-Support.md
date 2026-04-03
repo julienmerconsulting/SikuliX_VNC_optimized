@@ -17,98 +17,66 @@ Raimund Hocke a remonté un `UnsatisfiedLinkError` sur OpenCV lors de l'exécuti
 
 ## Rappel : structure actuelle du JAR Apertix
 
+Apertix utilise **JNA** pour le chargement natif. `OpenCV.loadLocally()` délègue à :
+```java
+NativeLibrary library = NativeLibrary.getInstance(Core.NATIVE_LIBRARY_NAME);
+System.load(library.getFile().getAbsolutePath());
 ```
-nu/pattern/
-├── OpenCV.java (ou .class)          ← le loader
-└── opencv/
-    └── windows/
-        └── x86_64/
-            └── opencv_java4100.dll   ← seul binaire existant
+
+JNA résout automatiquement le binaire en cherchant dans des répertoires qui suivent sa propre convention :
+- `darwin/` (macOS x86-64)
+- `darwin-aarch64/` (macOS ARM64/M1)
+- `linux-x86-64/` (Linux Intel)
+- `linux-aarch64/` (Linux ARM)
+- `win32-x86-64/` (Windows 64-bit)
+
+**Aucune modification de `OpenCV.loadLocally()` n'est nécessaire.** JNA gère la détection d'architecture.
+
 ```
+src/main/resources/
+├── darwin/
+│   └── libopencv_java490.dylib          ← macOS x86_64, version 4.9.0 (OBSOLETE)
+├── linux-aarch64/
+│   └── README.md                         ← PAS de binaire
+├── linux-x86-64/
+│   └── libopencv_java490.so             ← version 4.9.0 (OBSOLETE)
+├── win32-x86/
+│   └── opencv_java490.dll               ← version 4.9.0 (OBSOLETE)
+└── win32-x86-64/
+    ├── opencv_java490.dll               ← version 4.9.0 (OBSOLETE)
+    └── opencv_java4100.dll              ← seul binaire 4.10.0
+```
+
+**Problème critique de version :** `Core.NATIVE_LIBRARY_NAME` vaut `opencv_java4100` (4.10.0)
+mais les binaires macOS et Linux sont en 4.9.0 (`libopencv_java490`). JNA cherche `opencv_java4100`
+et ne trouve pas → `UnsatisfiedLinkError`. Seul Windows x86-64 fonctionne.
 
 ## Structure cible du JAR Apertix
 
 ```
-nu/pattern/
-├── OpenCV.java
-└── opencv/
-    ├── windows/
-    │   └── x86_64/
-    │       └── opencv_java4100.dll          ← existe déjà
-    ├── osx/
-    │   ├── x86_64/
-    │   │   └── libopencv_java4100.dylib     ← à compiler
-    │   └── aarch64/
-    │       └── libopencv_java4100.dylib     ← à compiler (M1)
-    └── linux/
-        └── x86_64/
-            └── libopencv_java4100.so        ← à compiler
+src/main/resources/
+├── darwin/
+│   └── libopencv_java4100.dylib          ← macOS x86_64 (recompiler)
+├── darwin-aarch64/
+│   └── libopencv_java4100.dylib          ← macOS ARM64/M1 (P0 - recompiler)
+├── linux-x86-64/
+│   └── libopencv_java4100.so             ← recompiler
+├── linux-aarch64/
+│   └── libopencv_java4100.so             ← P2 optionnel
+├── win32-x86-64/
+│   └── opencv_java4100.dll               ← existe déjà
+└── win32-x86/
+    └── (supprimer ou recompiler)
 ```
 
-Linux aarch64 est optionnel (P2). macOS aarch64 est la priorité (P0).
+Les anciens binaires 4.9.0 doivent être supprimés pour éviter toute confusion.
 
 ---
 
-## Étape 1 — Vérifier le loader `OpenCV.loadLocally()`
+## Étape 1 — Nettoyer les anciens binaires 4.9.0
 
-Le fichier clé est la classe `nu.pattern.OpenCV` dans Apertix. C'est elle qu'OculiX appelle en premier via réflexion :
-
-```java
-Class<?> opencvClass = Class.forName("nu.pattern.OpenCV");
-Method loadLocally = opencvClass.getMethod("loadLocally");
-loadLocally.invoke(null);
-```
-
-**Vérifier que `loadLocally()` détecte l'architecture.** Dans l'original openpnp/opencv, le code ressemble à :
-
-```java
-public static void loadLocally() {
-    String osName = System.getProperty("os.name").toLowerCase();
-    String osArch = System.getProperty("os.arch").toLowerCase();
-    
-    String path;
-    if (osName.contains("win")) {
-        path = "/nu/pattern/opencv/windows/x86_64/" + Core.NATIVE_LIBRARY_NAME + ".dll";
-    } else if (osName.contains("mac")) {
-        path = "/nu/pattern/opencv/osx/x86_64/lib" + Core.NATIVE_LIBRARY_NAME + ".dylib";
-    } else {
-        path = "/nu/pattern/opencv/linux/x86_64/lib" + Core.NATIVE_LIBRARY_NAME + ".so";
-    }
-    // ... extract from jar and System.load()
-}
-```
-
-**Le fix :** ajouter la détection `aarch64`/`arm64` :
-
-```java
-public static void loadLocally() {
-    String osName = System.getProperty("os.name").toLowerCase();
-    String osArch = System.getProperty("os.arch").toLowerCase();
-    boolean isArm64 = osArch.equals("aarch64") || osArch.equals("arm64");
-    String arch = isArm64 ? "aarch64" : "x86_64";
-    
-    String path;
-    String libName = Core.NATIVE_LIBRARY_NAME; // "opencv_java4100"
-    if (osName.contains("win")) {
-        path = "/nu/pattern/opencv/windows/" + arch + "/" + libName + ".dll";
-    } else if (osName.contains("mac")) {
-        path = "/nu/pattern/opencv/osx/" + arch + "/lib" + libName + ".dylib";
-    } else {
-        path = "/nu/pattern/opencv/linux/" + arch + "/lib" + libName + ".so";
-    }
-    
-    // Extract from jar resource and load
-    URL url = OpenCV.class.getResource(path);
-    if (url == null) {
-        throw new UnsatisfiedLinkError(
-            "Native OpenCV library not found for " + osName + "/" + osArch 
-            + " at resource path: " + path);
-    }
-    // ... existing extraction + System.load() logic
-}
-```
-
-**Message d'erreur explicite** si le binaire manque — au lieu d'un NPE ou UnsatisfiedLinkError cryptique.
+Supprimer tous les fichiers `*opencv_java490*` du répertoire resources.
+Ils ne sont plus utilisés depuis que `Core.NATIVE_LIBRARY_NAME` pointe vers `opencv_java4100`.
 
 ---
 
@@ -175,12 +143,12 @@ lipo -info lib/libopencv_java4100.dylib
 # Doit afficher : Non-fat file: lib/libopencv_java4100.dylib is architecture: arm64
 ```
 
-### Copier dans Apertix
+### Copier dans Apertix (convention JNA)
 
 ```bash
-mkdir -p src/main/resources/nu/pattern/opencv/osx/aarch64/
+mkdir -p src/main/resources/darwin-aarch64/
 cp build-mac-arm64/lib/libopencv_java4100.dylib \
-   src/main/resources/nu/pattern/opencv/osx/aarch64/
+   src/main/resources/darwin-aarch64/
 ```
 
 ---
@@ -214,9 +182,9 @@ make -j$(sysctl -n hw.ncpu)
 ```
 
 ```bash
-mkdir -p src/main/resources/nu/pattern/opencv/osx/x86_64/
+mkdir -p src/main/resources/darwin/
 cp build-mac-x64/lib/libopencv_java4100.dylib \
-   src/main/resources/nu/pattern/opencv/osx/x86_64/
+   src/main/resources/darwin/
 ```
 
 ---
@@ -246,9 +214,9 @@ make -j$(nproc)
 ```
 
 ```bash
-mkdir -p src/main/resources/nu/pattern/opencv/linux/x86_64/
+mkdir -p src/main/resources/linux-x86-64/
 cp build-linux-x64/lib/libopencv_java4100.so \
-   src/main/resources/nu/pattern/opencv/linux/x86_64/
+   src/main/resources/linux-x86-64/
 ```
 
 ---
@@ -293,8 +261,8 @@ jobs:
           make -j$(sysctl -n hw.ncpu)
       - name: Package
         run: |
-          mkdir -p natives/osx/aarch64
-          cp opencv/build/lib/libopencv_java4100.dylib natives/osx/aarch64/
+          mkdir -p natives/darwin-aarch64
+          cp opencv/build/lib/libopencv_java4100.dylib natives/darwin-aarch64/
       - uses: actions/upload-artifact@v4
         with:
           name: opencv-osx-aarch64
@@ -324,8 +292,8 @@ jobs:
           make -j$(sysctl -n hw.ncpu)
       - name: Package
         run: |
-          mkdir -p natives/osx/x86_64
-          cp opencv/build/lib/libopencv_java4100.dylib natives/osx/x86_64/
+          mkdir -p natives/darwin
+          cp opencv/build/lib/libopencv_java4100.dylib natives/darwin/
       - uses: actions/upload-artifact@v4
         with:
           name: opencv-osx-x86_64
@@ -356,8 +324,8 @@ jobs:
           make -j$(nproc)
       - name: Package
         run: |
-          mkdir -p natives/linux/x86_64
-          cp opencv/build/lib/libopencv_java4100.so natives/linux/x86_64/
+          mkdir -p natives/linux-x86-64
+          cp opencv/build/lib/libopencv_java4100.so natives/linux-x86-64/
       - uses: actions/upload-artifact@v4
         with:
           name: opencv-linux-x86_64
@@ -409,12 +377,12 @@ Après publication du nouveau JAR Apertix avec les binaires arm64 :
 
 | Priorité | Quoi | Effort |
 |----------|------|--------|
-| **P0** | Modifier `OpenCV.loadLocally()` pour détecter arm64 | 30 min |
-| **P0** | Compiler OpenCV 4.10.0 macOS arm64 | 1h (sur Mac M1) |
-| **P0** | Compiler OpenCV 4.10.0 macOS x86-64 | 1h |
-| **P1** | Compiler OpenCV 4.10.0 Linux x86-64 | 1h |
+| **P0** | Supprimer les anciens binaires 4.9.0 (libopencv_java490) | 10 min |
+| **P0** | Compiler OpenCV 4.10.0 macOS arm64 → `darwin-aarch64/` | 1h (sur Mac M1) |
+| **P0** | Compiler OpenCV 4.10.0 macOS x86-64 → `darwin/` | 1h |
+| **P1** | Compiler OpenCV 4.10.0 Linux x86-64 → `linux-x86-64/` | 1h |
 | **P1** | CI/CD GitHub Actions multi-platform | 2h |
-| **P2** | Compiler Linux arm64 (Raspberry Pi, AWS Graviton) | 1h |
+| **P2** | Compiler Linux arm64 → `linux-aarch64/` | 1h |
 
 ---
 

@@ -39,7 +39,7 @@ public class WelcomeTab extends JPanel {
     URL iconUrl = getClass().getResource("/icons/sikulix-red.png");
     if (iconUrl != null) {
       ImageIcon logo = new ImageIcon(iconUrl);
-      Image scaled = logo.getImage().getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+      Image scaled = logo.getImage().getScaledInstance(128, 128, Image.SCALE_SMOOTH);
       JLabel logoLabel = new JLabel(new ImageIcon(scaled));
       headerPanel.add(logoLabel);
     }
@@ -59,7 +59,7 @@ public class WelcomeTab extends JPanel {
     JPanel quickStartPanel = new JPanel(new MigLayout("wrap 1, insets 20 40 20 40, gap 8", "[fill, 300]"));
     quickStartPanel.setOpaque(false);
     quickStartPanel.putClientProperty(FlatClientProperties.STYLE,
-        "border: 1,1,1,1,@separator,1,16");
+        "border: 1,1,1,1,$Separator.foreground,1,16");
 
     JLabel quickStartLabel = new JLabel("Quick Start");
     quickStartLabel.setFont(UIManager.getFont("h3.font"));
@@ -74,7 +74,7 @@ public class WelcomeTab extends JPanel {
     JPanel statusPanel = new JPanel(new MigLayout("wrap 2, insets 16 40 16 40, gap 8", "[][grow]"));
     statusPanel.setOpaque(false);
     statusPanel.putClientProperty(FlatClientProperties.STYLE,
-        "border: 1,1,1,1,@separator,1,16");
+        "border: 1,1,1,1,$Separator.foreground,1,16");
 
     JLabel statusLabel = new JLabel("Status");
     statusLabel.setFont(UIManager.getFont("h3.font"));

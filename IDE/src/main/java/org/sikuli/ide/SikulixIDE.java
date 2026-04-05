@@ -367,7 +367,9 @@ public class SikulixIDE extends JFrame {
     if (sikulixIDE.mainPane != null) {
       sikulixIDE.mainPane.setDividerLocation(0.6); //TODO saved value
     }
-    sikulixIDE.getActiveContext().focus();
+    if (!sikulixIDE.contexts.isEmpty()) {
+      sikulixIDE.getActiveContext().focus();
+    }
   }
 
   //TODO initShortcutKey
@@ -635,12 +637,12 @@ public class SikulixIDE extends JFrame {
   }
 
   void switchContext(int ix) {
-    if (ix < 0) {
+    if (ix < 0 || contexts.isEmpty()) {
       return;
     }
     if (ix >= contexts.size()) {
-      RunTime.terminate(999, "IDE: switchPane: invalid tab index: %d (valid: 0 .. %d)",
-              ix, contexts.size() - 1);
+      // Welcome tab or invalid index — ignore silently
+      return;
     }
     PaneContext context = contexts.get(ix);
     PaneContext previous = lastContext;

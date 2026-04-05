@@ -276,6 +276,14 @@ public class SikulixIDE extends JFrame {
     // Script file explorer (left of editor)
     Debug.log("IDE: creating file explorer");
     explorer = new ScriptExplorer();
+    explorer.setOnCardSelected(e -> {
+      int cardIndex = e.getID(); // card index passed as event ID
+      // Account for welcome tab offset
+      int tabIndex = welcomeShowing ? cardIndex + 1 : cardIndex;
+      if (tabIndex >= 0 && tabIndex < tabs.getTabCount()) {
+        tabs.setSelectedIndex(tabIndex);
+      }
+    });
 
     // Explorer + Editor in a horizontal split
     JSplitPane editorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, explorer, codePane);
@@ -622,9 +630,7 @@ public class SikulixIDE extends JFrame {
       if (sidebar != null) {
         sidebar.updateProjectInfo(null, null);
       }
-      if (explorer != null) {
-        explorer.setScriptDirectory(null);
-      }
+      refreshWorkspace();
     }
   }
 
@@ -704,14 +710,30 @@ public class SikulixIDE extends JFrame {
       uncollapseMessageArea();
     }
 
-    // Update sidebar project info and explorer
+    // Update sidebar project info and workspace explorer
     if (sidebar != null) {
       sidebar.updateProjectInfo(context.getFileName(), context.getFolder());
     }
-    if (explorer != null) {
-      explorer.setScriptDirectory(context.getFolder());
-    }
+    refreshWorkspace();
     updateScriptDependentItems();
+  }
+
+  /**
+   * Rebuilds the workspace explorer cards from the current contexts list.
+   */
+  private void refreshWorkspace() {
+    if (explorer == null) return;
+    List<ScriptExplorer.ScriptInfo> scripts = new ArrayList<>();
+    for (PaneContext ctx : contexts) {
+      scripts.add(ScriptExplorer.ScriptInfo.fromFolder(
+          ctx.getFileName(), ctx.getFolder(), ctx.isTemp()));
+    }
+    int selected = tabs.getSelectedIndex();
+    // If welcome tab is showing, no card is selected
+    if (welcomeShowing && selected == 0) {
+      selected = -1;
+    }
+    explorer.updateScripts(scripts, selected);
   }
 
   void createEmptyScriptContext() {
@@ -720,10 +742,7 @@ public class SikulixIDE extends JFrame {
     context.setRunner(IDESupport.getDefaultRunner());
     context.setFile();
     context.create();
-    // Explicitly update explorer and sidebar for the new script
-    if (explorer != null) {
-      explorer.setScriptDirectory(context.getFolder());
-    }
+    refreshWorkspace();
     if (sidebar != null) {
       sidebar.updateProjectInfo(context.getFileName(), context.getFolder());
     }

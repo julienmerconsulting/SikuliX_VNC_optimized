@@ -607,6 +607,9 @@ public class SikulixIDE extends JFrame {
       tabs.addTab("Welcome", welcomeTab);
       welcomeShowing = true;
       updateScriptDependentItems();
+      if (sidebar != null) {
+        sidebar.updateProjectInfo(null, null);
+      }
     }
   }
 
@@ -684,6 +687,11 @@ public class SikulixIDE extends JFrame {
       collapseMessageArea();
     } else {
       uncollapseMessageArea();
+    }
+
+    // Update sidebar project info
+    if (sidebar != null) {
+      sidebar.updateProjectInfo(context.getFileName(), context.getFolder());
     }
   }
 
@@ -3281,6 +3289,8 @@ public class SikulixIDE extends JFrame {
           resetErrorMark();
           doBeforeRun();
 
+          long runStart = System.currentTimeMillis();
+
           IRunner.Options runOptions = new IRunner.Options();
           runOptions.setRunningInIDE();
 
@@ -3298,6 +3308,15 @@ public class SikulixIDE extends JFrame {
           } finally {
             Runner.setLastScriptRunReturnCode(exitValue);
           }
+
+          // Update sidebar last run info
+          final int finalExit = exitValue;
+          final long duration = System.currentTimeMillis() - runStart;
+          EventQueue.invokeLater(() -> {
+            if (sidebar != null) {
+              sidebar.updateLastRun(finalExit, duration);
+            }
+          });
 
           log("************** after RunScript");
           addErrorMark(runOptions.getErrorLine());

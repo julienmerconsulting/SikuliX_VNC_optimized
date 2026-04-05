@@ -3,211 +3,248 @@
  */
 package org.sikuli.ide.ui;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeCellRenderer;
-import javax.swing.tree.DefaultTreeModel;
 import java.awt.*;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
-import java.util.Arrays;
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * File explorer panel showing the contents of the active .sikuli script bundle.
- * Displays script files and captured images in a tree view.
+ * Workspace explorer showing open scripts as visual cards.
+ * Each card represents a script (.sikuli bundle or temp script).
+ * Clicking a card activates the corresponding editor tab.
  */
 public class ScriptExplorer extends JPanel {
 
-  private JTree fileTree;
-  private DefaultTreeModel treeModel;
-  private DefaultMutableTreeNode rootNode;
+  private JPanel cardContainer;
   private JLabel emptyLabel;
   private JScrollPane scrollPane;
-  private File currentDir;
+  private final List<ScriptCard> cards = new ArrayList<>();
+  private int activeIndex = -1;
+
+  // Callback to switch tabs when a card is clicked
+  private ActionListener onCardSelected;
 
   public ScriptExplorer() {
     setLayout(new BorderLayout());
-    setMinimumSize(new Dimension(140, 0));
-    setPreferredSize(new Dimension(180, 0));
+    setMinimumSize(new Dimension(160, 0));
+    setPreferredSize(new Dimension(200, 0));
 
     // Header
-    JPanel header = new JPanel(new MigLayout("insets 4 8 4 8, fill", "[grow]", "[]"));
+    JPanel header = new JPanel(new MigLayout("insets 6 10 6 10, fill", "[grow]", "[]"));
     header.setOpaque(false);
-    JLabel title = new JLabel("Explorer");
-    title.setFont(UIManager.getFont("defaultFont").deriveFont(Font.BOLD, 11f));
+    JLabel title = new JLabel("Workspace");
+    title.setFont(UIManager.getFont("defaultFont").deriveFont(Font.BOLD, 12f));
     header.add(title);
     add(header, BorderLayout.NORTH);
 
-    // Tree
-    rootNode = new DefaultMutableTreeNode("No script");
-    treeModel = new DefaultTreeModel(rootNode);
-    fileTree = new JTree(treeModel);
-    fileTree.setRootVisible(true);
-    fileTree.setShowsRootHandles(true);
-    fileTree.setCellRenderer(new FileTreeCellRenderer());
-    fileTree.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 4));
+    // Card container (scrollable)
+    cardContainer = new JPanel(new MigLayout("wrap 1, insets 4 6 4 6, gap 4", "[fill, grow]", ""));
+    cardContainer.setOpaque(false);
 
-    fileTree.addMouseListener(new MouseAdapter() {
-      @Override
-      public void mouseClicked(MouseEvent e) {
-        if (e.getClickCount() == 2) {
-          DefaultMutableTreeNode node = (DefaultMutableTreeNode) fileTree.getLastSelectedPathComponent();
-          if (node != null && node.getUserObject() instanceof FileNode) {
-            FileNode fn = (FileNode) node.getUserObject();
-            if (fn.file.getName().endsWith(".png")) {
-              openImage(fn.file);
-            }
-          }
-        }
-      }
-    });
-
-    scrollPane = new JScrollPane(fileTree);
+    scrollPane = new JScrollPane(cardContainer);
     scrollPane.setBorder(null);
+    scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+    scrollPane.getVerticalScrollBar().setUnitIncrement(12);
+    scrollPane.setOpaque(false);
+    scrollPane.getViewport().setOpaque(false);
 
     // Empty state
-    emptyLabel = new JLabel("<html><center>Open or create a script<br>to browse files</center></html>");
-    emptyLabel.setFont(UIManager.getFont("small.font"));
+    emptyLabel = new JLabel("<html><center>No scripts open<br><br><span style='font-size:9px'>Use File \u25B8 New<br>to create a script</span></center></html>");
+    emptyLabel.setFont(UIManager.getFont("defaultFont").deriveFont(11f));
     emptyLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
     emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
     add(emptyLabel, BorderLayout.CENTER);
   }
 
-  /**
-   * Updates the explorer to show the contents of the given script directory.
-   * Pass null to show the empty state.
-   */
-  public void setScriptDirectory(File dir) {
-    this.currentDir = dir;
+  public void setOnCardSelected(ActionListener listener) {
+    this.onCardSelected = listener;
+  }
 
-    if (dir == null) {
-      showEmpty();
+  /**
+   * Rebuilds the card list from the given script contexts.
+   * Call this whenever tabs change.
+   */
+  public void updateScripts(List<ScriptInfo> scripts, int selectedIndex) {
+    cards.clear();
+    cardContainer.removeAll();
+
+    if (scripts.isEmpty()) {
+      remove(scrollPane);
+      remove(emptyLabel);
+      add(emptyLabel, BorderLayout.CENTER);
+      activeIndex = -1;
+      revalidate();
+      repaint();
       return;
     }
 
-    // Remove both to avoid stacking
     remove(emptyLabel);
     remove(scrollPane);
 
-    if (!dir.exists()) {
-      showEmpty();
-      return;
+    for (int i = 0; i < scripts.size(); i++) {
+      ScriptInfo info = scripts.get(i);
+      ScriptCard card = new ScriptCard(info, i);
+      cards.add(card);
+      cardContainer.add(card, "growx");
     }
 
-    rootNode.removeAllChildren();
-    rootNode.setUserObject(dir.getName());
-
-    File[] files = dir.listFiles();
-    if (files != null) {
-      // Sort: .py first, then .png, then rest
-      Arrays.sort(files, Comparator
-          .comparingInt((File f) -> f.getName().endsWith(".py") ? 0 : f.getName().endsWith(".png") ? 1 : 2)
-          .thenComparing(File::getName));
-
-      int imageCount = 0;
-      DefaultMutableTreeNode imagesNode = new DefaultMutableTreeNode("Images");
-
-      for (File file : files) {
-        if (file.isDirectory()) continue; // skip subdirectories
-        if (file.getName().endsWith(".png")) {
-          imagesNode.add(new DefaultMutableTreeNode(new FileNode(file)));
-          imageCount++;
-        } else {
-          rootNode.add(new DefaultMutableTreeNode(new FileNode(file)));
-        }
-      }
-
-      if (imageCount > 0) {
-        imagesNode.setUserObject("Images (" + imageCount + ")");
-        rootNode.add(imagesNode);
-      }
-    }
-
-    treeModel.reload();
-    expandAll();
+    setActiveCard(selectedIndex);
 
     add(scrollPane, BorderLayout.CENTER);
     revalidate();
     repaint();
   }
 
-  private void showEmpty() {
-    remove(scrollPane);
-    remove(emptyLabel);
-    add(emptyLabel, BorderLayout.CENTER);
-    revalidate();
-    repaint();
-  }
-
-  public void refresh() {
-    if (currentDir != null) {
-      setScriptDirectory(currentDir);
+  /**
+   * Highlights the card at the given index.
+   */
+  public void setActiveCard(int index) {
+    activeIndex = index;
+    for (int i = 0; i < cards.size(); i++) {
+      cards.get(i).setActive(i == index);
     }
   }
 
-  private void expandAll() {
-    for (int i = 0; i < fileTree.getRowCount(); i++) {
-      fileTree.expandRow(i);
+  /**
+   * Updates a single card's info (e.g. after save/rename).
+   */
+  public void updateCard(int index, ScriptInfo info) {
+    if (index >= 0 && index < cards.size()) {
+      cards.get(index).updateInfo(info);
     }
   }
 
-  private void openImage(File imageFile) {
-    try {
-      Desktop.getDesktop().open(imageFile);
-    } catch (Exception e) {
-      // Fallback: ignore
-    }
-  }
+  // ── ScriptCard ──
 
-  // ── Inner classes ──
+  class ScriptCard extends JPanel {
+    private final int index;
+    private JLabel nameLabel;
+    private JLabel infoLabel;
+    private JLabel statusLabel;
+    private boolean active = false;
+    private final Color hoverBg;
+    private final Color activeBg;
+    private final Color normalBg;
 
-  static class FileNode {
-    final File file;
+    ScriptCard(ScriptInfo info, int index) {
+      this.index = index;
+      setLayout(new MigLayout("insets 8 10 8 10, gap 4", "[grow][]", "[]2[]"));
+      setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-    FileNode(File file) {
-      this.file = file;
-    }
+      normalBg = UIManager.getColor("Panel.background");
+      hoverBg = UIManager.getColor("List.selectionInactiveBackground");
+      activeBg = UIManager.getColor("List.selectionBackground");
 
-    @Override
-    public String toString() {
-      return file.getName();
-    }
-  }
+      setOpaque(true);
+      setBackground(normalBg);
+      setBorder(BorderFactory.createCompoundBorder(
+          BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1),
+          BorderFactory.createEmptyBorder(0, 0, 0, 0)));
 
-  static class FileTreeCellRenderer extends DefaultTreeCellRenderer {
-    @Override
-    public Component getTreeCellRendererComponent(JTree tree, Object value, boolean sel,
-                                                   boolean expanded, boolean leaf, int row, boolean hasFocus) {
-      super.getTreeCellRendererComponent(tree, value, sel, expanded, leaf, row, hasFocus);
+      // Script icon + name
+      nameLabel = new JLabel();
+      nameLabel.setFont(UIManager.getFont("defaultFont").deriveFont(Font.BOLD, 12f));
+      add(nameLabel, "growx");
 
-      if (value instanceof DefaultMutableTreeNode) {
-        Object obj = ((DefaultMutableTreeNode) value).getUserObject();
-        if (obj instanceof FileNode) {
-          FileNode fn = (FileNode) obj;
-          String name = fn.file.getName();
-          if (name.endsWith(".py")) {
-            setText("\uD83D\uDCC4 " + name);
-          } else if (name.endsWith(".png")) {
-            setText("\uD83D\uDDBC " + name);
-          } else if (name.endsWith(".html") || name.endsWith(".json")) {
-            setText("\uD83D\uDCC3 " + name);
-          } else {
-            setText("\uD83D\uDCCE " + name);
-          }
-        } else if (obj instanceof String) {
-          String s = (String) obj;
-          if (s.startsWith("Images")) {
-            setText("\uD83D\uDCC2 " + s);
+      // Save status
+      statusLabel = new JLabel();
+      statusLabel.setFont(UIManager.getFont("small.font"));
+      add(statusLabel, "wrap");
+
+      // Image count
+      infoLabel = new JLabel();
+      infoLabel.setFont(UIManager.getFont("small.font"));
+      infoLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
+      add(infoLabel, "span 2");
+
+      updateInfo(info);
+
+      addMouseListener(new MouseAdapter() {
+        @Override
+        public void mouseClicked(MouseEvent e) {
+          if (onCardSelected != null) {
+            onCardSelected.actionPerformed(
+                new java.awt.event.ActionEvent(ScriptCard.this, index, "select"));
           }
         }
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+          if (!active) {
+            setBackground(hoverBg);
+          }
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+          setBackground(active ? activeBg : normalBg);
+        }
+      });
+    }
+
+    void updateInfo(ScriptInfo info) {
+      nameLabel.setText("\uD83D\uDCC4 " + info.name);
+      nameLabel.setToolTipText(info.path);
+
+      if (info.saved) {
+        statusLabel.setText("\u2713");
+        statusLabel.setForeground(new Color(0x3D, 0xDB, 0xA4));
+        statusLabel.setToolTipText("Saved");
+      } else {
+        statusLabel.setText("*");
+        statusLabel.setForeground(new Color(0xFF, 0xAA, 0x33));
+        statusLabel.setToolTipText("Not saved");
       }
-      setOpaque(false);
-      return this;
+
+      String imgText = info.imageCount + " image" + (info.imageCount != 1 ? "s" : "");
+      infoLabel.setText("\uD83D\uDDBC " + imgText);
+    }
+
+    void setActive(boolean active) {
+      this.active = active;
+      setBackground(active ? activeBg : normalBg);
+      if (active) {
+        nameLabel.setForeground(UIManager.getColor("List.selectionForeground"));
+        infoLabel.setForeground(UIManager.getColor("List.selectionForeground"));
+      } else {
+        nameLabel.setForeground(UIManager.getColor("Label.foreground"));
+        infoLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
+      }
+    }
+  }
+
+  // ── ScriptInfo (data class) ──
+
+  public static class ScriptInfo {
+    public final String name;
+    public final String path;
+    public final int imageCount;
+    public final boolean saved;
+
+    public ScriptInfo(String name, String path, int imageCount, boolean saved) {
+      this.name = name;
+      this.path = path;
+      this.imageCount = imageCount;
+      this.saved = saved;
+    }
+
+    public static ScriptInfo fromFolder(String name, File folder, boolean isTemp) {
+      int imgCount = 0;
+      String path = "";
+      if (folder != null && folder.exists()) {
+        File[] pngs = folder.listFiles((dir, fn) -> fn.endsWith(".png"));
+        if (pngs != null) imgCount = pngs.length;
+        path = folder.getAbsolutePath();
+      }
+      return new ScriptInfo(name, path, imgCount, !isTemp);
     }
   }
 }

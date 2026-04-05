@@ -242,11 +242,11 @@ public class EditorConsolePane extends JPanel implements Runnable {
   static final String lineSep = System.getProperty("line.separator");
 
   public final static String CSS_Colors =
-      ".normal{ color: black; }"
-          + ".debug { color:#505000; }"
-          + ".info  { color: blue; }"
-          + ".log   { color: #09806A; }"
-          + ".error { color: red; }";
+      ".normal{ color: #BBBBBB; }"
+          + ".debug { color:#C0A000; }"
+          + ".info  { color: #6CB6FF; }"
+          + ".log   { color: #3DDBA4; }"
+          + ".error { color: #FF6B6B; }";
 
   private String htmlize(String msg) {
     StringBuilder sb = new StringBuilder();
@@ -255,16 +255,16 @@ public class EditorConsolePane extends JPanel implements Runnable {
         .replace("<", "&lt;")
         .replace(">", "&gt;");
 
-    String color = "color: black;";
+    String color = "color: #BBBBBB;";
 
     for (String line : msg.split(lineSep)) {
       Matcher m = patMsgCat.matcher(line);
       if (m.matches()) {
         String logType = m.group(1).toLowerCase();
-        if (logType.contains("error")) color = "color: red;";
-        else if (logType.contains("debug")) color = "color: #505000;";
-        else if (logType.contains("log")) color = "color: #09806A;";
-        else if (logType.contains("info")) color = "color: blue;";
+        if (logType.contains("error")) color = "color: #FF6B6B;";
+        else if (logType.contains("debug")) color = "color: #C0A000;";
+        else if (logType.contains("log")) color = "color: #3DDBA4;";
+        else if (logType.contains("info")) color = "color: #6CB6FF;";
       }
       String font = "font-family:monospace; font-size: medium;";
       int margin = 0;

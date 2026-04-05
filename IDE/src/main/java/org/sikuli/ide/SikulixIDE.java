@@ -720,6 +720,14 @@ public class SikulixIDE extends JFrame {
     context.setRunner(IDESupport.getDefaultRunner());
     context.setFile();
     context.create();
+    // Explicitly update explorer and sidebar for the new script
+    if (explorer != null) {
+      explorer.setScriptDirectory(context.getFolder());
+    }
+    if (sidebar != null) {
+      sidebar.updateProjectInfo(context.getFileName(), context.getFolder());
+    }
+    updateScriptDependentItems();
   }
 
   void createEmptyTextContext() {

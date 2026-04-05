@@ -40,7 +40,15 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
     return ((File) options.get(IButton.FILE)).getAbsolutePath();
   }
 
-  int MAXHEIGHT = PreferencesUser.get().getDefaultThumbHeight();
+  int MAXHEIGHT = getThumbHeight();
+
+  private static int getThumbHeight() {
+    try {
+      return PreferencesUser.get().getDefaultThumbHeight();
+    } catch (Exception e) {
+      return 50; // fallback
+    }
+  }
 
   BufferedImage thumbnail;
 

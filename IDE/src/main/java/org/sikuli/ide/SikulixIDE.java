@@ -343,8 +343,13 @@ public class SikulixIDE extends JFrame {
       messages.initRedirect();
     }
     Debug.log("IDE: Putting all together - Restore last Session");
-    List<File> restored = restoreSession();
-    if (restored.isEmpty()) {
+    try {
+      List<File> restored = restoreSession();
+      if (restored.isEmpty() || tabs.getTabCount() == 0) {
+        showWelcomeTab();
+      }
+    } catch (Exception e) {
+      log("Session restore failed: %s", e.getMessage());
       showWelcomeTab();
     }
 

@@ -58,12 +58,13 @@ public class SikulixFileChooser {
     File selectedFile;
     if (isBundle)
       selectedFile = show("Save as .sikuli, folder or file", SAVE, DIRSANDFILES
+            , new SXFilter("as folder.sikuli", SXFilter.SIKULI)
             , new SXFilter("as file", extension)
             , new SXFilter("as plain folder", SXFilter.FOLDER)
-            , new SXFilter("as folder.sikuli", SXFilter.SIKULI)
              );
     else {
       selectedFile = show("Save as .sikuli, folder or file", SAVE, DIRSANDFILES
+          , new SXFilter("as folder.sikuli", SXFilter.SIKULI)
           , new SXFilter("as file", extension)
       );
     }

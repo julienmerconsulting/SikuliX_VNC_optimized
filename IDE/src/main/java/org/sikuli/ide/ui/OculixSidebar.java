@@ -84,18 +84,25 @@ public class OculixSidebar extends JPanel {
    * Initializes the full sidebar layout: logo, project info, nav, status, last run, help.
    */
   public void initNavItems() {
-    // ── Logo ──
-    JLabel logo = new JLabel("OculiX");
-    logo.setFont(UIManager.getFont("h2.font"));
-    logo.setHorizontalAlignment(SwingConstants.CENTER);
-    logo.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
-    mainPanel.add(logo);
+    // ── Logo Box ──
+    JPanel logoBox = new JPanel(new MigLayout("wrap 1, insets 10 6 10 6, gap 0", "[center, fill]"));
+    logoBox.setOpaque(true);
+    logoBox.setBackground(UIManager.getColor("Panel.background"));
+    logoBox.setBorder(BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1));
 
-    JLabel edition = new JLabel("IDE");
-    edition.setFont(UIManager.getFont("small.font"));
-    edition.setForeground(UIManager.getColor("Label.disabledForeground"));
-    edition.setHorizontalAlignment(SwingConstants.CENTER);
-    mainPanel.add(edition, "gapbottom 6");
+    JLabel logoLine1 = new JLabel("OculiX");
+    logoLine1.setFont(new Font("Serif", Font.BOLD | Font.ITALIC, 28));
+    logoLine1.setForeground(UIManager.getColor("Label.foreground"));
+    logoLine1.setHorizontalAlignment(SwingConstants.CENTER);
+    logoBox.add(logoLine1);
+
+    JLabel logoLine2 = new JLabel("I D E");
+    logoLine2.setFont(new Font("SansSerif", Font.PLAIN, 14));
+    logoLine2.setForeground(UIManager.getColor("Label.disabledForeground"));
+    logoLine2.setHorizontalAlignment(SwingConstants.CENTER);
+    logoBox.add(logoLine2);
+
+    mainPanel.add(logoBox, "growx, gapbottom 6");
 
     // ── Project Info Panel ──
     JPanel projectPanel = createInfoPanel();

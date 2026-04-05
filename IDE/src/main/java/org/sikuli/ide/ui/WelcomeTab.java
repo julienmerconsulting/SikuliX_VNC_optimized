@@ -38,7 +38,9 @@ public class WelcomeTab extends JPanel {
     URL iconUrl = getClass().getResource("/icons/sikulix-red.png");
     if (iconUrl != null) {
       ImageIcon logo = new ImageIcon(iconUrl);
-      Image scaled = logo.getImage().getScaledInstance(128, 128, Image.SCALE_SMOOTH);
+      int targetWidth = 280;
+      int targetHeight = (int) ((double) logo.getIconHeight() / logo.getIconWidth() * targetWidth);
+      Image scaled = logo.getImage().getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
       JLabel logoLabel = new JLabel(new ImageIcon(scaled));
       headerPanel.add(logoLabel);
     }

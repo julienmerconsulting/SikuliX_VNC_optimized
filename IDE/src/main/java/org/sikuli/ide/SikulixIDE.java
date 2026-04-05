@@ -635,8 +635,8 @@ public class SikulixIDE extends JFrame {
 
   PaneContext getActiveContext() {
     final int ix = tabs.getSelectedIndex();
-    if (ix < 0) {
-      fatal("PaneContext: no context available"); //TODO possible?
+    if (ix < 0 || ix >= contexts.size()) {
+      return null;
     }
     return contexts.get(ix);
   }
@@ -696,6 +696,7 @@ public class SikulixIDE extends JFrame {
   }
 
   void createEmptyScriptContext() {
+    hideWelcomeTab();
     final PaneContext context = new PaneContext();
     context.setRunner(IDESupport.getDefaultRunner());
     context.setFile();
@@ -703,6 +704,7 @@ public class SikulixIDE extends JFrame {
   }
 
   void createEmptyTextContext() {
+    hideWelcomeTab();
     final PaneContext context = new PaneContext();
     context.setRunner(Runner.getRunner(TextRunner.class));
     context.setFile();
@@ -710,6 +712,7 @@ public class SikulixIDE extends JFrame {
   }
 
   void createFileContext(File file) {
+    hideWelcomeTab();
     final int pos = alreadyOpen(file);
     if (pos >= 0) {
       setActiveContext(pos);
@@ -1444,7 +1447,8 @@ public class SikulixIDE extends JFrame {
   }
 
   EditorPane getCurrentCodePane() {
-    return getActiveContext().getPane();
+    PaneContext ctx = getActiveContext();
+    return ctx != null ? ctx.getPane() : null;
   }
 
   EditorPane getPaneAtIndex(int index) {

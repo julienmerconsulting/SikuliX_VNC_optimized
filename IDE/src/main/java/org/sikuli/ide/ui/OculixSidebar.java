@@ -25,7 +25,7 @@ import static org.sikuli.support.ide.SikuliIDEI18N._I;
 public class OculixSidebar extends JPanel {
 
   private boolean collapsed = false;
-  private int expandedWidth = 180;
+  private int expandedWidth = 200;
   private int collapsedWidth = 50;
 
   // Action buttons
@@ -100,21 +100,25 @@ public class OculixSidebar extends JPanel {
    */
   public void initActionButtons(ActionListener runAction, ActionListener runSlowAction,
                                  ActionListener captureAction, ActionListener recordAction) {
-    btnRun = new SidebarItem(_I("btnRunLabel"),
+    btnRun = new SidebarItem("Run",
         loadIcon("/icons/run_big_green.png", 18), runAction);
+    btnRun.setToolTipText(_I("btnRunLabel"));
     btnRun.setMnemonic(java.awt.event.KeyEvent.VK_R);
     topSection.add(btnRun);
 
-    btnRunSlow = new SidebarItem(_I("btnRunSlowMotionLabel"),
+    btnRunSlow = new SidebarItem("Run Slow",
         loadIcon("/icons/runviz.png", 18), runSlowAction);
+    btnRunSlow.setToolTipText(_I("btnRunSlowMotionLabel"));
     topSection.add(btnRunSlow);
 
-    btnCapture = new SidebarItem(_I("btnCaptureLabel"),
+    btnCapture = new SidebarItem("Capture",
         loadIcon("/icons/capture-small.png", 18), captureAction);
+    btnCapture.setToolTipText(_I("btnCaptureLabel"));
     topSection.add(btnCapture);
 
     btnRecord = new SidebarItem("Record",
         loadIcon("/icons/record.png", 18), recordAction);
+    btnRecord.setToolTipText(_I("btnRecordLabel"));
     topSection.add(btnRecord);
 
     topSection.add(new JSeparator());

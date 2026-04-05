@@ -23,13 +23,15 @@ import java.util.List;
 public class ScriptExplorer extends JPanel {
 
   private JPanel cardContainer;
+  private JLabel titleLabel;
   private JLabel emptyLabel;
   private JScrollPane scrollPane;
   private final List<ScriptCard> cards = new ArrayList<>();
   private int activeIndex = -1;
 
-  // Callback to switch tabs when a card is clicked
+  // Callbacks
   private ActionListener onCardSelected;
+  private ActionListener onCardRenamed;
 
   public ScriptExplorer() {
     setLayout(new BorderLayout());
@@ -39,9 +41,9 @@ public class ScriptExplorer extends JPanel {
     // Header
     JPanel header = new JPanel(new MigLayout("insets 6 10 6 10, fill", "[grow]", "[]"));
     header.setOpaque(false);
-    JLabel title = new JLabel("Workspace");
-    title.setFont(UIManager.getFont("defaultFont").deriveFont(Font.BOLD, 12f));
-    header.add(title);
+    titleLabel = new JLabel("Workspace");
+    titleLabel.setFont(UIManager.getFont("defaultFont").deriveFont(Font.BOLD, 12f));
+    header.add(titleLabel);
     add(header, BorderLayout.NORTH);
 
     // Card container (scrollable)
@@ -66,6 +68,14 @@ public class ScriptExplorer extends JPanel {
 
   public void setOnCardSelected(ActionListener listener) {
     this.onCardSelected = listener;
+  }
+
+  public void setWorkspaceName(String name) {
+    titleLabel.setText(name != null ? name : "Workspace");
+  }
+
+  public void setOnCardRenamed(ActionListener listener) {
+    this.onCardRenamed = listener;
   }
 
   /**
@@ -167,10 +177,27 @@ public class ScriptExplorer extends JPanel {
 
       updateInfo(info);
 
+      // Right-click context menu
+      JPopupMenu popup = new JPopupMenu();
+      JMenuItem renameItem = new JMenuItem("Rename");
+      renameItem.addActionListener(ev -> {
+        if (onCardRenamed != null) {
+          String newName = JOptionPane.showInputDialog(ScriptExplorer.this,
+              "New name:", info.name);
+          if (newName != null && !newName.trim().isEmpty()) {
+            onCardRenamed.actionPerformed(
+                new java.awt.event.ActionEvent(ScriptCard.this, index, newName.trim()));
+          }
+        }
+      });
+      popup.add(renameItem);
+
       addMouseListener(new MouseAdapter() {
         @Override
         public void mouseClicked(MouseEvent e) {
-          if (onCardSelected != null) {
+          if (SwingUtilities.isRightMouseButton(e)) {
+            popup.show(ScriptCard.this, e.getX(), e.getY());
+          } else if (onCardSelected != null) {
             onCardSelected.actionPerformed(
                 new java.awt.event.ActionEvent(ScriptCard.this, index, "select"));
           }

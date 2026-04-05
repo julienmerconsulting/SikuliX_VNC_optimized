@@ -21,10 +21,15 @@ public class WelcomeTab extends JPanel {
 
   private ActionListener onNew;
   private ActionListener onOpen;
+  private ActionListener onNewWorkspace;
+  private ActionListener onOpenWorkspace;
 
-  public WelcomeTab(ActionListener onNew, ActionListener onOpen) {
+  public WelcomeTab(ActionListener onNew, ActionListener onOpen,
+                     ActionListener onNewWorkspace, ActionListener onOpenWorkspace) {
     this.onNew = onNew;
     this.onOpen = onOpen;
+    this.onNewWorkspace = onNewWorkspace;
+    this.onOpenWorkspace = onOpenWorkspace;
     setLayout(new MigLayout("fill, wrap 1", "[center]", "push[]20[]20[]20[]push"));
     setOpaque(true);
     setBackground(UIManager.getColor("Panel.background"));
@@ -70,6 +75,9 @@ public class WelcomeTab extends JPanel {
 
     quickStartPanel.add(createActionLink("\uD83D\uDCC4  New Script", "Ctrl+N", onNew));
     quickStartPanel.add(createActionLink("\uD83D\uDCC2  Open Script", "Ctrl+O", onOpen));
+    quickStartPanel.add(new JSeparator(), "growx, gaptop 8, gapbottom 8");
+    quickStartPanel.add(createActionLink("\uD83D\uDCC1  New Workspace", "", onNewWorkspace));
+    quickStartPanel.add(createActionLink("\uD83D\uDCC2  Open Workspace", "", onOpenWorkspace));
 
     add(quickStartPanel);
 

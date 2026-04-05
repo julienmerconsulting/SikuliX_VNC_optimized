@@ -33,6 +33,7 @@ import org.sikuli.ide.ui.OculixSidebar;
 import org.sikuli.ide.ui.ScriptExplorer;
 import org.sikuli.ide.ui.SidebarSubmenu;
 import org.sikuli.ide.ui.WelcomeTab;
+import org.sikuli.ide.ui.WorkspaceDialog;
 
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
@@ -162,6 +163,7 @@ public class SikulixIDE extends JFrame {
     ideWindow.setVisible(true);
     PaneContext ctx = sikulixIDE.getActiveContext();
     if (ctx != null) ctx.focus();
+    sikulixIDE.refreshWorkspace(); // refresh card image counts after capture
   }
 
   //TODO showAfterStart to be revised
@@ -277,11 +279,21 @@ public class SikulixIDE extends JFrame {
     Debug.log("IDE: creating file explorer");
     explorer = new ScriptExplorer();
     explorer.setOnCardSelected(e -> {
-      int cardIndex = e.getID(); // card index passed as event ID
-      // Account for welcome tab offset
+      int cardIndex = e.getID();
       int tabIndex = welcomeShowing ? cardIndex + 1 : cardIndex;
       if (tabIndex >= 0 && tabIndex < tabs.getTabCount()) {
         tabs.setSelectedIndex(tabIndex);
+      }
+    });
+    explorer.setOnCardRenamed(e -> {
+      int cardIndex = e.getID();
+      String newName = e.getActionCommand();
+      if (cardIndex >= 0 && cardIndex < contexts.size() && newName != null) {
+        // Rename is a save-as with new name — for now just update the tab title
+        PaneContext ctx = contexts.get(cardIndex);
+        int tabIndex = welcomeShowing ? cardIndex + 1 : cardIndex;
+        tabs.setTitleAt(tabIndex, newName);
+        refreshWorkspace();
       }
     });
 
@@ -620,7 +632,9 @@ public class SikulixIDE extends JFrame {
       if (welcomeTab == null) {
         welcomeTab = new WelcomeTab(
             e -> { hideWelcomeTab(); createEmptyScriptContext(); },
-            e -> { File f = selectFileToOpen(); if (f != null) createFileContext(f); }
+            e -> { File f = selectFileToOpen(); if (f != null) createFileContext(f); },
+            e -> openNewWorkspaceDialog(),
+            e -> openExistingWorkspace()
         );
         welcomeTab.putClientProperty("isClosable", false);
       }
@@ -1837,6 +1851,75 @@ public class SikulixIDE extends JFrame {
     return terminate();
   }
 
+  // ── Workspace management ──
+
+  private File currentWorkspaceDir = null;
+  private String currentWorkspaceName = "Workspace";
+
+  private void openNewWorkspaceDialog() {
+    File dir = WorkspaceDialog.showDialog(ideWindow);
+    if (dir != null) {
+      loadWorkspace(dir);
+    }
+  }
+
+  private void openExistingWorkspace() {
+    JFileChooser chooser = new JFileChooser();
+    chooser.setDialogTitle("Open Workspace");
+    chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+    chooser.setAcceptAllFileFilterUsed(false);
+    int result = chooser.showOpenDialog(ideWindow);
+    if (result == JFileChooser.APPROVE_OPTION) {
+      loadWorkspace(chooser.getSelectedFile());
+    }
+  }
+
+  private void loadWorkspace(File dir) {
+    currentWorkspaceDir = dir;
+
+    // Try to read workspace.json for the name
+    File wsJson = new File(dir, "workspace.json");
+    if (wsJson.exists()) {
+      try {
+        String content = org.sikuli.support.FileManager.readFileToString(wsJson);
+        // Simple JSON name extraction
+        int nameIdx = content.indexOf("\"name\"");
+        if (nameIdx > 0) {
+          int valueStart = content.indexOf("\"", nameIdx + 7) + 1;
+          int valueEnd = content.indexOf("\"", valueStart);
+          currentWorkspaceName = content.substring(valueStart, valueEnd);
+        }
+      } catch (Exception e) {
+        currentWorkspaceName = dir.getName();
+      }
+    } else {
+      currentWorkspaceName = dir.getName();
+    }
+
+    // Update explorer header
+    if (explorer != null) {
+      explorer.setWorkspaceName(currentWorkspaceName);
+    }
+
+    // Load any .sikuli scripts in the workspace directory
+    File[] sikuliDirs = dir.listFiles(f -> f.isDirectory() && f.getName().endsWith(".sikuli"));
+    if (sikuliDirs != null) {
+      for (File script : sikuliDirs) {
+        createFileContext(script);
+      }
+    }
+
+    log("Workspace loaded: %s (%s)", currentWorkspaceName, dir.getAbsolutePath());
+  }
+
+  public File getCurrentWorkspaceDir() {
+    return currentWorkspaceDir;
+  }
+
+  public String getCurrentWorkspaceName() {
+    return currentWorkspaceName;
+  }
+
   public void showPreferencesWindow() {
     PreferencesWin pwin = new PreferencesWin();
     pwin.setAlwaysOnTop(true);
@@ -1989,14 +2072,25 @@ public class SikulixIDE extends JFrame {
       _fileMenu.addSeparator();
     }
 
-    _fileMenu.add(createMenuItem(_I("menuFileNew"),
+    // New submenu: Script / Workspace
+    JMenu newMenu = new JMenu(_I("menuFileNew"));
+    newMenu.add(createMenuItem("Script",
             KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_N, scMask),
             new FileAction(FileAction.NEW)));
+    newMenu.add(createMenuItem("Workspace",
+            null,
+            e -> openNewWorkspaceDialog()));
+    _fileMenu.add(newMenu);
 
-    jmi = _fileMenu.add(createMenuItem(_I("menuFileOpen"),
+    // Open submenu: Script / Workspace
+    JMenu openMenu = new JMenu(_I("menuFileOpen"));
+    openMenu.add(createMenuItem("Script",
             KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O, scMask),
             new FileAction(FileAction.OPEN)));
-    jmi.setName("OPEN");
+    openMenu.add(createMenuItem("Workspace",
+            null,
+            e -> openExistingWorkspace()));
+    _fileMenu.add(openMenu);
 
     recentMenu = new JMenu(_I("menuRecent"));
     _fileMenu.add(recentMenu);

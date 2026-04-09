@@ -21,7 +21,23 @@ import java.io.File;
 
 public class Sikulix {
 
-  public static void main(String[] args) throws FindFailed {
+public static void main(String[] args) throws FindFailed {
+    // Mode serveur: java -jar oculixapi.jar -s
+    // Demarre le ServerRunner legacy sur le port 50001
+    for (String arg : args) {
+      if ("-s".equals(arg)) {
+        try {
+          Class<?> cServer = Class.forName("org.sikuli.script.runners.ServerRunner");
+          cServer.getMethod("run").invoke(null);
+          System.exit(0);
+        } catch (Exception e) {
+          System.err.println("[ERROR] Failed to start ServerRunner: " + e.getMessage());
+          e.printStackTrace();
+          System.exit(1);
+        }
+      }
+    }
+
     if (args.length == 1 && "buildDate".equals(args[0])) {
       System.out.println(Commons.getSxBuildStamp());
       System.exit(0);
@@ -29,7 +45,7 @@ public class Sikulix {
 
     System.out.println("SikuliX API: nothing to do");
     System.exit(0);
-  }
+}
 
   //<editor-fold desc="00 log">
   private static int lvl = 3;

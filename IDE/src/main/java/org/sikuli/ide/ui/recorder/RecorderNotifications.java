@@ -3,38 +3,35 @@
  */
 package org.sikuli.ide.ui.recorder;
 
-import raven.toast.Notifications;
+import raven.modal.Toast;
 
-import javax.swing.*;
+import java.awt.*;
 
 /**
  * Thin wrapper around DJ-Raven toast notifications for the Recorder.
- * Phase 1: skeleton with 4 methods. Initialized with the IDE parent frame.
+ * Phase 1: skeleton with 4 methods.
  */
 public class RecorderNotifications {
 
-  private static boolean initialized = false;
+  private static Component owner;
 
-  public static void init(JFrame parent) {
-    if (!initialized) {
-      Notifications.getInstance().setJFrame(parent);
-      initialized = true;
-    }
+  public static void init(Component parentComponent) {
+    owner = parentComponent;
   }
 
   public static void info(String message) {
-    Notifications.getInstance().show(Notifications.Type.INFO, message);
+    Toast.show(owner, Toast.Type.INFO, message);
   }
 
   public static void warning(String message) {
-    Notifications.getInstance().show(Notifications.Type.WARNING, message);
+    Toast.show(owner, Toast.Type.WARNING, message);
   }
 
   public static void error(String message) {
-    Notifications.getInstance().show(Notifications.Type.ERROR, message);
+    Toast.show(owner, Toast.Type.ERROR, message);
   }
 
   public static void success(String message) {
-    Notifications.getInstance().show(Notifications.Type.SUCCESS, message);
+    Toast.show(owner, Toast.Type.SUCCESS, message);
   }
 }

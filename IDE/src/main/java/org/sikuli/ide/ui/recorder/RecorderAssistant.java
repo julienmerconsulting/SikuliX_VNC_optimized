@@ -3,8 +3,6 @@
  */
 package org.sikuli.ide.ui.recorder;
 
-import com.sikulix.ocr.OCREngine;
-import com.sikulix.ocr.PaddleOCREngine;
 import net.miginfocom.swing.MigLayout;
 import org.sikuli.script.*;
 import org.sikuli.support.recorder.PatternValidator;
@@ -28,7 +26,6 @@ public class RecorderAssistant extends JDialog {
   private final RecorderWorkflow workflow;
   private final RecorderCodePreview codePreview;
   private final JythonCodeGenerator codeGenerator;
-  private final OCREngine ocrEngine;
   private File screenshotDir;
 
   // UI components
@@ -50,7 +47,6 @@ public class RecorderAssistant extends JDialog {
     this.workflow = new RecorderWorkflow();
     this.codePreview = new RecorderCodePreview();
     this.codeGenerator = new JythonCodeGenerator();
-    this.ocrEngine = new PaddleOCREngine();
 
     // Create temp dir for screenshots
     try {
@@ -201,9 +197,9 @@ public class RecorderAssistant extends JDialog {
     btnDragDrop.addActionListener(e -> handleDragDrop());
 
     // Text actions
-    btnTextClick.addActionListener(e -> handleTextCapture("textClick"));
-    btnTextWait.addActionListener(e -> handleTextCapture("textWait"));
-    btnTextExists.addActionListener(e -> handleTextCapture("textExists"));
+    btnTextClick.addActionListener(e -> handleTextAction("textClick"));
+    btnTextWait.addActionListener(e -> handleTextAction("textWait"));
+    btnTextExists.addActionListener(e -> handleTextAction("textExists"));
 
     // Keyboard
     btnType.addActionListener(e -> handleTypeText());
@@ -386,91 +382,21 @@ public class RecorderAssistant extends JDialog {
 
   // ── Text OCR workflows ──
 
-  private void handleTextCapture(String actionType) {
-    if (!workflow.startCapture(actionType)) return;
+  private void handleTextAction(String actionType) {
+    if (!workflow.startTextInput()) return;
 
-    hideForCapture();
-
-    new Thread(() -> {
-      ScreenImage capture = new Screen().userCapture("Select region for OCR");
-
-      SwingUtilities.invokeLater(() -> {
-        showAfterCapture();
-
-        if (capture == null) {
-          workflow.reset();
-          return;
-        }
-
-        try {
-          String imagePath = capture.save(screenshotDir.getAbsolutePath());
-          workflow.onCaptureComplete(); // -> WAITING_OCR
-
-          // OCR in SwingWorker (can take up to 35s)
-          new SwingWorker<String, Void>() {
-            @Override
-            protected String doInBackground() {
-              return ocrEngine.recognize(imagePath);
-            }
-
-            @Override
-            protected void done() {
-              try {
-                String json = get();
-                handleOcrResult(json, actionType);
-              } catch (Exception e) {
-                RecorderNotifications.error("OCR error: " + e.getMessage());
-                workflow.reset();
-              }
-            }
-          }.execute();
-        } catch (Exception ex) {
-          workflow.reset();
-          RecorderNotifications.error("OCR capture failed: " + ex.getMessage());
-        }
-      });
-    }, "RecorderOCR").start();
-  }
-
-  private void handleOcrResult(String json, String actionType) {
-    java.util.List<String> texts = ocrEngine.parseTexts(json);
-    java.util.Map<String, Double> confidences = ocrEngine.parseTextWithConfidence(json);
-
-    if (texts.isEmpty()) {
-      RecorderNotifications.warning("No text detected in this region");
-      workflow.reset();
-      return;
+    String label;
+    switch (actionType) {
+      case "textClick":  label = "Text to click on:"; break;
+      case "textWait":   label = "Text to wait for:"; break;
+      case "textExists": label = "Text to check:"; break;
+      default:           label = "Text:"; break;
     }
 
-    // Optimization: single text with high confidence -> direct generation
-    if (texts.size() == 1) {
-      String only = texts.get(0);
-      double conf = confidences.getOrDefault(only, 0.0);
-      if (conf > 0.80) {
-        codePreview.addLine(generateTextCode(actionType, only));
-        RecorderNotifications.success("Text detected: \"" + only + "\" (" + Math.round(conf * 100) + "%)");
-        workflow.onActionComplete();
-        return;
-      }
-    }
-
-    // Multiple results or low confidence: show selection dialog
-    workflow.onOcrComplete(); // -> WAITING_USER_INPUT
-
-    String[] options = new String[texts.size()];
-    for (int i = 0; i < texts.size(); i++) {
-      double conf = confidences.getOrDefault(texts.get(i), 0.0);
-      options[i] = texts.get(i) + "  (" + Math.round(conf * 100) + "%)";
-    }
-
-    String chosen = (String) JOptionPane.showInputDialog(this,
-        "Choose detected text:", "OCR Results",
-        JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
-
-    if (chosen != null) {
-      // Extract text without confidence suffix
-      String text = chosen.replaceAll("\\s+\\(\\d+%\\)$", "");
-      codePreview.addLine(generateTextCode(actionType, text));
+    String text = JOptionPane.showInputDialog(this, label, "Text Action",
+        JOptionPane.PLAIN_MESSAGE);
+    if (text != null && !text.trim().isEmpty()) {
+      codePreview.addLine(generateTextCode(actionType, text.trim()));
     }
     workflow.onActionComplete();
   }
@@ -561,13 +487,10 @@ public class RecorderAssistant extends JDialog {
     dispose();
   }
 
-  // ── OCR status check ──
+  // ── OCR status check (reserved for future OCR-based actions) ──
 
   private void checkOcrStatus() {
-    boolean ocrAvailable = ocrEngine.isAvailable();
-    btnTextClick.setEnabled(ocrAvailable);
-    btnTextWait.setEnabled(ocrAvailable);
-    btnTextExists.setEnabled(ocrAvailable);
+    // Text actions are now simple text input, no OCR required
   }
 
   // ── Status updates ──
@@ -617,14 +540,9 @@ public class RecorderAssistant extends JDialog {
     btnType.setEnabled(enabled);
     btnKeyCombo.setEnabled(enabled);
     btnPause.setEnabled(enabled);
-    // Text buttons depend on OCR availability AND idle state
-    if (enabled) {
-      checkOcrStatus();
-    } else {
-      btnTextClick.setEnabled(false);
-      btnTextWait.setEnabled(false);
-      btnTextExists.setEnabled(false);
-    }
+    btnTextClick.setEnabled(enabled);
+    btnTextWait.setEnabled(enabled);
+    btnTextExists.setEnabled(enabled);
   }
 
   private void setOpacitySafe(float opacity) {

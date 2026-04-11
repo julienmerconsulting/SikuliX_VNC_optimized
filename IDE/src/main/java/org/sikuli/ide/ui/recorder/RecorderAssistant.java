@@ -251,21 +251,29 @@ public class RecorderAssistant extends JDialog {
 
           workflow.onCaptureComplete(); // -> WAITING_PATTERN_VALIDATION
 
-          // Validate pattern
-          PatternValidator.ValidationResult result = PatternValidator.validate(
-              new Screen().capture().getImage(), capture.getImage());
+          // Validate pattern (requires OpenCV loaded)
+          PatternValidator.ValidationResult result = null;
+          try {
+            org.sikuli.support.Commons.loadOpenCV();
+            result = PatternValidator.validate(
+                new Screen().capture().getImage(), capture.getImage());
+          } catch (Exception | UnsatisfiedLinkError ignored) {
+            // OpenCV not available, skip validation
+          }
 
           Pattern pattern = new Pattern(imagePath);
-          if (result.warning == PatternValidator.Warning.AMBIGUOUS) {
-            pattern = pattern.similar((float) result.suggestedSimilarity);
-            RecorderNotifications.warning(
-                "Pattern matches " + result.matchCount + " locations. Similarity raised to " + result.suggestedSimilarity);
-          } else if (result.warning == PatternValidator.Warning.COLOR_DEPENDENT) {
-            RecorderNotifications.warning("Pattern depends on colors. May break with theme changes.");
-          } else if (result.warning == PatternValidator.Warning.TOO_SMALL) {
-            RecorderNotifications.warning("Pattern too small. Consider capturing a larger area.");
-          } else if (result.matchCount > 0) {
-            RecorderNotifications.success("Pattern validated (score: " + String.format("%.2f", result.bestScore) + ")");
+          if (result != null) {
+            if (result.warning == PatternValidator.Warning.AMBIGUOUS) {
+              pattern = pattern.similar((float) result.suggestedSimilarity);
+              RecorderNotifications.warning(
+                  "Pattern matches " + result.matchCount + " locations. Similarity raised to " + result.suggestedSimilarity);
+            } else if (result.warning == PatternValidator.Warning.COLOR_DEPENDENT) {
+              RecorderNotifications.warning("Pattern depends on colors. May break with theme changes.");
+            } else if (result.warning == PatternValidator.Warning.TOO_SMALL) {
+              RecorderNotifications.warning("Pattern too small. Consider capturing a larger area.");
+            } else if (result.matchCount > 0) {
+              RecorderNotifications.success("Pattern validated (score: " + String.format("%.2f", result.bestScore) + ")");
+            }
           }
 
           String code = generateImageCode(actionType, pattern);

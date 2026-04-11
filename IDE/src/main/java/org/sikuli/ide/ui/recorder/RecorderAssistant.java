@@ -214,15 +214,16 @@ public class RecorderAssistant extends JDialog {
   private void handleImageCapture(String actionType) {
     if (!workflow.startCapture(actionType)) return;
 
-    // Make dialog semi-transparent while capturing
-    setOpacitySafe(0.3f);
+    // Hide dialog during capture so it doesn't block the overlay
+    setVisible(false);
 
     SwingUtilities.invokeLater(() -> {
       try {
         ScreenImage capture = new Screen().userCapture("Select region to " + actionType);
-        setOpacitySafe(1.0f);
+        setVisible(true);
 
         if (capture == null) {
+          setVisible(true);
           workflow.reset();
           return;
         }
@@ -261,7 +262,7 @@ public class RecorderAssistant extends JDialog {
         workflow.onActionComplete(); // -> IDLE
 
       } catch (Exception ex) {
-        setOpacitySafe(1.0f);
+        setVisible(true);
         workflow.reset();
         RecorderNotifications.error("Capture failed: " + ex.getMessage());
       }
@@ -287,14 +288,14 @@ public class RecorderAssistant extends JDialog {
   private void handleDragDrop() {
     if (!workflow.startDragDrop()) return;
 
-    setOpacitySafe(0.3f);
+    setVisible(false);
 
     SwingUtilities.invokeLater(() -> {
       try {
         // Step 1: capture source
         ScreenImage sourceCapture = new Screen().userCapture("Select DRAG SOURCE");
         if (sourceCapture == null) {
-          setOpacitySafe(1.0f);
+          setVisible(true);
           workflow.reset();
           return;
         }
@@ -303,7 +304,7 @@ public class RecorderAssistant extends JDialog {
 
         // Step 2: capture destination
         ScreenImage destCapture = new Screen().userCapture("Select DROP DESTINATION");
-        setOpacitySafe(1.0f);
+        setVisible(true);
 
         if (destCapture == null) {
           workflow.reset();
@@ -319,7 +320,7 @@ public class RecorderAssistant extends JDialog {
         RecorderNotifications.success("Drag & Drop recorded");
 
       } catch (Exception ex) {
-        setOpacitySafe(1.0f);
+        setVisible(true);
         workflow.reset();
         RecorderNotifications.error("Drag & Drop failed: " + ex.getMessage());
       }
@@ -329,12 +330,12 @@ public class RecorderAssistant extends JDialog {
   private void handleWheelCapture() {
     if (!workflow.startCapture("wheel")) return;
 
-    setOpacitySafe(0.3f);
+    setVisible(false);
 
     SwingUtilities.invokeLater(() -> {
       try {
         ScreenImage capture = new Screen().userCapture("Select region for wheel action");
-        setOpacitySafe(1.0f);
+        setVisible(true);
 
         if (capture == null) {
           workflow.reset();
@@ -360,7 +361,7 @@ public class RecorderAssistant extends JDialog {
         workflow.onActionComplete();
 
       } catch (Exception ex) {
-        setOpacitySafe(1.0f);
+        setVisible(true);
         workflow.reset();
         RecorderNotifications.error("Wheel failed: " + ex.getMessage());
       }
@@ -372,12 +373,12 @@ public class RecorderAssistant extends JDialog {
   private void handleTextCapture(String actionType) {
     if (!workflow.startCapture(actionType)) return;
 
-    setOpacitySafe(0.3f);
+    setVisible(false);
 
     SwingUtilities.invokeLater(() -> {
       try {
         ScreenImage capture = new Screen().userCapture("Select region for OCR");
-        setOpacitySafe(1.0f);
+        setVisible(true);
 
         if (capture == null) {
           workflow.reset();
@@ -408,7 +409,7 @@ public class RecorderAssistant extends JDialog {
         }.execute();
 
       } catch (Exception ex) {
-        setOpacitySafe(1.0f);
+        setVisible(true);
         workflow.reset();
         RecorderNotifications.error("OCR capture failed: " + ex.getMessage());
       }

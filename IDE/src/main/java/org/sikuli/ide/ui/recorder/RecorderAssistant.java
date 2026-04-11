@@ -4,6 +4,7 @@
 package org.sikuli.ide.ui.recorder;
 
 import net.miginfocom.swing.MigLayout;
+import org.sikuli.ide.SikulixIDE;
 import org.sikuli.script.*;
 import org.sikuli.support.recorder.PatternValidator;
 import org.sikuli.support.recorder.generators.JythonCodeGenerator;
@@ -489,37 +490,20 @@ public class RecorderAssistant extends JDialog {
       return; // Cancel — stay in recorder
     }
 
-    // Copy to clipboard
-    java.awt.datatransfer.StringSelection selection =
-        new java.awt.datatransfer.StringSelection(codeStr);
-    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
-
     workflow.dispose();
-    getOwner().setVisible(true); // Restore IDE
+    SikulixIDE ide = (SikulixIDE) getOwner();
+    ide.setVisible(true); // Restore IDE
 
-    // Auto-paste into editor
+    if (choice == 1) {
+      ide.createEmptyScriptContext();
+    }
+
+    // Insert directly into the active editor pane
     java.awt.EventQueue.invokeLater(() -> {
-      try {
-        java.awt.Robot robot = new java.awt.Robot();
-
-        if (choice == 1) {
-          // Ctrl+N to create new script
-          robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
-          robot.keyPress(java.awt.event.KeyEvent.VK_N);
-          robot.keyRelease(java.awt.event.KeyEvent.VK_N);
-          robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
-          // Small delay for new tab to open
-          Thread.sleep(500);
-        }
-
-        // Ctrl+V to paste
-        robot.keyPress(java.awt.event.KeyEvent.VK_CONTROL);
-        robot.keyPress(java.awt.event.KeyEvent.VK_V);
-        robot.keyRelease(java.awt.event.KeyEvent.VK_V);
-        robot.keyRelease(java.awt.event.KeyEvent.VK_CONTROL);
+      SikulixIDE.PaneContext ctx = ide.getActiveContext();
+      if (ctx != null && ctx.getPane() != null) {
+        ctx.getPane().insertString(codeStr);
         RecorderNotifications.success(model.size() + " line(s) inserted.");
-      } catch (Exception ex) {
-        RecorderNotifications.info("Code in clipboard. Paste with Ctrl+V.");
       }
     });
 

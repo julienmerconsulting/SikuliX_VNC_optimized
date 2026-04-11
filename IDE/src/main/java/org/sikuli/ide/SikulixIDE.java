@@ -738,7 +738,7 @@ public class SikulixIDE extends JFrame {
 
   PaneContext lastContext = null;
 
-  PaneContext getActiveContext() {
+  public PaneContext getActiveContext() {
     final int ix = tabs.getSelectedIndex();
     if (ix < 0 || ix >= contexts.size()) {
       return null;
@@ -827,7 +827,7 @@ public class SikulixIDE extends JFrame {
     explorer.updateScripts(scripts, selected);
   }
 
-  void createEmptyScriptContext() {
+  public void createEmptyScriptContext() {
     hideWelcomeTab();
     final PaneContext context = new PaneContext();
     context.setRunner(IDESupport.getDefaultRunner());
@@ -938,7 +938,7 @@ public class SikulixIDE extends JFrame {
     return files;
   }
 
-  class PaneContext {
+  public class PaneContext {
     File folder;
     File imageFolder;
     File file;

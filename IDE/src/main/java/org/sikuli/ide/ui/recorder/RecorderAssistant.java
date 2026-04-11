@@ -37,6 +37,9 @@ public class RecorderAssistant extends JDialog {
   private JButton btnDragDrop, btnWheel, btnWait, btnPause;
   private JButton btnInsert, btnClear;
 
+  // Library of captured images in this session
+  private final java.util.List<String> capturedImages = new java.util.ArrayList<>();
+
   public RecorderAssistant(Frame parent) {
     super(parent, "OculiX Modern Recorder (beta)", false);
     setSize(400, 580);
@@ -231,6 +234,42 @@ public class RecorderAssistant extends JDialog {
   private void handleImageCapture(String actionType) {
     if (!workflow.startCapture(actionType)) return;
 
+    // If we have existing images, ask the user first
+    if (!capturedImages.isEmpty()) {
+      String[] options = {"Use existing image", "New capture"};
+      int choice = JOptionPane.showOptionDialog(this,
+          "Use an existing captured image or capture a new one?",
+          actionType,
+          JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+          null, options, options[1]);
+
+      if (choice == 0) {
+        // Show list of existing images
+        String[] imageNames = capturedImages.stream()
+            .map(p -> new File(p).getName())
+            .toArray(String[]::new);
+        String chosen = (String) JOptionPane.showInputDialog(this,
+            "Choose image:", "Image Library",
+            JOptionPane.PLAIN_MESSAGE, null, imageNames, imageNames[imageNames.length - 1]);
+
+        if (chosen != null) {
+          // Find full path from name
+          String fullPath = capturedImages.stream()
+              .filter(p -> new File(p).getName().equals(chosen))
+              .findFirst().orElse(null);
+          if (fullPath != null) {
+            Pattern pattern = new Pattern(fullPath);
+            codePreview.addLine(generateImageCode(actionType, pattern));
+            workflow.onActionComplete();
+            return;
+          }
+        }
+        workflow.reset();
+        return;
+      }
+      // choice == 1 → fall through to new capture
+    }
+
     hideForCapture();
 
     new Thread(() -> {
@@ -251,6 +290,9 @@ public class RecorderAssistant extends JDialog {
             RecorderNotifications.error("Failed to save screenshot");
             return;
           }
+
+          // Add to image library
+          capturedImages.add(imagePath);
 
           workflow.onCaptureComplete(); // -> WAITING_PATTERN_VALIDATION
 

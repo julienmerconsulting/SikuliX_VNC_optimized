@@ -34,7 +34,7 @@ public class RecorderAssistant extends JDialog {
   private JButton btnClick, btnDblClick, btnRClick;
   private JButton btnTextClick, btnTextWait, btnTextExists;
   private JButton btnType, btnKeyCombo;
-  private JButton btnDragDrop, btnWheel, btnWait, btnPause;
+  private JButton btnDragDrop, btnSwipe, btnWheel, btnWait, btnPause;
   private JButton btnInsert, btnClear;
 
   // Library of captured images in this session
@@ -108,12 +108,14 @@ public class RecorderAssistant extends JDialog {
     imageRow1.add(btnRClick, "grow");
     content.add(imageRow1);
 
-    JPanel imageRow2 = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow][grow]"));
+    JPanel imageRow2 = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow][grow][grow]"));
     imageRow2.setOpaque(false);
     btnDragDrop = createActionButton("Drag&Drop");
+    btnSwipe = createActionButton("Swipe");
     btnWheel = createActionButton("Wheel");
     btnWait = createActionButton("Wait");
     imageRow2.add(btnDragDrop, "grow");
+    imageRow2.add(btnSwipe, "grow");
     imageRow2.add(btnWheel, "grow");
     imageRow2.add(btnWait, "grow");
     content.add(imageRow2);
@@ -203,6 +205,7 @@ public class RecorderAssistant extends JDialog {
     btnWait.addActionListener(e -> handleImageCapture("wait"));
     btnWheel.addActionListener(e -> handleWheelCapture());
     btnDragDrop.addActionListener(e -> handleDragDrop());
+    btnSwipe.addActionListener(e -> handleSwipe());
 
     // Text actions
     btnTextClick.addActionListener(e -> handleTextAction("textClick"));
@@ -390,6 +393,51 @@ public class RecorderAssistant extends JDialog {
       workflow.reset();
       RecorderNotifications.error("Drag & Drop failed: " + ex.getMessage());
     }
+  }
+
+  private void handleSwipe() {
+    if (!workflow.startCapture("swipe")) return;
+
+    hideForCapture();
+
+    new Thread(() -> {
+      ScreenImage capture = new Screen().userCapture("Select region for swipe");
+
+      SwingUtilities.invokeLater(() -> {
+        showAfterCapture();
+
+        if (capture == null) {
+          workflow.reset();
+          return;
+        }
+
+        try {
+          String defaultName = "swipe_zone_" + System.currentTimeMillis();
+          String imageName = JOptionPane.showInputDialog(RecorderAssistant.this,
+              "Name this zone:", defaultName);
+          if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
+          imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
+          if (!imageName.endsWith(".png")) imageName += ".png";
+
+          String imagePath = capture.save(screenshotDir.getAbsolutePath(), imageName);
+          capturedImages.add(imagePath);
+
+          RecorderSwipeDialog dialog = new RecorderSwipeDialog(
+              RecorderAssistant.this, capture.getImage(), imagePath);
+          dialog.setVisible(true);
+          String[] lines = dialog.getResultLines();
+
+          if (lines != null) {
+            for (String line : lines) codePreview.addLine(line);
+            RecorderNotifications.success("Swipe recorded");
+          }
+          workflow.onActionComplete();
+        } catch (Exception ex) {
+          workflow.reset();
+          RecorderNotifications.error("Swipe failed: " + ex.getMessage());
+        }
+      });
+    }, "RecorderSwipe").start();
   }
 
   private void handleWheelCapture() {

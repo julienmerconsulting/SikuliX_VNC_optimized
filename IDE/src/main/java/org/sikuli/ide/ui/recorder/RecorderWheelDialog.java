@@ -40,7 +40,7 @@ public class RecorderWheelDialog extends JDialog {
     super(parent, "Wheel Configuration", true);
     this.capture = capture;
     this.imageName = new File(imagePath).getName();
-    setSize(480, 520);
+    setSize(480, 620);
     setLocationRelativeTo(parent);
     setResizable(false);
     buildUI();

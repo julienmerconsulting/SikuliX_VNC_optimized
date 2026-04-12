@@ -23,18 +23,18 @@ jobs:
         run: |
           set -e
 
-          # Determine the target status from the event
+          # Determine the target status from the event (must match project column names exactly)
           if [ "$EVENT_ACTION" = "closed" ]; then
-            TARGET_STATUS="Done"
+            TARGET_STATUS="✅ Done"
           elif [ "$EVENT_ACTION" = "reopened" ]; then
-            TARGET_STATUS="Backlog"
+            TARGET_STATUS="📋 Backlog"
           else
             case "$LABEL_NAME" in
-              "status:backlog")     TARGET_STATUS="Backlog" ;;
-              "status:up-next")     TARGET_STATUS="Up Next" ;;
+              "status:backlog")     TARGET_STATUS="📋 Backlog" ;;
+              "status:up-next")     TARGET_STATUS="🎯 Up Next" ;;
               "status:in-progress") TARGET_STATUS="In Progress" ;;
-              "status:in-review")   TARGET_STATUS="In Review" ;;
-              "help wanted")        TARGET_STATUS="Help wanted" ;;
+              "status:in-review")   TARGET_STATUS="👀 In Review" ;;
+              "help wanted")        TARGET_STATUS="🤝 Help Wanted" ;;
               *)                    echo "Label '$LABEL_NAME' is not a status label — skipping"; exit 0 ;;
             esac
           fi

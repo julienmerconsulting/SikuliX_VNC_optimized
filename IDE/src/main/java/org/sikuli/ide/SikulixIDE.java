@@ -1478,7 +1478,7 @@ public class SikulixIDE extends JFrame {
       return true;
     }
 
-    void reparse() {
+    public void reparse() {
       pane.saveCaretPosition();
       if (getShowThumbs()) {
         doShowThumbs();

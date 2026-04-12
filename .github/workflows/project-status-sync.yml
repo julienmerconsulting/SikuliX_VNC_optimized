@@ -4,13 +4,17 @@ on:
   issues:
     types: [labeled, unlabeled, closed, reopened]
 
+permissions:
+  issues: read
+  repository-projects: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - name: Update project Status field from label
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ORG: oculix-org
           PROJECT_NUMBER: 1
           ISSUE_NUMBER: ${{ github.event.issue.number }}

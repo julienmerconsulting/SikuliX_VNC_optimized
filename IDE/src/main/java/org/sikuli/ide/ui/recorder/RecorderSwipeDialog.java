@@ -29,7 +29,10 @@ public class RecorderSwipeDialog extends JDialog {
 
   private String direction = "Down";
   private int distance = 200;
+  private int startOffsetX = 0;
+  private int startOffsetY = 0;
   private String result = null;
+  private JLabel startLabel;
 
   public RecorderSwipeDialog(Dialog parent, BufferedImage capture, String imagePath) {
     super(parent, "Swipe Configuration", true);
@@ -47,7 +50,7 @@ public class RecorderSwipeDialog extends JDialog {
     content.setBackground(UIManager.getColor("Panel.background"));
 
     // Image preview with swipe arrow overlay
-    JLabel lblImg = new JLabel("Swipe zone");
+    JLabel lblImg = new JLabel("Swipe zone (click to set start position, default is center)");
     lblImg.setFont(UIManager.getFont("small.font"));
     lblImg.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblImg);
@@ -66,6 +69,11 @@ public class RecorderSwipeDialog extends JDialog {
     imagePanel.setPreferredSize(new Dimension((int) (imgW * scale), (int) (imgH * scale)));
     imagePanel.setBorder(BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1));
     content.add(imagePanel, "align center");
+
+    startLabel = new JLabel("Start: center of pattern");
+    startLabel.setFont(UIManager.getFont("small.font"));
+    startLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
+    content.add(startLabel);
 
     content.add(new JSeparator(), "growx, gaptop 4");
 
@@ -178,13 +186,59 @@ public class RecorderSwipeDialog extends JDialog {
       case "Right": method = "right";  break;
       default:      method = "below";  break;
     }
-    return "_zone = find(\"" + imageName + "\").getCenter()\n"
-         + "dragDrop(_zone, _zone." + method + "(" + distance + "))";
+    String startExpr;
+    if (startOffsetX == 0 && startOffsetY == 0) {
+      startExpr = "find(\"" + imageName + "\").getCenter()";
+    } else {
+      startExpr = "find(\"" + imageName + "\").getCenter().offset(" + startOffsetX + ", " + startOffsetY + ")";
+    }
+    return "_start = " + startExpr + "\n"
+         + "dragDrop(_start, _start." + method + "(" + distance + "))";
   }
 
   private void updatePreview() {
     previewLabel.setText("<html>" + buildCode().replace("\n", "<br>") + "</html>");
     distanceLabel.setText(distance + " px");
+    if (startOffsetX == 0 && startOffsetY == 0) {
+      startLabel.setText("Start: center of pattern");
+    } else {
+      startLabel.setText("Start: offset (" + startOffsetX + ", " + startOffsetY + ") from center");
+    }
+  }
+
+  /**
+   * Disable direction buttons that would send the swipe off the pattern.
+   * If the start is in the left quarter, LEFT is disabled, etc.
+   * Auto-switches to a valid direction if the current one gets disabled.
+   */
+  private void refreshDirectionAvailability() {
+    int imgW = capture.getWidth();
+    int imgH = capture.getHeight();
+    int quarterW = imgW / 4;
+    int quarterH = imgH / 4;
+
+    boolean canLeft  = startOffsetX > -quarterW;
+    boolean canRight = startOffsetX <  quarterW;
+    boolean canUp    = startOffsetY > -quarterH;
+    boolean canDown  = startOffsetY <  quarterH;
+
+    btnLeft.setEnabled(canLeft);
+    btnRight.setEnabled(canRight);
+    btnUp.setEnabled(canUp);
+    btnDown.setEnabled(canDown);
+
+    // If the current direction got disabled, auto-pick a valid one
+    boolean currentValid =
+        ("Left".equals(direction)  && canLeft)  ||
+        ("Right".equals(direction) && canRight) ||
+        ("Up".equals(direction)    && canUp)    ||
+        ("Down".equals(direction)  && canDown);
+    if (!currentValid) {
+      if (canDown)       { direction = "Down";  btnDown.setSelected(true);  }
+      else if (canUp)    { direction = "Up";    btnUp.setSelected(true);    }
+      else if (canRight) { direction = "Right"; btnRight.setSelected(true); }
+      else if (canLeft)  { direction = "Left";  btnLeft.setSelected(true);  }
+    }
   }
 
   private class ImagePanel extends JPanel {
@@ -192,7 +246,32 @@ public class RecorderSwipeDialog extends JDialog {
     private double scale;
     private int drawOffsetX, drawOffsetY, drawWidth, drawHeight;
 
-    ImagePanel() { setBackground(Color.DARK_GRAY); }
+    ImagePanel() {
+      setBackground(Color.DARK_GRAY);
+      setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+
+      java.awt.event.MouseAdapter handler = new java.awt.event.MouseAdapter() {
+        @Override public void mousePressed(java.awt.event.MouseEvent e) { setStart(e.getX(), e.getY()); }
+        @Override public void mouseDragged(java.awt.event.MouseEvent e) { setStart(e.getX(), e.getY()); }
+      };
+      addMouseListener(handler);
+      addMouseMotionListener(handler);
+    }
+
+    private void setStart(int px, int py) {
+      // Clamp to image area
+      if (drawWidth <= 0 || drawHeight <= 0) return;
+      px = Math.max(drawOffsetX, Math.min(drawOffsetX + drawWidth, px));
+      py = Math.max(drawOffsetY, Math.min(drawOffsetY + drawHeight, py));
+
+      int imgCx = drawOffsetX + drawWidth / 2;
+      int imgCy = drawOffsetY + drawHeight / 2;
+      startOffsetX = (int) Math.round((px - imgCx) / scale);
+      startOffsetY = (int) Math.round((py - imgCy) / scale);
+      refreshDirectionAvailability();
+      updatePreview();
+      repaint();
+    }
 
     @Override
     protected void paintComponent(Graphics g) {
@@ -215,15 +294,14 @@ public class RecorderSwipeDialog extends JDialog {
 
       g2.drawImage(capture, drawOffsetX, drawOffsetY, drawWidth, drawHeight, null);
 
-      // Draw swipe arrow from center
-      int cx = drawOffsetX + drawWidth / 2;
-      int cy = drawOffsetY + drawHeight / 2;
-      int dx = 0, dy = 0;
-      double pixelScale = scale;
-      int displayDistance = (int) Math.min(
-          Math.min(drawWidth, drawHeight) * 0.45,
-          distance * pixelScale);
+      // Starting point: center + user offset (in screen coordinates)
+      int sx = drawOffsetX + drawWidth / 2 + (int) (startOffsetX * scale);
+      int sy = drawOffsetY + drawHeight / 2 + (int) (startOffsetY * scale);
 
+      // Arrow direction scaled to display, capped so it stays inside
+      int maxReach = (int) (Math.min(drawWidth, drawHeight) * 0.45);
+      int displayDistance = (int) Math.min(maxReach, distance * scale);
+      int dx = 0, dy = 0;
       switch (direction) {
         case "Up":    dy = -displayDistance; break;
         case "Down":  dy =  displayDistance; break;
@@ -234,11 +312,11 @@ public class RecorderSwipeDialog extends JDialog {
       Color teal = new Color(0x00, 0xA8, 0x9D);
       g2.setColor(teal);
       g2.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-      g2.drawLine(cx, cy, cx + dx, cy + dy);
-      // Arrow head
-      drawArrowHead(g2, cx, cy, cx + dx, cy + dy);
+      g2.drawLine(sx, sy, sx + dx, sy + dy);
+      drawArrowHead(g2, sx, sy, sx + dx, sy + dy);
 
-      g2.fillOval(cx - 5, cy - 5, 10, 10);
+      // Starting dot
+      g2.fillOval(sx - 5, sy - 5, 10, 10);
       g2.dispose();
     }
 

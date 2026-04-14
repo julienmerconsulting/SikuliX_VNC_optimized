@@ -23,20 +23,53 @@ jobs:
         run: |
           set -e
 
-          # Determine the target status from the event (must match project column names exactly)
+          # Priority order for status labels when multiple are present on the
+          # same issue (higher in the list = higher precedence). This is the
+          # single source of truth used by every codepath below.
+          #
+          # Rationale: a workflow that picks the "just-added" label is fragile
+          # because GitHub can fire events in any order and third-party tools
+          # (the gh CLI PATCH endpoint, GitHub Mobile, etc.) sometimes re-emit
+          # labeled/unlabeled events for labels that already existed. By
+          # re-evaluating the full label set of the issue every time, we make
+          # the sync idempotent.
+
+          resolve_status_from_current_labels() {
+            # Fetch the current labels on the issue via the REST API, then
+            # pick the highest-priority status label.
+            local labels
+            labels=$(gh api "/repos/${{ github.repository }}/issues/$ISSUE_NUMBER" \
+                      --jq '[.labels[].name] | join(" ")')
+            echo "$labels" 1>&2
+            case " $labels " in
+              *" status:in-review "*)  echo "👀 In Review" ;;
+              *" status:in-progress "*) echo "In Progress" ;;
+              *" status:up-next "*)    echo "🎯 Up Next" ;;
+              *" status:backlog "*)    echo "📋 Backlog" ;;
+              *" help wanted "*)       echo "🤝 Help Wanted" ;;
+              *)                       echo "" ;;
+            esac
+          }
+
+          # Determine the target status. Closed/reopened are unambiguous. For
+          # labeled/unlabeled we always re-read the current label set rather
+          # than trusting the event payload.
           if [ "$EVENT_ACTION" = "closed" ]; then
             TARGET_STATUS="✅ Done"
           elif [ "$EVENT_ACTION" = "reopened" ]; then
             TARGET_STATUS="📋 Backlog"
           else
+            # Fast-skip: if the event was triggered by a non-status label,
+            # and the issue has no status label at all, nothing to do.
             case "$LABEL_NAME" in
-              "status:backlog")     TARGET_STATUS="📋 Backlog" ;;
-              "status:up-next")     TARGET_STATUS="🎯 Up Next" ;;
-              "status:in-progress") TARGET_STATUS="In Progress" ;;
-              "status:in-review")   TARGET_STATUS="👀 In Review" ;;
-              "help wanted")        TARGET_STATUS="🤝 Help Wanted" ;;
-              *)                    echo "Label '$LABEL_NAME' is not a status label — skipping"; exit 0 ;;
+              status:*|"help wanted") ;;
+              *) echo "Label '$LABEL_NAME' is not a status label — skipping"; exit 0 ;;
             esac
+            TARGET_STATUS=$(resolve_status_from_current_labels)
+            if [ -z "$TARGET_STATUS" ]; then
+              echo "No status label currently on issue — skipping"
+              exit 0
+            fi
           fi
           echo "Target status: $TARGET_STATUS"
 

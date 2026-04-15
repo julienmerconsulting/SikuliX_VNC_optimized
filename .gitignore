@@ -23,5 +23,5 @@ original/
 native/
 *.class 
 Test*.java 
-*.txt 
-/.run
+*.txt
+

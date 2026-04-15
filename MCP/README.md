@@ -106,7 +106,9 @@ Walks every `audit-*.jsonl` file in `~/.oculix-mcp/journal/`, re-computes hashes
 | `oculix_type_text` | Type literal text at the keyboard focus |
 | `oculix_key_combo` | Press a keyboard combination (Ctrl+C, Cmd+Tab, F5, ...) |
 | `oculix_find_text` | OCR: locate a text string on screen, return bounding box |
-| `oculix_read_text_in_region` | OCR: extract the text from a region |
+| `oculix_read_text_in_region` | OCR: extract the text from a region *(open mode only — see [Modes](#modes-open-vs-confidential))* |
+| `oculix_screenshot_to_disk` | Capture to a local PNG, return path + hash only *(confidential mode only)* |
+| `oculix_ocr_to_disk` | OCR to a local text file, return path + hash only *(confidential mode only)* |
 
 Each tool's JSON schema is exposed via `tools/list` on the MCP connection.
 
@@ -115,12 +117,18 @@ Each tool's JSON schema is exposed via `tools/list` on the MCP connection.
 ## CLI subcommands
 
 ```
-oculix-mcp run          Start the MCP server over stdio (default)
-oculix-mcp rotate-key   Rotate the Ed25519 audit signing key
-oculix-mcp recover      Record an unsigned-gap and start a fresh chain
-oculix-mcp verify       Verify all audit journals
-oculix-mcp verify FILE  Verify a specific file
-oculix-mcp --help       Show usage
+oculix-mcp run                Start the MCP server over stdio (default)
+oculix-mcp serve [flags]      Start the MCP server over HTTP (Streamable HTTP)
+                              --host HOST   (default 127.0.0.1)
+                              --port PORT   (default 7337, 0 for auto)
+                              env OCULIX_MCP_TOKEN    bearer auth (generated if absent)
+                              env OCULIX_MCP_MODE     open | confidential
+                              env OCULIX_MCP_VAULT    confidential-mode landing dir
+oculix-mcp rotate-key         Rotate the Ed25519 audit signing key
+oculix-mcp recover            Record an unsigned-gap and start a fresh chain
+oculix-mcp verify             Verify all audit journals
+oculix-mcp verify FILE        Verify a specific file
+oculix-mcp --help             Show usage
 ```
 
 ### Key rotation
@@ -211,11 +219,107 @@ The `llm.backend` and `llm.user_id` fields in the audit trail are populated only
 
 ---
 
+## HTTP transport (Streamable HTTP)
+
+Stdio is not the only transport. A remote MCP client (qaopslab, an on-prem
+Mistral orchestrator, the official MCP Inspector) can reach the server over
+HTTP on the loopback interface (or through a reverse proxy on a VLAN).
+
+Start the HTTP server:
+
+```bash
+OCULIX_MCP_TOKEN=$(openssl rand -base64 32) \
+  java -jar oculix-mcp-server.jar serve --host 127.0.0.1 --port 7337
+```
+
+Endpoint: `POST / GET / DELETE http://<host>:<port>/mcp`, per the MCP
+Streamable HTTP spec (2024-11-05).
+
+Every request must carry:
+
+- `Authorization: Bearer $OCULIX_MCP_TOKEN` — missing or wrong yields `401`.
+- `Mcp-Session-Id: <id>` — echoed by the client after `initialize`.
+  Unknown ids yield `404`; missing on a non-initialize request yields `400`.
+
+If `OCULIX_MCP_TOKEN` is not set, the server generates a random one-shot
+token and prints it on stderr. Persist the env var for repeatable restarts
+— never treat the printed token as durable.
+
+### Concurrency
+
+Screen actions are serialized through a fair lock: no matter how many
+clients share one process, two `oculix_click_image` cannot interleave.
+This is independent of the transport.
+
+### MCP Inspector
+
+```bash
+npx @modelcontextprotocol/inspector \
+  --transport streamable-http \
+  --url http://127.0.0.1:7337/mcp \
+  --header "Authorization: Bearer $OCULIX_MCP_TOKEN"
+```
+
+Then exercise `tools/list`, `tools/call`, verify session headers round-trip,
+and confirm the audit journal populates on every call.
+
+---
+
+## Modes: open vs confidential
+
+By default, the server registers the 9 tools described above. Two of them
+return screen content inline to the LLM:
+
+- `oculix_screenshot` — PNG bytes (base64) back to the model.
+- `oculix_read_text_in_region` — OCR text back to the model.
+
+For regulated workflows where captured content must **not** reach a
+third-party LLM, start the server in confidential mode:
+
+```bash
+OCULIX_MCP_MODE=confidential \
+OCULIX_MCP_TOKEN=... \
+  java -jar oculix-mcp-server.jar serve
+```
+
+In confidential mode the two content-bearing tools are **not registered**.
+The client's `tools/list` will not even mention them — there is no filter
+to bypass, the capability is physically absent. They are replaced by:
+
+- `oculix_screenshot_to_disk` — captures a PNG into the local vault,
+  returns `{path, sha256, width, height, bytes}`. Pixels stay local.
+- `oculix_ocr_to_disk` — writes the OCR output to a text file in the
+  vault, returns `{path, sha256, engine, line_count, char_count}`.
+  Text stays local.
+
+Vault location: `$OCULIX_MCP_VAULT` if set, else `~/.oculix-mcp/vault/`,
+restricted to owner only (`0700` on POSIX).
+
+### What you can claim, and what you cannot
+
+The confidential mode delivers these properties end-to-end:
+
+| Claim | Holds? |
+|-------|--------|
+| Screen pixels never leave the host via the MCP channel | ✅ |
+| OCR results never leave the host via the MCP channel | ✅ |
+| Local audit chain records SHA-256 of every captured artefact | ✅ |
+| The LLM cannot enumerate content-bearing tools | ✅ (they are absent from `tools/list`) |
+| User prompts typed in the upstream chatbot never reach the LLM | ❌ — that is an upstream concern, not MCP's |
+| Tool arguments (e.g. `type_text`) never reach the LLM | ❌ — the LLM is the one writing them |
+
+The mode is a property of the **tool surface**, not of the LLM. Combine
+it with an on-prem model (e.g. Mistral, Llama) if the threat model forbids
+any network egress, or keep the hosted LLM (Claude, GPT) if you only need
+to guarantee that bank-internal screen content stays local.
+
+---
+
 ## What is not in V1
 
-- **HTTP / SSE transport**: V1 is stdio only. A remote transport built on the existing `SikulixServer` (Undertow) is planned for V2.
-- **Human-in-the-loop approval**: the `ActionGate` interface exists and is called for every tool call, but the default `AutoApproveGate` always approves. V2 will plug a queue-and-notify implementation in the same interface without code changes elsewhere.
-- **Multi-monitor region selection**: the `screen` field exists in the region schema but defaults to 0. Full multi-screen UX is scoped for V2.
+- **Human-in-the-loop approval**: the `ActionGate` interface exists and is called for every tool call, but the default `AutoApproveGate` always approves. A queue-and-notify implementation can plug into the same interface for per-action operator approval.
+- **Multi-monitor region selection**: the `screen` field exists in the region schema but defaults to 0. Full multi-screen UX is scoped for later.
+- **Server-initiated SSE notifications**: the `GET /mcp` stream is kept open but no notifications are pushed yet. Inspector treats the stream as "ready" and continues; adding progress events is a later enhancement.
 
 ---
 

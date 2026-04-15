@@ -7,9 +7,13 @@ import org.sikuli.mcp.audit.JournalVerifier;
 import org.sikuli.mcp.audit.JournalWriter;
 import org.sikuli.mcp.crypto.KeyManager;
 import org.sikuli.mcp.gate.AutoApproveGate;
+import org.sikuli.mcp.server.McpDispatcher;
 import org.sikuli.mcp.server.McpServer;
+import org.sikuli.mcp.server.SessionStore;
 import org.sikuli.mcp.server.StartupCheck;
 import org.sikuli.mcp.tools.ToolRegistry;
+import org.sikuli.mcp.transport.BearerAuth;
+import org.sikuli.mcp.transport.HttpTransport;
 
 import java.nio.file.*;
 import java.security.PublicKey;
@@ -45,6 +49,7 @@ public final class Main {
 
     switch (cmd) {
       case "run":         cmdRun(); break;
+      case "serve":       cmdServe(rest); break;
       case "rotate-key":  cmdRotateKey(); break;
       case "recover":     cmdRecover(); break;
       case "verify":      cmdVerify(rest); break;
@@ -81,6 +86,92 @@ public final class Main {
           journal,
           System.in, System.out);
       server.run();
+    }
+  }
+
+  // ── serve (HTTP) ──
+
+  /**
+   * Start the MCP server over HTTP (Streamable HTTP transport).
+   *
+   * <p>Flags:
+   * <ul>
+   *   <li>{@code --host HOST} (default {@code 127.0.0.1})</li>
+   *   <li>{@code --port PORT} (default {@code 7337}, {@code 0} to let the OS pick)</li>
+   * </ul>
+   *
+   * <p>The bearer token is read from {@code OCULIX_MCP_TOKEN}; if absent,
+   * one is generated and printed on startup. Never generate tokens silently
+   * in production — set the env var explicitly.
+   */
+  private static void cmdServe(String[] args) throws Exception {
+    String host = "127.0.0.1";
+    int port = 7337;
+    for (int i = 0; i < args.length; i++) {
+      String a = args[i];
+      if ("--host".equals(a) && i + 1 < args.length) { host = args[++i]; }
+      else if ("--port".equals(a) && i + 1 < args.length) {
+        port = Integer.parseInt(args[++i]);
+      } else if (a.startsWith("--host=")) { host = a.substring("--host=".length()); }
+      else if (a.startsWith("--port=")) {
+        port = Integer.parseInt(a.substring("--port=".length()));
+      } else {
+        System.err.println("Unknown serve flag: " + a);
+        System.exit(1);
+      }
+    }
+
+    Path oculixDir = StartupCheck.defaultOculixDir();
+    Path journalDir = StartupCheck.defaultJournalDir();
+
+    KeyManager keys;
+    try {
+      keys = StartupCheck.validateAndLoad(oculixDir, journalDir);
+    } catch (StartupCheck.StartupException e) {
+      System.err.println("[oculix-mcp] Startup refused:\n" + e.getMessage());
+      System.exit(3);
+      return;
+    }
+
+    String token = System.getenv("OCULIX_MCP_TOKEN");
+    boolean generated = false;
+    if (token == null || token.isBlank()) {
+      token = BearerAuth.generateToken();
+      generated = true;
+    }
+    BearerAuth auth = new BearerAuth(token);
+
+    ToolRegistry.Mode mode = ToolRegistry.Mode.fromEnv();
+    ToolRegistry registry = ToolRegistry.defaultRegistry(mode);
+
+    try (JournalWriter journal = new JournalWriter(journalDir, keys,
+             MAX_ENTRIES_PER_FILE, MAX_AGE_MILLIS)) {
+      McpDispatcher dispatcher = new McpDispatcher(
+          registry, new AutoApproveGate(), journal);
+      SessionStore sessions = new SessionStore();
+      HttpTransport http = new HttpTransport(dispatcher, sessions, auth, host, port);
+      http.start();
+
+      int bound = http.boundPort();
+      System.err.println("[oculix-mcp] listening on http://" + host + ":" + bound + "/mcp");
+      System.err.println("[oculix-mcp] mode=" + mode.name().toLowerCase()
+          + " tools=" + registry.size());
+      if (generated) {
+        System.err.println("[oculix-mcp] OCULIX_MCP_TOKEN not set — generated one-shot token:");
+        System.err.println("[oculix-mcp]   " + token);
+        System.err.println("[oculix-mcp] Persist it as an env var to avoid regenerating on restart.");
+      } else {
+        System.err.println("[oculix-mcp] bearer token: from OCULIX_MCP_TOKEN env var");
+      }
+
+      // Block the main thread; shutdown on Ctrl-C / SIGTERM.
+      Thread shutdown = new Thread(() -> {
+        try { http.close(); } catch (Exception ignored) {}
+      }, "oculix-mcp-shutdown");
+      Runtime.getRuntime().addShutdownHook(shutdown);
+
+      // Park forever.
+      synchronized (http) { http.wait(); }
     }
   }
 
@@ -203,6 +294,12 @@ public final class Main {
     System.out.println();
     System.out.println("Usage:");
     System.out.println("  oculix-mcp run          Start the MCP server over stdio (default)");
+    System.out.println("  oculix-mcp serve        Start the MCP server over HTTP (Streamable HTTP)");
+    System.out.println("                          Flags: --host HOST (default 127.0.0.1)");
+    System.out.println("                                 --port PORT (default 7337, 0 for auto)");
+    System.out.println("                          Env:   OCULIX_MCP_TOKEN (bearer auth, generated if absent)");
+    System.out.println("                                 OCULIX_MCP_MODE=open|confidential");
+    System.out.println("                                 OCULIX_MCP_VAULT=<path> (confidential mode landing dir)");
     System.out.println("  oculix-mcp rotate-key   Rotate the Ed25519 audit signing key");
     System.out.println("  oculix-mcp recover      Record an unsigned gap and start a fresh chain");
     System.out.println("  oculix-mcp verify [FILES...]");

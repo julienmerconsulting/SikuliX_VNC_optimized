@@ -68,6 +68,15 @@
       <version>1.4</version>
     </dependency>
 
+    <!-- Undertow: embedded HTTP/SSE server for the MCP Streamable HTTP transport.
+         Same version already used by IDE/SikulixServer to keep a single Undertow
+         on the classpath when both modules end up in the same fat jar. -->
+    <dependency>
+      <groupId>io.undertow</groupId>
+      <artifactId>undertow-core</artifactId>
+      <version>2.0.27.Final</version>
+    </dependency>
+
     <!-- Ed25519 signatures: native in JDK 15+ via java.security, no Bouncy Castle needed -->
 
     <!-- Tests -->

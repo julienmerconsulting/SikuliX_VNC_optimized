@@ -81,8 +81,11 @@
     <dependency>
       <groupId>io.github.julienmerconsulting.apertix</groupId>
       <artifactId>opencv</artifactId>
-      <version>4.10.0-1</version>
-      <!-- https://github.com/julienmerconsulting/Apertix -->
+      <version>4.10.0-2</version>
+      <!-- https://github.com/julienmerconsulting/Apertix
+           4.10.0-2 builds OpenCV with WITH_OBSENSOR=OFF, removing the broken
+           libOrbbecSDK.1.9.dylib dependency that caused UnsatisfiedLinkError
+           on macOS (both Intel and Apple Silicon). -->
     </dependency>
     <dependency>
       <groupId>commons-cli</groupId>

@@ -718,6 +718,7 @@ public class RecorderAssistant extends JDialog {
   }
 
   private String captureImage(String purpose) {
+    setAlwaysOnTop(false);
     setVisible(false);
     getOwner().setVisible(false);
     final ScreenImage[] captured = new ScreenImage[1];
@@ -726,6 +727,7 @@ public class RecorderAssistant extends JDialog {
     } finally {
       getOwner().setVisible(true);
       setVisible(true);
+      setAlwaysOnTop(true);
     }
     if (captured[0] == null) return null;
 

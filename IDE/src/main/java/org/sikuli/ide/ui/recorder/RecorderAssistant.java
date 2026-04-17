@@ -59,6 +59,15 @@ public class RecorderAssistant extends JDialog {
     this.codePreview = new RecorderCodePreview();
     this.codeGenerator = generator;
 
+    if (codeGenerator instanceof RobotFrameworkCodeGenerator) {
+      codePreview.addLine("*** Settings ***");
+      codePreview.addLine("Library    SikuliLibrary");
+      codePreview.addLine("Documentation    Recorded by OculiX Modern Recorder");
+      codePreview.addLine("");
+      codePreview.addLine("*** Test Cases ***");
+      codePreview.addLine("Recorded Test");
+    }
+
     // Create temp dir for screenshots
     try {
       screenshotDir = Files.createTempDirectory("oculix_recorder_").toFile();
@@ -324,7 +333,7 @@ public class RecorderAssistant extends JDialog {
   }
 
   private void addActionCode(String code) {
-    if (isAppScoped()) {
+    if (isAppScoped() && !(codeGenerator instanceof RobotFrameworkCodeGenerator)) {
       codePreview.addLine(appVarName + "." + code);
     } else {
       codePreview.addLine(code);

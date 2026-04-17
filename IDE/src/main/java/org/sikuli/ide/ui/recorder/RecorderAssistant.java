@@ -321,9 +321,6 @@ public class RecorderAssistant extends JDialog {
   }
 
   private void addActionCode(String code) {
-    if (isAppScoped()) {
-      codePreview.addLine("app.focus()");
-    }
     codePreview.addLine(code);
   }
 

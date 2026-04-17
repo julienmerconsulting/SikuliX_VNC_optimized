@@ -587,7 +587,16 @@ public class SikulixIDE extends JFrame {
     scriptDependentItems.add(sub.addItem("\uD83D\uDD34  Record", null,
         e -> btnRecord.actionPerformed(e)));
     scriptDependentItems.add(sub.addItem("\uD83D\uDFE2  Modern Recorder (beta)", null,
-        e -> new org.sikuli.ide.ui.recorder.RecorderAssistant(SikulixIDE.this).setVisible(true)));
+        e -> {
+          org.sikuli.ide.ui.recorder.RecorderConfigDialog config =
+              new org.sikuli.ide.ui.recorder.RecorderConfigDialog(SikulixIDE.this);
+          config.setVisible(true);
+          if (config.isConfirmed()) {
+            new org.sikuli.ide.ui.recorder.RecorderAssistant(
+                SikulixIDE.this, config.getSelectedGenerator(), config.getWaitTimeout()
+            ).setVisible(true);
+          }
+        }));
     sub.addSeparator();
     // Add items from the existing _toolMenu (Extensions, etc.)
     if (_toolMenu != null) {

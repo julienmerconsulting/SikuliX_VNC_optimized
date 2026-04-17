@@ -7,7 +7,7 @@ import net.miginfocom.swing.MigLayout;
 import org.sikuli.ide.SikulixIDE;
 import org.sikuli.script.*;
 import org.sikuli.support.recorder.PatternValidator;
-import org.sikuli.support.recorder.generators.JythonCodeGenerator;
+import org.sikuli.support.recorder.generators.ICodeGenerator;
 
 import javax.swing.*;
 import java.awt.*;
@@ -26,7 +26,8 @@ public class RecorderAssistant extends JDialog {
 
   private final RecorderWorkflow workflow;
   private final RecorderCodePreview codePreview;
-  private final JythonCodeGenerator codeGenerator;
+  private final ICodeGenerator codeGenerator;
+  private final int waitTimeout;
   private File screenshotDir;
 
   private App currentApp = null;
@@ -45,7 +46,7 @@ public class RecorderAssistant extends JDialog {
   // Library of captured images in this session
   private final java.util.List<String> capturedImages = new java.util.ArrayList<>();
 
-  public RecorderAssistant(Frame parent) {
+  public RecorderAssistant(Frame parent, ICodeGenerator generator, int waitTimeout) {
     super(parent, "OculiX Modern Recorder (beta)", false);
     setSize(400, 680);
     setLocationRelativeTo(parent);
@@ -55,7 +56,8 @@ public class RecorderAssistant extends JDialog {
 
     this.workflow = new RecorderWorkflow();
     this.codePreview = new RecorderCodePreview();
-    this.codeGenerator = new JythonCodeGenerator();
+    this.codeGenerator = generator;
+    this.waitTimeout = waitTimeout;
 
     // Create temp dir for screenshots
     try {
@@ -343,7 +345,7 @@ public class RecorderAssistant extends JDialog {
         code = codeGenerator.rightClick(pattern, noModifiers);
         break;
       case "wait":
-        code = codeGenerator.wait(pattern, 10, null);
+        code = codeGenerator.wait(pattern, waitTimeout, null);
         break;
       default:
         code = "# " + actionType + "(\"" + pattern.getFilename() + "\")";

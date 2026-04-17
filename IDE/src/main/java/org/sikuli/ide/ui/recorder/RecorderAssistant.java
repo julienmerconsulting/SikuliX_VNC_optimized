@@ -280,52 +280,69 @@ public class RecorderAssistant extends JDialog {
   private void handleImageCapture(String actionType) {
     if (!workflow.startCapture(actionType)) return;
 
-    String imagePath = pickImage(actionType);
-    if (imagePath == null) {
-      workflow.reset();
-      return;
-    }
+    hideForCapture();
 
-    workflow.onCaptureComplete(); // -> WAITING_PATTERN_VALIDATION
+    new Thread(() -> {
+      ScreenImage capture = new Screen().userCapture("Select region for " + actionType);
 
-    try {
-      Pattern pattern = new Pattern(imagePath);
+      SwingUtilities.invokeLater(() -> {
+        showAfterCapture();
 
-      // Best-effort validation against current screen
-      PatternValidator.ValidationResult result = null;
-      try {
-        java.awt.image.BufferedImage candidate =
-            javax.imageio.ImageIO.read(new File(imagePath));
-        if (candidate != null) {
-          result = PatternValidator.validate(
-              new Screen().capture().getImage(), candidate);
+        if (capture == null) {
+          workflow.reset();
+          return;
         }
-      } catch (Exception | UnsatisfiedLinkError ignored) {
-        // OpenCV missing or IO error — skip validation
-      }
 
-      if (result != null) {
-        if (result.warning == PatternValidator.Warning.AMBIGUOUS) {
-          pattern = pattern.similar((float) result.suggestedSimilarity);
-          RecorderNotifications.warning(
-              "Pattern matches " + result.matchCount + " locations. Similarity raised to " + result.suggestedSimilarity);
-        } else if (result.warning == PatternValidator.Warning.COLOR_DEPENDENT) {
-          RecorderNotifications.warning("Pattern depends on colors. May break with theme changes.");
-        } else if (result.warning == PatternValidator.Warning.TOO_SMALL) {
-          RecorderNotifications.warning("Pattern too small. Consider capturing a larger area.");
-        } else if (result.matchCount > 0) {
-          RecorderNotifications.success("Pattern validated (score: " + String.format("%.2f", result.bestScore) + ")");
+        try {
+          String defaultName = actionType + "_" + System.currentTimeMillis();
+          String imageName = JOptionPane.showInputDialog(RecorderAssistant.this,
+              "Name this image:", defaultName);
+          if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
+          imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
+          if (!imageName.endsWith(".png")) imageName += ".png";
+
+          String imagePath = capture.save(screenshotDir.getAbsolutePath(), imageName);
+          if (imagePath != null) capturedImages.add(imagePath);
+
+          workflow.onCaptureComplete();
+
+          Pattern pattern = new Pattern(imagePath);
+
+          PatternValidator.ValidationResult result = null;
+          try {
+            java.awt.image.BufferedImage candidate =
+                javax.imageio.ImageIO.read(new File(imagePath));
+            if (candidate != null) {
+              result = PatternValidator.validate(
+                  new Screen().capture().getImage(), candidate);
+            }
+          } catch (Exception | UnsatisfiedLinkError ignored) {
+          }
+
+          if (result != null) {
+            if (result.warning == PatternValidator.Warning.AMBIGUOUS) {
+              pattern = pattern.similar((float) result.suggestedSimilarity);
+              RecorderNotifications.warning(
+                  "Pattern matches " + result.matchCount + " locations. Similarity raised to " + result.suggestedSimilarity);
+            } else if (result.warning == PatternValidator.Warning.COLOR_DEPENDENT) {
+              RecorderNotifications.warning("Pattern depends on colors. May break with theme changes.");
+            } else if (result.warning == PatternValidator.Warning.TOO_SMALL) {
+              RecorderNotifications.warning("Pattern too small. Consider capturing a larger area.");
+            } else if (result.matchCount > 0) {
+              RecorderNotifications.success("Pattern validated (score: " + String.format("%.2f", result.bestScore) + ")");
+            }
+          }
+
+          String code = generateImageCode(actionType, pattern);
+          addActionCode(code);
+          workflow.onActionComplete();
+
+        } catch (Exception ex) {
+          workflow.reset();
+          RecorderNotifications.error("Action failed: " + ex.getMessage());
         }
-      }
-
-      String code = generateImageCode(actionType, pattern);
-      addActionCode(code);
-      workflow.onActionComplete(); // -> IDLE
-
-    } catch (Exception ex) {
-      workflow.reset();
-      RecorderNotifications.error("Action failed: " + ex.getMessage());
-    }
+      });
+    }).start();
   }
 
   private boolean isAppScoped() {

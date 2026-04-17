@@ -33,6 +33,7 @@ public class RecorderAssistant extends JDialog {
 
   private App currentApp = null;
   private String appVarName = null;
+  private boolean firstActionDone = false;
 
   // UI components
   private JLabel statusLabel;
@@ -277,8 +278,25 @@ public class RecorderAssistant extends JDialog {
 
   // ── Image capture workflows ──
 
+  private boolean warnIfNoApp() {
+    if (!firstActionDone && currentApp == null) {
+      int answer = JOptionPane.showConfirmDialog(this,
+          "No application launched. Launch your app first?\n\n"
+          + "Recording without Launch App will act on the full screen.",
+          "Launch App first?",
+          JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+      if (answer == JOptionPane.YES_OPTION) {
+        handleLaunchApp();
+        return currentApp == null;
+      }
+    }
+    firstActionDone = true;
+    return false;
+  }
+
   private void handleImageCapture(String actionType) {
     if (!workflow.startCapture(actionType)) return;
+    if (warnIfNoApp()) { workflow.reset(); return; }
 
     java.util.List<String> options = new java.util.ArrayList<>();
     options.add("Capture screen");
@@ -383,7 +401,28 @@ public class RecorderAssistant extends JDialog {
       }
 
       String code = generateImageCode(actionType, pattern);
-      addActionCode(code);
+      if (code.contains("\n")) {
+        for (String line : code.split("\n")) addActionCode(line);
+      } else {
+        addActionCode(code);
+      }
+
+      if ("click".equals(actionType) || "doubleClick".equals(actionType) || "rightClick".equals(actionType)) {
+        JCheckBox chkVanish = new JCheckBox("Assert UI change after this action (waitVanish)");
+        JOptionPane.showMessageDialog(this, chkVanish, "Post-action assertion",
+            JOptionPane.PLAIN_MESSAGE);
+        if (chkVanish.isSelected()) {
+          String patStr = codeGenerator.pattern(pattern);
+          boolean isJava = codeGenerator instanceof JavaCodeGenerator;
+          boolean isRF = codeGenerator instanceof RobotFrameworkCodeGenerator;
+          if (isRF) {
+            addActionCode("    Wait Until Screen Not Contain    " + patStr + "    5");
+          } else {
+            addActionCode("waitVanish(" + patStr + ", 5)" + (isJava ? ";" : ""));
+          }
+        }
+      }
+
       workflow.onActionComplete();
 
     } catch (Exception ex) {
@@ -405,29 +444,30 @@ public class RecorderAssistant extends JDialog {
   }
 
   private String generateImageCode(String actionType, Pattern pattern) {
-    String[] noModifiers = new String[0];
-    String code;
+    String patStr = codeGenerator.pattern(pattern);
+    boolean isJava = codeGenerator instanceof JavaCodeGenerator;
+    boolean isRF = codeGenerator instanceof RobotFrameworkCodeGenerator;
+    String semi = isJava ? ";" : "";
+
     switch (actionType) {
       case "click":
-        code = codeGenerator.click(pattern, noModifiers);
-        break;
+        if (isRF) return "    Wait Until Screen Contain    " + patStr + "    10\n    Click    " + patStr;
+        return "wait(" + patStr + ", 10).click()" + semi;
       case "doubleClick":
-        code = codeGenerator.doubleClick(pattern, noModifiers);
-        break;
+        if (isRF) return "    Wait Until Screen Contain    " + patStr + "    10\n    Double Click    " + patStr;
+        return "wait(" + patStr + ", 10).doubleClick()" + semi;
       case "rightClick":
-        code = codeGenerator.rightClick(pattern, noModifiers);
-        break;
+        if (isRF) return "    Wait Until Screen Contain    " + patStr + "    10\n    Right Click    " + patStr;
+        return "wait(" + patStr + ", 10).rightClick()" + semi;
       case "wait":
-        code = codeGenerator.wait(pattern, 10, null);
-        break;
+        return codeGenerator.wait(pattern, 10, null);
       default:
-        code = "# " + actionType + "(\"" + pattern.getFilename() + "\")";
-        break;
+        return "# " + actionType + "(\"" + pattern.getFilename() + "\")";
     }
-    return code;
   }
 
   private void handleDragDrop() {
+    if (warnIfNoApp()) return;
     if (!workflow.startDragDrop()) return;
 
     // Step 1: pick source
@@ -459,6 +499,7 @@ public class RecorderAssistant extends JDialog {
   }
 
   private void handleSwipe() {
+    if (warnIfNoApp()) return;
     if (!workflow.startCapture("swipe")) return;
 
     hideForCapture();
@@ -504,6 +545,7 @@ public class RecorderAssistant extends JDialog {
   }
 
   private void handleWheelCapture() {
+    if (warnIfNoApp()) return;
     if (!workflow.startCapture("wheel")) return;
 
     hideForCapture();
@@ -544,6 +586,7 @@ public class RecorderAssistant extends JDialog {
   // ── Text OCR workflows ──
 
   private void handleTextAction(String actionType) {
+    if (warnIfNoApp()) return;
     if (!workflow.startTextInput()) return;
 
     String label;
@@ -578,6 +621,7 @@ public class RecorderAssistant extends JDialog {
   // ── Keyboard workflows ──
 
   private void handleTypeText() {
+    if (warnIfNoApp()) return;
     if (!workflow.startTextInput()) return;
 
     String text = JOptionPane.showInputDialog(this, "Text to type:", "Type Text",
@@ -590,6 +634,7 @@ public class RecorderAssistant extends JDialog {
   }
 
   private void handleKeyCombo() {
+    if (warnIfNoApp()) return;
     if (!workflow.startKeyComboCApture()) return;
 
     RecorderKeyComboDialog dialog = new RecorderKeyComboDialog(this);

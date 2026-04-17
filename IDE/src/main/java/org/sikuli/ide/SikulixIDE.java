@@ -605,10 +605,6 @@ public class SikulixIDE extends JFrame {
             ).setVisible(true);
           }
         }));
-    scriptDependentItems.add(sub.addItem("\uD83D\uDFE2  Modern Recorder (no config)", null,
-        e -> new org.sikuli.ide.ui.recorder.RecorderAssistant(
-            SikulixIDE.this, new org.sikuli.support.recorder.generators.JythonCodeGenerator()
-        ).setVisible(true)));
     sub.addSeparator();
     // Add items from the existing _toolMenu (Extensions, etc.)
     if (_toolMenu != null) {

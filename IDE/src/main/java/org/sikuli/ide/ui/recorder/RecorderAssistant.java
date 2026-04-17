@@ -696,7 +696,7 @@ public class RecorderAssistant extends JDialog {
       options.add("Use existing image");
     }
 
-    int choice = JOptionPane.showOptionDialog(null,
+    int choice = JOptionPane.showOptionDialog(this,
         "Choose image source for: " + purpose,
         purpose,
         JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
@@ -706,7 +706,12 @@ public class RecorderAssistant extends JDialog {
     String selected = (String) options.get(choice);
 
     if ("Capture screen".equals(selected)) {
-      return captureImage(purpose);
+      setAlwaysOnTop(false);
+      try {
+        return captureImage(purpose);
+      } finally {
+        setAlwaysOnTop(true);
+      }
     }
     if ("Browse file...".equals(selected)) {
       return browseImage();

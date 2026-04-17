@@ -718,12 +718,14 @@ public class RecorderAssistant extends JDialog {
   }
 
   private String captureImage(String purpose) {
-    hideForCapture();
+    setVisible(false);
+    getOwner().setVisible(false);
     final ScreenImage[] captured = new ScreenImage[1];
     try {
       captured[0] = new Screen().userCapture("Select region for " + purpose);
     } finally {
-      showAfterCapture();
+      getOwner().setVisible(true);
+      setVisible(true);
     }
     if (captured[0] == null) return null;
 

@@ -30,6 +30,7 @@ public class RecorderAssistant extends JDialog {
   private File screenshotDir;
 
   private App currentApp = null;
+  private String appVarName = null;
 
   // UI components
   private JLabel statusLabel;
@@ -322,7 +323,7 @@ public class RecorderAssistant extends JDialog {
 
   private void addActionCode(String code) {
     if (isAppScoped()) {
-      codePreview.addLine("region." + code);
+      codePreview.addLine(appVarName + "." + code);
     } else {
       codePreview.addLine(code);
     }
@@ -789,10 +790,16 @@ public class RecorderAssistant extends JDialog {
       btnCloseApp.setEnabled(true);
       chkScopeToApp.setEnabled(true);
 
-      codePreview.addLine("app = App.open(\"" + appPath + "\")");
+      appVarName = appPath.replaceAll(".*[/\\\\]", "")
+          .replaceAll("\\.[^.]+$", "")
+          .replaceAll("[^a-zA-Z0-9]", "")
+          .toLowerCase();
+      if (appVarName.isEmpty()) appVarName = "app";
+
+      codePreview.addLine(appVarName + " = App.open(\"" + appPath + "\")");
       if (chkScopeToApp.isSelected()) {
-        codePreview.addLine("app.focus()");
-        codePreview.addLine("region = app.window()");
+        codePreview.addLine(appVarName + ".focus()");
+        codePreview.addLine(appVarName + " = " + appVarName + ".window()");
       }
       RecorderNotifications.success("Launched: " + appPath);
     } catch (Exception ex) {
@@ -804,13 +811,14 @@ public class RecorderAssistant extends JDialog {
     if (currentApp != null) {
       try {
         currentApp.close();
-        codePreview.addLine("app.close()");
+        codePreview.addLine(appVarName + ".close()");
         RecorderNotifications.success("App closed");
       } catch (Exception ex) {
         RecorderNotifications.error("Close failed: " + ex.getMessage());
       }
     }
     currentApp = null;
+    appVarName = null;
     btnLaunchApp.setEnabled(true);
     btnCloseApp.setEnabled(false);
     chkScopeToApp.setEnabled(false);

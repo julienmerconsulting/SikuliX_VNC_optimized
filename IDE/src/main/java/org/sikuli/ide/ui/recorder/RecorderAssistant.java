@@ -27,7 +27,6 @@ public class RecorderAssistant extends JDialog {
   private final RecorderWorkflow workflow;
   private final RecorderCodePreview codePreview;
   private final ICodeGenerator codeGenerator;
-  private final int waitTimeout;
   private File screenshotDir;
 
   private App currentApp = null;
@@ -46,7 +45,7 @@ public class RecorderAssistant extends JDialog {
   // Library of captured images in this session
   private final java.util.List<String> capturedImages = new java.util.ArrayList<>();
 
-  public RecorderAssistant(Frame parent, ICodeGenerator generator, int waitTimeout) {
+  public RecorderAssistant(Frame parent, ICodeGenerator generator) {
     super(parent, "OculiX Modern Recorder (beta)", false);
     setSize(400, 680);
     setLocationRelativeTo(parent);
@@ -57,7 +56,6 @@ public class RecorderAssistant extends JDialog {
     this.workflow = new RecorderWorkflow();
     this.codePreview = new RecorderCodePreview();
     this.codeGenerator = generator;
-    this.waitTimeout = waitTimeout;
 
     // Create temp dir for screenshots
     try {
@@ -345,7 +343,7 @@ public class RecorderAssistant extends JDialog {
         code = codeGenerator.rightClick(pattern, noModifiers);
         break;
       case "wait":
-        code = codeGenerator.wait(pattern, waitTimeout, null);
+        code = codeGenerator.wait(pattern, 10, null);
         break;
       default:
         code = "# " + actionType + "(\"" + pattern.getFilename() + "\")";

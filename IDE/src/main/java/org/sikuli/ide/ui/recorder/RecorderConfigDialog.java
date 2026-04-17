@@ -20,7 +20,6 @@ public class RecorderConfigDialog extends JDialog {
 
   private boolean confirmed = false;
   private JComboBox<String> languageCombo;
-  private JSpinner waitTimeoutSpinner;
 
   private static final String[] LANGUAGES = {
       "Python (Jython)",
@@ -30,7 +29,7 @@ public class RecorderConfigDialog extends JDialog {
 
   public RecorderConfigDialog(Frame parent) {
     super(parent, "Recorder Configuration", true);
-    setSize(380, 220);
+    setSize(380, 180);
     setLocationRelativeTo(parent);
     setResizable(false);
     buildUI();
@@ -45,10 +44,6 @@ public class RecorderConfigDialog extends JDialog {
     languageCombo = new JComboBox<>(LANGUAGES);
     languageCombo.setSelectedIndex(0);
     content.add(languageCombo);
-
-    content.add(new JLabel("Wait timeout (s):"));
-    waitTimeoutSpinner = new JSpinner(new SpinnerNumberModel(10, 1, 120, 1));
-    content.add(waitTimeoutSpinner);
 
     content.add(new JSeparator(), "span 2, growx, gaptop 8");
 
@@ -91,7 +86,4 @@ public class RecorderConfigDialog extends JDialog {
     return (String) languageCombo.getSelectedItem();
   }
 
-  public int getWaitTimeout() {
-    return (int) waitTimeoutSpinner.getValue();
-  }
 }

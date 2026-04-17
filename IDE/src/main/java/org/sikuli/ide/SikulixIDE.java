@@ -593,7 +593,7 @@ public class SikulixIDE extends JFrame {
           config.setVisible(true);
           if (config.isConfirmed()) {
             new org.sikuli.ide.ui.recorder.RecorderAssistant(
-                SikulixIDE.this, config.getSelectedGenerator(), config.getWaitTimeout()
+                SikulixIDE.this, config.getSelectedGenerator()
             ).setVisible(true);
           }
         }));

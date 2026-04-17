@@ -29,6 +29,7 @@ public class RecorderConfigDialog extends JDialog {
 
   public RecorderConfigDialog(Frame parent) {
     super(parent, "Recorder Configuration", true);
+    setDefaultCloseOperation(DISPOSE_ON_CLOSE);
     setSize(380, 180);
     setLocationRelativeTo(parent);
     setResizable(false);

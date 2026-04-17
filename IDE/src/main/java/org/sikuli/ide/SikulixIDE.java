@@ -596,9 +596,12 @@ public class SikulixIDE extends JFrame {
           org.sikuli.ide.ui.recorder.RecorderConfigDialog config =
               new org.sikuli.ide.ui.recorder.RecorderConfigDialog(SikulixIDE.this);
           config.setVisible(true);
-          if (config.isConfirmed()) {
+          ICodeGenerator selectedGenerator = config.isConfirmed() ? config.getSelectedGenerator() : null;
+          config.dispose();
+          config = null;
+          if (selectedGenerator != null) {
             new org.sikuli.ide.ui.recorder.RecorderAssistant(
-                SikulixIDE.this, config.getSelectedGenerator()
+                SikulixIDE.this, selectedGenerator
             ).setVisible(true);
           }
         }));

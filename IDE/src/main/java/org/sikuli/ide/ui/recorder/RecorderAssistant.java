@@ -5,11 +5,7 @@ package org.sikuli.ide.ui.recorder;
 
 import net.miginfocom.swing.MigLayout;
 import org.sikuli.ide.SikulixIDE;
-import org.sikuli.script.*;
-import org.sikuli.support.recorder.PatternValidator;
 import org.sikuli.support.recorder.generators.ICodeGenerator;
-import org.sikuli.support.recorder.generators.JavaCodeGenerator;
-import org.sikuli.support.recorder.generators.RobotFrameworkCodeGenerator;
 
 import javax.swing.*;
 import java.awt.*;
@@ -22,18 +18,18 @@ import java.nio.file.Files;
 /**
  * Non-modal floating dialog for the OculiX Modern Recorder.
  * Stays on top while the user interacts with the target application.
- * Coordinates with RecorderWorkflow for state management.
+ * Delegates to RecorderActions, RecorderCodeGen, RecorderAppScope, RecorderImagePicker.
  */
 public class RecorderAssistant extends JDialog {
 
   private final RecorderWorkflow workflow;
   private final RecorderCodePreview codePreview;
-  private final ICodeGenerator codeGenerator;
+  private final RecorderCodeGen codeGen;
+  private final RecorderAppScope appScope;
+  private final RecorderActions actions;
   private File screenshotDir;
 
-  private App currentApp = null;
-  private String appVarName = null;
-  private boolean firstActionDone = false;
+  private final java.util.List<String> capturedImages = new java.util.ArrayList<>();
 
   // UI components
   private JLabel statusLabel;
@@ -45,9 +41,6 @@ public class RecorderAssistant extends JDialog {
   private JButton btnDragDrop, btnSwipe, btnWheel, btnWait, btnPause;
   private JButton btnInsert, btnClear;
 
-  // Library of captured images in this session
-  private final java.util.List<String> capturedImages = new java.util.ArrayList<>();
-
   public RecorderAssistant(Frame parent, ICodeGenerator generator) {
     super(parent, "OculiX Modern Recorder (beta)", false);
     setSize(400, 680);
@@ -58,18 +51,8 @@ public class RecorderAssistant extends JDialog {
 
     this.workflow = new RecorderWorkflow();
     this.codePreview = new RecorderCodePreview();
-    this.codeGenerator = generator;
+    this.codeGen = new RecorderCodeGen(generator, codePreview);
 
-    if (codeGenerator instanceof RobotFrameworkCodeGenerator) {
-      codePreview.addLine("*** Settings ***");
-      codePreview.addLine("Library    SikuliLibrary");
-      codePreview.addLine("Documentation    Recorded by OculiX Modern Recorder");
-      codePreview.addLine("");
-      codePreview.addLine("*** Test Cases ***");
-      codePreview.addLine("Recorded Test");
-    }
-
-    // Create temp dir for screenshots
     try {
       screenshotDir = Files.createTempDirectory("oculix_recorder_").toFile();
       screenshotDir.deleteOnExit();
@@ -77,10 +60,17 @@ public class RecorderAssistant extends JDialog {
       screenshotDir = new File(System.getProperty("java.io.tmpdir"));
     }
 
-    // Load OpenCV native lib once (like legacy Recorder.start())
     org.sikuli.support.Commons.loadOpenCV();
 
     buildUI();
+
+    this.appScope = new RecorderAppScope(btnLaunchApp, btnCloseApp, chkScopeToApp, codeGen);
+    RecorderImagePicker imagePicker = new RecorderImagePicker(this, screenshotDir, capturedImages);
+    this.actions = new RecorderActions(this, workflow, codeGen, appScope, imagePicker,
+        codePreview, screenshotDir, capturedImages);
+
+    codeGen.initRFHeaders();
+
     wireWorkflow();
     checkOcrStatus();
 
@@ -89,22 +79,21 @@ public class RecorderAssistant extends JDialog {
       public void windowClosing(WindowEvent e) {
         workflow.dispose();
         cleanupTempDir();
-        getOwner().setVisible(true); // Restore IDE on close
+        getOwner().setVisible(true);
       }
     });
 
     RecorderNotifications.init(parent);
-
-    // Hide IDE when recorder opens
     parent.setVisible(false);
   }
+
+  // ── UI ──
 
   private void buildUI() {
     JPanel content = new JPanel(new MigLayout(
         "wrap 1, insets 10, gap 6", "[grow, fill]", ""));
     content.setBackground(UIManager.getColor("Panel.background"));
 
-    // ── Status bar ──
     statusLabel = new JLabel("\u2B24 Ready");
     statusLabel.setFont(UIManager.getFont("defaultFont").deriveFont(11f));
     statusLabel.setForeground(new Color(0x3D, 0xDB, 0xA4));
@@ -112,9 +101,7 @@ public class RecorderAssistant extends JDialog {
 
     content.add(new JSeparator(), "growx");
 
-    // ── Launch app ──
     content.add(createSectionLabel("APPLICATION"));
-
     JPanel appRow = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow]"));
     appRow.setOpaque(false);
     btnLaunchApp = createActionButton("Launch App");
@@ -132,9 +119,7 @@ public class RecorderAssistant extends JDialog {
 
     content.add(new JSeparator(), "growx, gaptop 4");
 
-    // ── Image actions ──
     content.add(createSectionLabel("IMAGE ACTIONS"));
-
     JPanel imageRow1 = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow][grow]"));
     imageRow1.setOpaque(false);
     btnClick = createActionButton("Click");
@@ -159,9 +144,7 @@ public class RecorderAssistant extends JDialog {
 
     content.add(new JSeparator(), "growx, gaptop 4");
 
-    // ── Text actions ──
-    content.add(createSectionLabel("TEXT ACTIONS (OCR)"));
-
+    content.add(createSectionLabel("TEXT ACTIONS"));
     JPanel textRow = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow][grow]"));
     textRow.setOpaque(false);
     btnTextClick = createActionButton("T.Click");
@@ -174,9 +157,7 @@ public class RecorderAssistant extends JDialog {
 
     content.add(new JSeparator(), "growx, gaptop 4");
 
-    // ── Keyboard ──
     content.add(createSectionLabel("KEYBOARD"));
-
     JPanel kbRow = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow]"));
     kbRow.setOpaque(false);
     btnType = createActionButton("Type");
@@ -185,7 +166,6 @@ public class RecorderAssistant extends JDialog {
     kbRow.add(btnKeyCombo, "grow");
     content.add(kbRow);
 
-    // ── Other ──
     JPanel otherRow = new JPanel(new MigLayout("insets 0, gap 4", "[grow]"));
     otherRow.setOpaque(false);
     btnPause = createActionButton("Pause");
@@ -194,14 +174,11 @@ public class RecorderAssistant extends JDialog {
 
     content.add(new JSeparator(), "growx, gaptop 4");
 
-    // ── Code preview ──
     content.add(createSectionLabel("GENERATED CODE"));
-
     JScrollPane scrollPane = new JScrollPane(codePreview);
     scrollPane.setPreferredSize(new Dimension(0, 120));
     content.add(scrollPane, "grow, push");
 
-    // ── Bottom buttons ──
     JPanel bottomRow = new JPanel(new MigLayout("insets 0, gap 6", "[grow][grow]"));
     bottomRow.setOpaque(false);
     btnInsert = new JButton("Insert & Close");
@@ -229,443 +206,45 @@ public class RecorderAssistant extends JDialog {
     return btn;
   }
 
-  // ── Wire buttons to workflow ──
+  // ── Wiring ──
 
   private void wireWorkflow() {
-    // State listener for UI updates
     workflow.addStateListener((oldState, newState) -> updateStatus(newState));
 
-    // Launch / Close app
-    btnLaunchApp.addActionListener(e -> handleLaunchApp());
-    btnCloseApp.addActionListener(e -> handleCloseApp());
+    btnLaunchApp.addActionListener(e -> appScope.handleLaunchApp(this));
+    btnCloseApp.addActionListener(e -> appScope.handleCloseApp());
     chkScopeToApp.addActionListener(e -> {});
 
-    // Image actions
-    btnClick.addActionListener(e -> handleImageCapture("click"));
-    btnDblClick.addActionListener(e -> handleImageCapture("doubleClick"));
-    btnRClick.addActionListener(e -> handleImageCapture("rightClick"));
-    btnWait.addActionListener(e -> handleImageCapture("wait"));
-    btnWheel.addActionListener(e -> handleWheelCapture());
-    btnDragDrop.addActionListener(e -> handleDragDrop());
-    btnSwipe.addActionListener(e -> handleSwipe());
+    btnClick.addActionListener(e -> actions.handleImageCapture("click"));
+    btnDblClick.addActionListener(e -> actions.handleImageCapture("doubleClick"));
+    btnRClick.addActionListener(e -> actions.handleImageCapture("rightClick"));
+    btnWait.addActionListener(e -> actions.handleImageCapture("wait"));
+    btnWheel.addActionListener(e -> actions.handleWheelCapture());
+    btnDragDrop.addActionListener(e -> actions.handleDragDrop());
+    btnSwipe.addActionListener(e -> actions.handleSwipe());
 
-    // Text actions
-    btnTextClick.addActionListener(e -> handleTextAction("textClick"));
-    btnTextWait.addActionListener(e -> handleTextAction("textWait"));
-    btnTextExists.addActionListener(e -> handleTextAction("textExists"));
+    btnTextClick.addActionListener(e -> actions.handleTextAction("textClick"));
+    btnTextWait.addActionListener(e -> actions.handleTextAction("textWait"));
+    btnTextExists.addActionListener(e -> actions.handleTextAction("textExists"));
 
-    // Keyboard
-    btnType.addActionListener(e -> handleTypeText());
-    btnKeyCombo.addActionListener(e -> handleKeyCombo());
+    btnType.addActionListener(e -> actions.handleTypeText());
+    btnKeyCombo.addActionListener(e -> actions.handleKeyCombo());
 
-    // Other
-    btnPause.addActionListener(e -> handlePause());
+    btnPause.addActionListener(e -> actions.handlePause());
   }
 
-  // ── Capture helpers ──
+  // ── Capture visibility helpers (called by RecorderActions) ──
 
-  /**
-   * Hide recorder during capture (IDE is already hidden).
-   */
-  private void hideForCapture() {
+  void hideForCapture() {
     setVisible(false);
-    focusAppIfScoped();
+    appScope.focusAppIfScoped();
   }
 
-  private void showAfterCapture() {
+  void showAfterCapture() {
     setVisible(true);
   }
 
-  // ── Image capture workflows ──
-
-  private boolean warnIfNoApp() {
-    if (!firstActionDone && currentApp == null) {
-      int answer = JOptionPane.showConfirmDialog(this,
-          "No application launched. Launch your app first?\n\n"
-          + "Recording without Launch App will act on the full screen.",
-          "Launch App first?",
-          JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-      if (answer == JOptionPane.YES_OPTION) {
-        handleLaunchApp();
-        return currentApp == null;
-      }
-    }
-    firstActionDone = true;
-    return false;
-  }
-
-  private void handleImageCapture(String actionType) {
-    if (!workflow.startCapture(actionType)) return;
-    if (warnIfNoApp()) { workflow.reset(); return; }
-
-    java.util.List<String> options = new java.util.ArrayList<>();
-    options.add("Capture screen");
-    options.add("Browse file...");
-    if (!capturedImages.isEmpty()) {
-      options.add("Use existing image");
-    }
-
-    int choice = JOptionPane.showOptionDialog(this,
-        "Choose image source for: " + actionType,
-        actionType,
-        JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-        null, options.toArray(), options.get(0));
-
-    if (choice < 0) {
-      workflow.reset();
-      return;
-    }
-    String selected = (String) options.get(choice);
-
-    if ("Browse file...".equals(selected)) {
-      String imagePath = browseImage();
-      if (imagePath == null) { workflow.reset(); return; }
-      finishImageCapture(actionType, imagePath);
-      return;
-    }
-    if ("Use existing image".equals(selected)) {
-      String imagePath = pickFromLibrary();
-      if (imagePath == null) { workflow.reset(); return; }
-      finishImageCapture(actionType, imagePath);
-      return;
-    }
-
-    hideForCapture();
-
-    new Thread(() -> {
-      ScreenImage capture = new Screen().userCapture("Select region for " + actionType);
-
-      SwingUtilities.invokeLater(() -> {
-        showAfterCapture();
-
-        if (capture == null) {
-          workflow.reset();
-          return;
-        }
-
-        try {
-          String defaultName = actionType + "_" + System.currentTimeMillis();
-          String imageName = JOptionPane.showInputDialog(RecorderAssistant.this,
-              "Name this image:", defaultName);
-          if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
-          imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
-          if (!imageName.endsWith(".png")) imageName += ".png";
-
-          String imagePath = capture.save(screenshotDir.getAbsolutePath(), imageName);
-          if (imagePath == null) {
-            workflow.reset();
-            RecorderNotifications.error("Failed to save captured image");
-            return;
-          }
-          capturedImages.add(imagePath);
-
-          finishImageCapture(actionType, imagePath);
-
-        } catch (Exception ex) {
-          workflow.reset();
-          RecorderNotifications.error("Action failed: " + ex.getMessage());
-        }
-      });
-    }).start();
-  }
-
-  private void finishImageCapture(String actionType, String imagePath) {
-    workflow.onCaptureComplete();
-
-    try {
-      Pattern pattern = new Pattern(imagePath);
-
-      PatternValidator.ValidationResult result = null;
-      try {
-        java.awt.image.BufferedImage candidate =
-            javax.imageio.ImageIO.read(new File(imagePath));
-        if (candidate != null) {
-          result = PatternValidator.validate(
-              new Screen().capture().getImage(), candidate);
-        }
-      } catch (Exception | UnsatisfiedLinkError ignored) {
-      }
-
-      if (result != null) {
-        if (result.warning == PatternValidator.Warning.AMBIGUOUS) {
-          pattern = pattern.similar((float) result.suggestedSimilarity);
-          RecorderNotifications.warning(
-              "Pattern matches " + result.matchCount + " locations. Similarity raised to " + result.suggestedSimilarity);
-        } else if (result.warning == PatternValidator.Warning.COLOR_DEPENDENT) {
-          RecorderNotifications.warning("Pattern depends on colors. May break with theme changes.");
-        } else if (result.warning == PatternValidator.Warning.TOO_SMALL) {
-          RecorderNotifications.warning("Pattern too small. Consider capturing a larger area.");
-        } else if (result.matchCount > 0) {
-          RecorderNotifications.success("Pattern validated (score: " + String.format("%.2f", result.bestScore) + ")");
-        }
-      }
-
-      String code = generateImageCode(actionType, pattern);
-      if (code.contains("\n")) {
-        for (String line : code.split("\n")) addActionCode(line);
-      } else {
-        addActionCode(code);
-      }
-
-      if ("click".equals(actionType) || "doubleClick".equals(actionType) || "rightClick".equals(actionType)) {
-        JCheckBox chkVanish = new JCheckBox("Assert UI change after this action (waitVanish)");
-        JOptionPane.showMessageDialog(this, chkVanish, "Post-action assertion",
-            JOptionPane.PLAIN_MESSAGE);
-        if (chkVanish.isSelected()) {
-          String patStr = codeGenerator.pattern(pattern);
-          boolean isJava = codeGenerator instanceof JavaCodeGenerator;
-          boolean isRF = codeGenerator instanceof RobotFrameworkCodeGenerator;
-          if (isRF) {
-            addActionCode("    Wait Until Screen Not Contain    " + patStr + "    5");
-          } else {
-            addActionCode("waitVanish(" + patStr + ", 5)" + (isJava ? ";" : ""));
-          }
-        }
-      }
-
-      workflow.onActionComplete();
-
-    } catch (Exception ex) {
-      workflow.reset();
-      RecorderNotifications.error("Action failed: " + ex.getMessage());
-    }
-  }
-
-  private boolean isAppScoped() {
-    return currentApp != null && chkScopeToApp.isSelected();
-  }
-
-  private void addActionCode(String code) {
-    if (isAppScoped() && !(codeGenerator instanceof RobotFrameworkCodeGenerator)) {
-      codePreview.addLine(appVarName + "." + code);
-    } else {
-      codePreview.addLine(code);
-    }
-  }
-
-  private String generateImageCode(String actionType, Pattern pattern) {
-    String patStr = codeGenerator.pattern(pattern);
-    boolean isJava = codeGenerator instanceof JavaCodeGenerator;
-    boolean isRF = codeGenerator instanceof RobotFrameworkCodeGenerator;
-    String semi = isJava ? ";" : "";
-
-    switch (actionType) {
-      case "click":
-        if (isRF) return "    Wait Until Screen Contain    " + patStr + "    10\n    Click    " + patStr;
-        return "wait(" + patStr + ", 10).click()" + semi;
-      case "doubleClick":
-        if (isRF) return "    Wait Until Screen Contain    " + patStr + "    10\n    Double Click    " + patStr;
-        return "wait(" + patStr + ", 10).doubleClick()" + semi;
-      case "rightClick":
-        if (isRF) return "    Wait Until Screen Contain    " + patStr + "    10\n    Right Click    " + patStr;
-        return "wait(" + patStr + ", 10).rightClick()" + semi;
-      case "wait":
-        return codeGenerator.wait(pattern, 10, null);
-      default:
-        return "# " + actionType + "(\"" + pattern.getFilename() + "\")";
-    }
-  }
-
-  private void handleDragDrop() {
-    if (warnIfNoApp()) return;
-    if (!workflow.startDragDrop()) return;
-
-    // Step 1: pick source
-    String sourcePath = pickImage("Drag SOURCE");
-    if (sourcePath == null) {
-      workflow.reset();
-      return;
-    }
-    workflow.advanceDragDrop();
-
-    // Step 2: pick destination
-    String destPath = pickImage("Drop DESTINATION");
-    if (destPath == null) {
-      workflow.reset();
-      return;
-    }
-
-    try {
-      Pattern sourcePattern = new Pattern(sourcePath);
-      Pattern destPattern = new Pattern(destPath);
-      String code = codeGenerator.dragDrop(sourcePattern, destPattern);
-      addActionCode(code);
-      workflow.onActionComplete();
-      RecorderNotifications.success("Drag & Drop recorded");
-    } catch (Exception ex) {
-      workflow.reset();
-      RecorderNotifications.error("Drag & Drop failed: " + ex.getMessage());
-    }
-  }
-
-  private void handleSwipe() {
-    if (warnIfNoApp()) return;
-    if (!workflow.startCapture("swipe")) return;
-
-    hideForCapture();
-
-    new Thread(() -> {
-      ScreenImage capture = new Screen().userCapture("Select region for swipe");
-
-      SwingUtilities.invokeLater(() -> {
-        showAfterCapture();
-
-        if (capture == null) {
-          workflow.reset();
-          return;
-        }
-
-        try {
-          String defaultName = "swipe_zone_" + System.currentTimeMillis();
-          String imageName = JOptionPane.showInputDialog(RecorderAssistant.this,
-              "Name this zone:", defaultName);
-          if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
-          imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
-          if (!imageName.endsWith(".png")) imageName += ".png";
-
-          String imagePath = capture.save(screenshotDir.getAbsolutePath(), imageName);
-          capturedImages.add(imagePath);
-
-          RecorderSwipeDialog dialog = new RecorderSwipeDialog(
-              RecorderAssistant.this, capture.getImage(), imagePath);
-          dialog.setVisible(true);
-          String[] lines = dialog.getResultLines();
-
-          if (lines != null) {
-            for (String line : lines) addActionCode(line);
-            RecorderNotifications.success("Swipe recorded");
-          }
-          workflow.onActionComplete();
-        } catch (Exception ex) {
-          workflow.reset();
-          RecorderNotifications.error("Swipe failed: " + ex.getMessage());
-        }
-      });
-    }, "RecorderSwipe").start();
-  }
-
-  private void handleWheelCapture() {
-    if (warnIfNoApp()) return;
-    if (!workflow.startCapture("wheel")) return;
-
-    hideForCapture();
-
-    new Thread(() -> {
-      ScreenImage capture = new Screen().userCapture("Select region for wheel action");
-
-      SwingUtilities.invokeLater(() -> {
-        showAfterCapture();
-
-        if (capture == null) {
-          workflow.reset();
-          return;
-        }
-
-        try {
-          String imagePath = capture.save(screenshotDir.getAbsolutePath());
-          capturedImages.add(imagePath);
-
-          // Open interactive Wheel dialog with captured image + crosshair offset
-          RecorderWheelDialog dialog = new RecorderWheelDialog(
-              RecorderAssistant.this, capture.getImage(), imagePath);
-          dialog.setVisible(true);
-          String code = dialog.getResult();
-
-          if (code != null) {
-            addActionCode(code);
-          }
-          workflow.onActionComplete();
-        } catch (Exception ex) {
-          workflow.reset();
-          RecorderNotifications.error("Wheel failed: " + ex.getMessage());
-        }
-      });
-    }, "RecorderWheel").start();
-  }
-
-  // ── Text OCR workflows ──
-
-  private void handleTextAction(String actionType) {
-    if (warnIfNoApp()) return;
-    if (!workflow.startTextInput()) return;
-
-    String label;
-    switch (actionType) {
-      case "textClick":  label = "Text to click on:"; break;
-      case "textWait":   label = "Text to wait for:"; break;
-      case "textExists": label = "Text to check:"; break;
-      default:           label = "Text:"; break;
-    }
-
-    String text = JOptionPane.showInputDialog(this, label, "Text Action",
-        JOptionPane.PLAIN_MESSAGE);
-    if (text != null && !text.trim().isEmpty()) {
-      addActionCode(generateTextCode(actionType, text.trim()));
-    }
-    workflow.onActionComplete();
-  }
-
-  private String generateTextCode(String actionType, String text) {
-    switch (actionType) {
-      case "textClick":
-        return "click(\"" + text + "\")";
-      case "textWait":
-        return "wait(\"" + text + "\", 10)";
-      case "textExists":
-        return "exists(\"" + text + "\")";
-      default:
-        return "# " + actionType + "(\"" + text + "\")";
-    }
-  }
-
-  // ── Keyboard workflows ──
-
-  private void handleTypeText() {
-    if (warnIfNoApp()) return;
-    if (!workflow.startTextInput()) return;
-
-    String text = JOptionPane.showInputDialog(this, "Text to type:", "Type Text",
-        JOptionPane.PLAIN_MESSAGE);
-    if (text != null && !text.isEmpty()) {
-      String code = codeGenerator.typeText(text, new String[0]);
-      addActionCode(code);
-    }
-    workflow.onActionComplete();
-  }
-
-  private void handleKeyCombo() {
-    if (warnIfNoApp()) return;
-    if (!workflow.startKeyComboCApture()) return;
-
-    RecorderKeyComboDialog dialog = new RecorderKeyComboDialog(this);
-    dialog.setVisible(true);
-    String combo = dialog.getResult();
-    if (combo != null && !combo.isEmpty()) {
-      addActionCode(combo);
-    }
-    workflow.onActionComplete();
-  }
-
-  // ── Pause ──
-
-  private void handlePause() {
-    if (!workflow.startPauseInput()) return;
-
-    String seconds = JOptionPane.showInputDialog(this, "Pause duration (seconds):",
-        "Pause", JOptionPane.PLAIN_MESSAGE);
-    if (seconds != null && !seconds.isEmpty()) {
-      try {
-        int s = Integer.parseInt(seconds.trim());
-        codePreview.addLine("sleep(" + s + ")");
-        RecorderNotifications.warning("Fixed delays are fragile. Prefer Wait Image when possible.");
-      } catch (NumberFormatException ex) {
-        RecorderNotifications.error("Invalid number: " + seconds);
-      }
-    }
-    workflow.onActionComplete();
-  }
-
-  // ── Insert generated code into editor ──
+  // ── Insert & Close ──
 
   private void insertAndClose() {
     DefaultListModel<String> model = (DefaultListModel<String>) codePreview.getModel();
@@ -676,14 +255,12 @@ public class RecorderAssistant extends JDialog {
       return;
     }
 
-    // Build code string
     StringBuilder code = new StringBuilder("\n");
     for (int i = 0; i < model.size(); i++) {
       code.append(model.get(i)).append("\n");
     }
     String codeStr = code.toString();
 
-    // Ask: insert in current script or new script?
     String[] options = {"Current Script", "New Script", "Cancel"};
     int choice = JOptionPane.showOptionDialog(this,
         "Insert " + model.size() + " line(s) of generated code:",
@@ -691,24 +268,20 @@ public class RecorderAssistant extends JDialog {
         JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
         null, options, options[0]);
 
-    if (choice == 2 || choice < 0) {
-      return; // Cancel — stay in recorder
-    }
+    if (choice == 2 || choice < 0) return;
 
     workflow.dispose();
     SikulixIDE ide = (SikulixIDE) getOwner();
-    ide.setVisible(true); // Restore IDE
+    ide.setVisible(true);
     cleanupTempDir();
 
     if (choice == 1) {
       ide.createEmptyScriptContext();
     }
 
-    // Insert directly into the active editor pane
     java.awt.EventQueue.invokeLater(() -> {
       SikulixIDE.PaneContext ctx = ide.getActiveContext();
       if (ctx != null && ctx.getPane() != null) {
-        // Copy captured images to the script's image folder
         File imageFolder = ctx.getImageFolder();
         if (imageFolder != null && screenshotDir != null) {
           File[] captures = screenshotDir.listFiles((dir, name) -> name.endsWith(".png"));
@@ -724,7 +297,6 @@ public class RecorderAssistant extends JDialog {
             }
           }
         }
-
         ctx.getPane().insertString(codeStr);
         ctx.reparse();
         RecorderNotifications.success(model.size() + " line(s) inserted.");
@@ -734,13 +306,9 @@ public class RecorderAssistant extends JDialog {
     dispose();
   }
 
-  // ── OCR status check (reserved for future OCR-based actions) ──
+  // ── Status ──
 
-  private void checkOcrStatus() {
-    // Text actions are now simple text input, no OCR required
-  }
-
-  // ── Status updates ──
+  private void checkOcrStatus() {}
 
   private void updateStatus(RecorderWorkflow.RecorderState newState) {
     switch (newState) {
@@ -792,210 +360,19 @@ public class RecorderAssistant extends JDialog {
     btnTextExists.setEnabled(enabled);
   }
 
-  /**
-   * Unified image picker — gives the user three options:
-   * capture a new region, reuse an existing session image, or browse a file.
-   * Returns the absolute path of the chosen image, or null if cancelled.
-   */
-  private String pickImage(String purpose) {
-    java.util.List<String> options = new java.util.ArrayList<>();
-    options.add("Capture screen");
-    options.add("Browse file...");
-    if (!capturedImages.isEmpty()) {
-      options.add("Use existing image");
-    }
-
-    int choice = JOptionPane.showOptionDialog(this,
-        "Choose image source for: " + purpose,
-        purpose,
-        JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-        null, options.toArray(), options.get(0));
-
-    if (choice < 0) return null;
-    String selected = (String) options.get(choice);
-
-    if ("Capture screen".equals(selected)) {
-      setAlwaysOnTop(false);
-      try {
-        return captureImage(purpose);
-      } finally {
-        setAlwaysOnTop(true);
-      }
-    }
-    if ("Browse file...".equals(selected)) {
-      return browseImage();
-    }
-    if ("Use existing image".equals(selected)) {
-      return pickFromLibrary();
-    }
-    return null;
-  }
-
-  private String captureImage(String purpose) {
-    setVisible(false);
-    getOwner().setVisible(false);
-    final ScreenImage[] captured = new ScreenImage[1];
-    try {
-      captured[0] = new Screen().userCapture("Select region for " + purpose);
-    } finally {
-      getOwner().setVisible(true);
-      setVisible(true);
-    }
-    if (captured[0] == null) return null;
-
-    try {
-      String defaultName = purpose.replaceAll("\\s+", "_").toLowerCase() + "_" + System.currentTimeMillis();
-      String imageName = JOptionPane.showInputDialog(this, "Name this image:", defaultName);
-      if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
-      imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
-      if (!imageName.endsWith(".png")) imageName += ".png";
-
-      String path = captured[0].save(screenshotDir.getAbsolutePath(), imageName);
-      if (path != null) capturedImages.add(path);
-      return path;
-    } catch (Exception ex) {
-      RecorderNotifications.error("Failed to save: " + ex.getMessage());
-      return null;
-    }
-  }
-
-  private String browseImage() {
-    JFileChooser chooser = new JFileChooser();
-    chooser.setDialogTitle("Select image file");
-    chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
-        "Image files (*.png, *.jpg, *.jpeg, *.gif)", "png", "jpg", "jpeg", "gif"));
-    if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-      File f = chooser.getSelectedFile();
-      // Copy into the session dir so the path is local to the bundle later
-      try {
-        File dest = new File(screenshotDir, f.getName());
-        java.nio.file.Files.copy(f.toPath(), dest.toPath(),
-            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        String path = dest.getAbsolutePath();
-        capturedImages.add(path);
-        return path;
-      } catch (Exception ex) {
-        RecorderNotifications.error("Failed to import: " + ex.getMessage());
-        return null;
-      }
-    }
-    return null;
-  }
-
-  private String pickFromLibrary() {
-    if (capturedImages.isEmpty()) return null;
-    String[] names = capturedImages.stream()
-        .map(p -> new File(p).getName())
-        .toArray(String[]::new);
-    String chosen = (String) JOptionPane.showInputDialog(this,
-        "Choose image:", "Image Library",
-        JOptionPane.PLAIN_MESSAGE, null, names, names[names.length - 1]);
-    if (chosen == null) return null;
-    return capturedImages.stream()
-        .filter(p -> new File(p).getName().equals(chosen))
-        .findFirst().orElse(null);
-  }
-
-  // ── Launch / Close App ──
-
-  private void handleLaunchApp() {
-    String appPath = JOptionPane.showInputDialog(this,
-        "Application path or command:", "Launch App", JOptionPane.PLAIN_MESSAGE);
-    if (appPath == null || appPath.trim().isEmpty()) return;
-    appPath = appPath.trim();
-
-    try {
-      currentApp = App.open(appPath);
-      if (currentApp == null) {
-        RecorderNotifications.error("Failed to launch: " + appPath);
-        return;
-      }
-
-      btnLaunchApp.setEnabled(false);
-      btnCloseApp.setEnabled(true);
-      chkScopeToApp.setEnabled(true);
-
-      appVarName = appPath.replaceAll(".*[/\\\\]", "")
-          .replaceAll("\\.[^.]+$", "")
-          .replaceAll("[^a-zA-Z0-9]", "")
-          .toLowerCase();
-      if (appVarName.isEmpty()) appVarName = "app";
-
-      if (codeGenerator instanceof JavaCodeGenerator) {
-        codePreview.addLine("App " + appVarName + " = App.open(\"" + appPath + "\");");
-        if (chkScopeToApp.isSelected()) {
-          codePreview.addLine(appVarName + ".focus();");
-          codePreview.addLine("Region " + appVarName + "Region = " + appVarName + ".window();");
-        }
-      } else if (codeGenerator instanceof RobotFrameworkCodeGenerator) {
-        codePreview.addLine("    Open Application    " + appPath);
-      } else {
-        codePreview.addLine(appVarName + " = App.open(\"" + appPath + "\")");
-        if (chkScopeToApp.isSelected()) {
-          codePreview.addLine(appVarName + ".focus()");
-          codePreview.addLine(appVarName + " = " + appVarName + ".window()");
-        }
-      }
-      RecorderNotifications.success("Launched: " + appPath);
-    } catch (Exception ex) {
-      RecorderNotifications.error("Launch failed: " + ex.getMessage());
-    }
-  }
-
-  private void handleCloseApp() {
-    if (currentApp != null) {
-      try {
-        currentApp.close();
-        if (codeGenerator instanceof JavaCodeGenerator) {
-          codePreview.addLine(appVarName + ".close();");
-        } else if (codeGenerator instanceof RobotFrameworkCodeGenerator) {
-          codePreview.addLine("    Close Application    " + appVarName);
-        } else {
-          codePreview.addLine(appVarName + ".close()");
-        }
-        RecorderNotifications.success("App closed");
-      } catch (Exception ex) {
-        RecorderNotifications.error("Close failed: " + ex.getMessage());
-      }
-    }
-    currentApp = null;
-    appVarName = null;
-    btnLaunchApp.setEnabled(true);
-    btnCloseApp.setEnabled(false);
-    chkScopeToApp.setEnabled(false);
-  }
-
-  private void focusAppIfScoped() {
-    if (currentApp != null && chkScopeToApp.isSelected()) {
-      try {
-        currentApp.focus();
-      } catch (Exception ignored) {
-      }
-    }
-  }
+  // ── Cleanup ──
 
   private void cleanupTempDir() {
-    // Clean all oculix_recorder_* dirs in temp (including orphans from crashes)
     File tempDir = new File(System.getProperty("java.io.tmpdir"));
     File[] recorderDirs = tempDir.listFiles((dir, name) -> name.startsWith("oculix_recorder_"));
     if (recorderDirs != null) {
       for (File dir : recorderDirs) {
         File[] files = dir.listFiles();
         if (files != null) {
-          for (File f : files) {
-            f.delete();
-          }
+          for (File f : files) f.delete();
         }
         dir.delete();
       }
-    }
-  }
-
-  private void setOpacitySafe(float opacity) {
-    try {
-      setOpacity(opacity);
-    } catch (Exception ignored) {
-      // Opacity not supported (Wayland, etc.)
     }
   }
 }

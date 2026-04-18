@@ -128,36 +128,37 @@ class RecorderAppScope {
       return;
     }
 
-    List<RemotePreflightCheck.CheckResult> checks = RemotePreflightCheck.runAll(host);
-
-    boolean allPassed = RemotePreflightCheck.allPassed(checks);
-    if (!allPassed) {
-      StringBuilder msg = new StringBuilder("Pre-flight checks:\n\n");
-      for (RemotePreflightCheck.CheckResult check : checks) {
-        msg.append(check.passed ? "  ✓  " : "  ✗  ");
-        msg.append(check.name).append(": ").append(check.message).append("\n");
-      }
-      msg.append("\nFix issues and retry, or continue anyway?");
-
-      String[] options = {"Fix all", "Continue anyway", "Cancel"};
-      int choice = JOptionPane.showOptionDialog(parent, msg.toString(),
-          "Pre-flight Results",
-          JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
-          null, options, options[0]);
-
-      if (choice == 0) {
-        for (RemotePreflightCheck.CheckResult check : checks) {
-          if (!check.passed && check.autoFix != null) {
-            check.autoFix.run();
-          }
-        }
-        RecorderNotifications.success("Auto-fix applied. Try launching again.");
-        return;
-      }
-      if (choice == 2 || choice < 0) return;
-    }
-
     try {
+      RecorderNotifications.success("Running pre-flight checks...");
+      List<RemotePreflightCheck.CheckResult> checks = RemotePreflightCheck.runAll(host);
+
+      boolean allPassed = RemotePreflightCheck.allPassed(checks);
+      if (!allPassed) {
+        StringBuilder msg = new StringBuilder("Pre-flight checks:\n\n");
+        for (RemotePreflightCheck.CheckResult check : checks) {
+          msg.append(check.passed ? "  ✓  " : "  ✗  ");
+          msg.append(check.name).append(": ").append(check.message).append("\n");
+        }
+        msg.append("\nFix issues and retry, or continue anyway?");
+
+        String[] options = {"Fix all", "Continue anyway", "Cancel"};
+        int choice = JOptionPane.showOptionDialog(parent, msg.toString(),
+            "Pre-flight Results",
+            JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+            null, options, options[0]);
+
+        if (choice == 0) {
+          for (RemotePreflightCheck.CheckResult check : checks) {
+            if (!check.passed && check.autoFix != null) {
+              check.autoFix.run();
+            }
+          }
+          RecorderNotifications.success("Auto-fix applied. Try launching again.");
+          return;
+        }
+        if (choice == 2 || choice < 0) return;
+      }
+
       AppLauncher.launchRemoteVNC(host, user, password, port);
 
       remoteMode = true;
@@ -166,7 +167,8 @@ class RecorderAppScope {
       codeGen.generateLaunchApp(host, appVarName, false);
       RecorderNotifications.success("VNC connected to " + host);
     } catch (Exception ex) {
-      RecorderNotifications.error("VNC launch failed: " + ex.getMessage());
+      RecorderNotifications.error("Remote launch failed: " + ex.getMessage());
+      ex.printStackTrace();
     }
   }
 

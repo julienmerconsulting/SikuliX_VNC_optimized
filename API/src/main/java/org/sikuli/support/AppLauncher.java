@@ -101,11 +101,19 @@ public class AppLauncher {
   static String resolveDisplayIp() throws IOException {
     if (!Commons.runningWindows()) return "localhost";
 
-    return getWslIpAddress()
-        .orElseThrow(() -> new IOException("Cannot determine WSL IP for DISPLAY variable."));
+    // Try 1: WSL adapter in ipconfig (classic NAT mode)
+    Optional<String> wslIp = getWslIpFromIpconfig();
+    if (wslIp.isPresent()) return wslIp.get();
+
+    // Try 2: nameserver in /etc/resolv.conf (virtioproxy / mirrored mode)
+    Optional<String> nsIp = getWslIpFromResolvConf();
+    if (nsIp.isPresent()) return nsIp.get();
+
+    // Fallback: localhost (may work with mirrored networking)
+    return "localhost";
   }
 
-  private static Optional<String> getWslIpAddress() throws IOException {
+  private static Optional<String> getWslIpFromIpconfig() throws IOException {
     Pattern ipPattern = Pattern.compile("IPv4.*?:\\s*(\\d+\\.\\d+\\.\\d+\\.\\d+)");
     boolean inWslSection = false;
 
@@ -117,6 +125,18 @@ public class AppLauncher {
           if (m.find()) return Optional.of(m.group(1));
         }
       }
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<String> getWslIpFromResolvConf() {
+    try (Stream<String> lines = CommandExecutor.execWsl("cat /etc/resolv.conf")) {
+      Pattern nsPattern = Pattern.compile("nameserver\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)");
+      for (String line : (Iterable<String>) lines::iterator) {
+        Matcher m = nsPattern.matcher(line);
+        if (m.find()) return Optional.of(m.group(1));
+      }
+    } catch (Exception ignored) {
     }
     return Optional.empty();
   }

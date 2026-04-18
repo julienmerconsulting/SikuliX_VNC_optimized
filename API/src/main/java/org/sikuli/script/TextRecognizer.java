@@ -7,6 +7,7 @@ import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.Tesseract1;
 import net.sourceforge.tess4j.TesseractException;
 import net.sourceforge.tess4j.Word;
+import net.sourceforge.tess4j.util.LoadLibs;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
@@ -40,8 +41,8 @@ public class TextRecognizer {
 
   private static int lvl = 3;
 
-  private static final String versionTess4J = "4.5.4";
-  private static final String versionTesseract = "4.1.x";
+  private static final String versionTess4J = net.sourceforge.tess4j.Tesseract1.class.getPackage().getImplementationVersion();
+  private static String versionTesseract = "NotKnown";
 
   private OCR.Options options;
 
@@ -67,15 +68,18 @@ public class TextRecognizer {
   protected static TextRecognizer get(OCR.Options options) {
     if (!isValid) {
       //TODO Tess4J: macOS: tesseract library load problem
-      if (Commons.runningMac()) {
-        String libPath = "/usr/local/lib";
-        File libTess = new File(libPath, "libtesseract.dylib");
-        if (libTess.exists()) {
-          Commons.jnaPathAdd(libPath);
-        } else {
-          throw new SikuliXception(String.format("OCR: validate: libtesseract.dylib not in /usr/local/lib"));
+      if (false) {
+        if (Commons.runningMac()) {
+          String libPath = "/usr/local/lib";
+          File libTess = new File(libPath, "libtesseract.dylib");
+          if (libTess.exists()) {
+            Commons.jnaPathAdd(libPath);
+          } else {
+            throw new SikuliXception(String.format("OCR: validate: libtesseract.dylib not in /usr/local/lib"));
+          }
         }
       }
+      versionTesseract = LoadLibs.LIB_NAME.replace("libtesseract", "");
       Commons.loadOpenCV();
       isValid = true;
     }
@@ -102,7 +106,7 @@ public class TextRecognizer {
       tesseract.setLanguage(options.language());
       tesseract.setDatapath(options.dataPath());
       for (Map.Entry<String, String> entry : options.variables().entrySet()) {
-        tesseract.setTessVariable(entry.getKey(), entry.getValue());
+        tesseract.setVariable(entry.getKey(), entry.getValue());
       }
       if (!options.configs().isEmpty()) {
         tesseract.setConfigs(new ArrayList<>(options.configs()));

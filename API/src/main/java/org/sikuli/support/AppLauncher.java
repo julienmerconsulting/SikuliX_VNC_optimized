@@ -61,7 +61,46 @@ public class AppLauncher {
         .sshOptions(DEFAULT_SSH_OPTIONS)
         .build();
 
-    CommandExecutor.execFireAndForget(command);
+    Process process = Runtime.getRuntime().exec(command);
+
+    // Read stderr in background thread for 5 seconds to catch SSH errors
+    StringBuilder errorOutput = new StringBuilder();
+    Thread errorReader = new Thread(() -> {
+      try (java.io.BufferedReader err = new java.io.BufferedReader(
+          new java.io.InputStreamReader(process.getErrorStream(), "UTF-8"))) {
+        String line;
+        while ((line = err.readLine()) != null) {
+          errorOutput.append(line).append("\n");
+        }
+      } catch (Exception ignored) {}
+    }, "VNC-ErrorReader");
+    errorReader.setDaemon(true);
+    errorReader.start();
+
+    // Wait 5 seconds for early failure detection
+    sleep(5000);
+
+    String errors = errorOutput.toString().trim();
+    if (!errors.isEmpty()) {
+      String userMessage = parseSSHError(errors);
+      process.destroyForcibly();
+      throw new RuntimeException(userMessage);
+    }
+
+    // Process still running after 5s with no errors = success
+  }
+
+  private static String parseSSHError(String stderr) {
+    String lower = stderr.toLowerCase();
+    if (lower.contains("permission denied")) return "SSH authentication failed — check password.";
+    if (lower.contains("connection refused")) return "Connection refused — check host IP and SSH service.";
+    if (lower.contains("connection timed out")) return "Connection timed out — host unreachable.";
+    if (lower.contains("no route to host")) return "No route to host — check network and IP.";
+    if (lower.contains("host key verification failed")) return "SSH host key verification failed — add fingerprint first.";
+    if (lower.contains("name or service not known")) return "Unknown host — check IP/hostname.";
+    if (lower.contains("unable to open display")) return "Cannot open display — check X Server (VcXsrv/XQuartz).";
+    if (lower.contains("unable connect to socket")) return "VNC connection failed — check VNC port and target.";
+    return "SSH/VNC error: " + stderr;
   }
 
   /**

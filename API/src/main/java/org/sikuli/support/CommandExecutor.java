@@ -37,8 +37,8 @@ public class CommandExecutor {
    * Execute a command via WSL (Windows only).
    */
   public static Stream<String> execWsl(String command) throws IOException {
-    Process process = Runtime.getRuntime().exec(
-        new String[]{"wsl.exe", "bash", "-c", command});
+    String fullCmd = "wsl.exe bash -c \"" + command.replace("\"", "\\\"") + "\"";
+    Process process = Runtime.getRuntime().exec(fullCmd);
     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
     return reader.lines().onClose(() -> {
       try { reader.close(); } catch (IOException ignored) {}
@@ -126,12 +126,13 @@ public class CommandExecutor {
   public static boolean isToolAvailable(String toolName) {
     try {
       String whichCmd = "which " + toolName;
-      Process process;
+      String fullCmd;
       if (Commons.runningWindows()) {
-        process = Runtime.getRuntime().exec(new String[]{"wsl.exe", "bash", "-c", whichCmd});
+        fullCmd = "wsl.exe bash -c \"" + whichCmd + "\"";
       } else {
-        process = Runtime.getRuntime().exec(new String[]{"bash", "-c", whichCmd});
+        fullCmd = whichCmd;
       }
+      Process process = Runtime.getRuntime().exec(fullCmd);
       boolean finished = process.waitFor(15, TimeUnit.SECONDS);
       if (!finished) {
         process.destroyForcibly();
@@ -207,12 +208,13 @@ public class CommandExecutor {
   public static boolean isSshHostKnown(String host) {
     try {
       String cmd = "ssh-keygen -F " + host;
-      Process process;
+      String fullCmd;
       if (Commons.runningWindows()) {
-        process = Runtime.getRuntime().exec(new String[]{"wsl.exe", "bash", "-c", cmd});
+        fullCmd = "wsl.exe bash -c \"" + cmd + "\"";
       } else {
-        process = Runtime.getRuntime().exec(new String[]{"bash", "-c", cmd});
+        fullCmd = cmd;
       }
+      Process process = Runtime.getRuntime().exec(fullCmd);
       boolean finished = process.waitFor(15, TimeUnit.SECONDS);
       if (!finished) {
         process.destroyForcibly();

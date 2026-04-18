@@ -1549,7 +1549,6 @@ public class SikulixIDE extends JFrame {
     private List<Map<String, Object>> imageMatcher(List<Map<String, Object>> images, String[] text, Pattern pat) {
       int lnNbr = 0;
       for (String line : text) {
-        line = line.strip();
         Matcher matcher = pat.matcher(line);
         if (line.contains("\"\"\"") || line.contains("'''")) {
           continue;

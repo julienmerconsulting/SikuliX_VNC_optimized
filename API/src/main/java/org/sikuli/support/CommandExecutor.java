@@ -6,6 +6,7 @@ package org.sikuli.support;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 /**
@@ -92,7 +93,11 @@ public class CommandExecutor {
       while ((line = err.readLine()) != null) error.append(line).append("\n");
     }
 
-    process.waitFor();
+    boolean finished = process.waitFor(120, TimeUnit.SECONDS);
+    if (!finished) {
+      process.destroyForcibly();
+      throw new RuntimeException("SSH command timed out after 120 seconds");
+    }
 
     if (output.length() == 0 && error.length() > 0) {
       throw new RuntimeException("SSH command error: " + error);

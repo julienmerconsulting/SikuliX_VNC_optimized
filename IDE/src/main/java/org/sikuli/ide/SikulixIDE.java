@@ -1578,6 +1578,9 @@ public class SikulixIDE extends JFrame {
     private File imageExists(String imgName) {
       String orgName = imgName;
       imgName = FilenameUtils.normalizeNoEndSeparator(imgName, true);
+      if (imgName == null) {
+        return null;
+      }
       imgName = imgName.replaceAll("//", "/");
       String ext;
       try {

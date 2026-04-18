@@ -44,7 +44,7 @@ public class RemotePreflightCheck {
     return results.stream().allMatch(r -> r.passed);
   }
 
-  static CheckResult checkSshpass() {
+  public static CheckResult checkSshpass() {
     boolean found = CommandExecutor.isToolAvailable("sshpass");
     if (found) {
       return new CheckResult("sshpass", true, "sshpass found", null);
@@ -54,7 +54,7 @@ public class RemotePreflightCheck {
         () -> CommandExecutor.aptInstall("sshpass"));
   }
 
-  static CheckResult checkXServer() {
+  public static CheckResult checkXServer() {
     if (Commons.runningLinux()) {
       return new CheckResult("X Server", true, "Native X display (Linux)", null);
     }
@@ -87,7 +87,7 @@ public class RemotePreflightCheck {
         });
   }
 
-  static CheckResult checkVncViewer() {
+  public static CheckResult checkVncViewer() {
     boolean found = CommandExecutor.isToolAvailable("vncviewer");
     if (found) {
       return new CheckResult("vncviewer", true, "vncviewer found", null);
@@ -114,7 +114,7 @@ public class RemotePreflightCheck {
     return new CheckResult("vncviewer", false, installHint, fix);
   }
 
-  static CheckResult checkFingerprint(String host) {
+  public static CheckResult checkFingerprint(String host) {
     if (host == null || host.isEmpty()) {
       return new CheckResult("SSH fingerprint", true, "No host specified", null);
     }

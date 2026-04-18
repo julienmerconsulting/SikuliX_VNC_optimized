@@ -128,48 +128,95 @@ class RecorderAppScope {
       return;
     }
 
-    try {
-      RecorderNotifications.success("Running pre-flight checks...");
-      List<RemotePreflightCheck.CheckResult> checks = RemotePreflightCheck.runAll(host);
+    JDialog waitDialog = new JDialog(parent, "Pre-flight", false);
+    waitDialog.setSize(280, 80);
+    waitDialog.setLocationRelativeTo(parent);
+    waitDialog.setLayout(new java.awt.BorderLayout());
+    JLabel waitLabel = new JLabel("  \u23F3 Starting WSL environment...", SwingConstants.CENTER);
+    waitDialog.add(waitLabel, java.awt.BorderLayout.CENTER);
+    waitDialog.setVisible(true);
 
-      boolean allPassed = RemotePreflightCheck.allPassed(checks);
-      if (!allPassed) {
-        StringBuilder msg = new StringBuilder("Pre-flight checks:\n\n");
-        for (RemotePreflightCheck.CheckResult check : checks) {
-          msg.append(check.passed ? "  ✓  " : "  ✗  ");
-          msg.append(check.name).append(": ").append(check.message).append("\n");
-        }
-        msg.append("\nFix issues and retry, or continue anyway?");
+    final String fHost = host;
+    final String fUser = user;
+    final String fPassword = password;
+    final String fPort = port;
 
-        String[] options = {"Fix all", "Continue anyway", "Cancel"};
-        int choice = JOptionPane.showOptionDialog(parent, msg.toString(),
-            "Pre-flight Results",
-            JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
-            null, options, options[0]);
-
-        if (choice == 0) {
-          for (RemotePreflightCheck.CheckResult check : checks) {
-            if (!check.passed && check.autoFix != null) {
-              check.autoFix.run();
-            }
-          }
-          RecorderNotifications.success("Auto-fix applied. Try launching again.");
-          return;
-        }
-        if (choice == 2 || choice < 0) return;
+    new javax.swing.SwingWorker<List<RemotePreflightCheck.CheckResult>, String>() {
+      @Override
+      protected List<RemotePreflightCheck.CheckResult> doInBackground() {
+        java.util.List<RemotePreflightCheck.CheckResult> results = new java.util.ArrayList<>();
+        publish("Starting WSL environment...");
+        results.add(RemotePreflightCheck.checkSshpass());
+        publish("Checking X Server...");
+        results.add(RemotePreflightCheck.checkXServer());
+        publish("Checking VNC viewer...");
+        results.add(RemotePreflightCheck.checkVncViewer());
+        publish("Checking SSH fingerprint for " + fHost + "...");
+        results.add(RemotePreflightCheck.checkFingerprint(fHost));
+        publish("Pre-flight complete.");
+        return results;
       }
 
-      AppLauncher.launchRemoteVNC(host, user, password, port);
+      @Override
+      protected void process(java.util.List<String> chunks) {
+        if (!chunks.isEmpty()) waitLabel.setText("  \u23F3 " + chunks.get(chunks.size() - 1));
+      }
 
-      remoteMode = true;
-      currentApp = new App("vncviewer");
-      onAppLaunched("vnc_" + host);
-      codeGen.generateLaunchApp(host, appVarName, false);
-      RecorderNotifications.success("VNC connected to " + host);
-    } catch (Exception ex) {
-      RecorderNotifications.error("Remote launch failed: " + ex.getMessage());
-      ex.printStackTrace();
-    }
+      @Override
+      protected void done() {
+        waitDialog.dispose();
+        try {
+          List<RemotePreflightCheck.CheckResult> checks = get(60, java.util.concurrent.TimeUnit.SECONDS);
+
+          boolean allPassed = RemotePreflightCheck.allPassed(checks);
+          if (!allPassed) {
+            StringBuilder msg = new StringBuilder("Pre-flight checks:\n\n");
+            for (RemotePreflightCheck.CheckResult check : checks) {
+              msg.append(check.passed ? "  \u2713  " : "  \u2717  ");
+              msg.append(check.name).append(": ").append(check.message).append("\n");
+            }
+            msg.append("\nFix issues and retry, or continue anyway?");
+
+            String[] options = {"Fix all", "Continue anyway", "Cancel"};
+            int choice = JOptionPane.showOptionDialog(parent, msg.toString(),
+                "Pre-flight Results",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+                null, options, options[0]);
+
+            if (choice == 0) {
+              for (RemotePreflightCheck.CheckResult check : checks) {
+                if (!check.passed && check.autoFix != null) {
+                  check.autoFix.run();
+                }
+              }
+              RecorderNotifications.success("Auto-fix applied. Try launching again.");
+              return;
+            }
+            if (choice == 2 || choice < 0) return;
+          }
+
+          waitLabel.setText("  \u23F3 Launching VNC...");
+          waitDialog.setVisible(true);
+
+          AppLauncher.launchRemoteVNC(fHost, fUser, fPassword, fPort);
+
+          waitDialog.dispose();
+          remoteMode = true;
+          currentApp = new App("vncviewer");
+          onAppLaunched("vnc_" + fHost);
+          codeGen.generateLaunchApp(fHost, appVarName, false);
+          RecorderNotifications.success("VNC connected to " + fHost);
+
+        } catch (java.util.concurrent.TimeoutException ex) {
+          waitDialog.dispose();
+          RecorderNotifications.error("Pre-flight timed out after 60 seconds. Is WSL installed?");
+        } catch (Exception ex) {
+          waitDialog.dispose();
+          RecorderNotifications.error("Remote launch failed: " + ex.getMessage());
+          ex.printStackTrace();
+        }
+      }
+    }.execute();
   }
 
   private void onAppLaunched(String appPath) {

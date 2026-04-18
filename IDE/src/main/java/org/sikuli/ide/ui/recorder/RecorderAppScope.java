@@ -133,6 +133,8 @@ class RecorderAppScope {
     waitDialog.setLocationRelativeTo(parent);
     waitDialog.setLayout(new java.awt.BorderLayout());
     JLabel waitLabel = new JLabel("  \u23F3 Starting WSL environment...", SwingConstants.CENTER);
+    waitLabel.setForeground(javax.swing.UIManager.getColor("Label.foreground"));
+    waitLabel.setFont(javax.swing.UIManager.getFont("defaultFont"));
     waitDialog.add(waitLabel, java.awt.BorderLayout.CENTER);
     waitDialog.setVisible(true);
 

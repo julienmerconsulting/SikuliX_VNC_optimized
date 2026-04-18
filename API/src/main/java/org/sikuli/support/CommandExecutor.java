@@ -126,15 +126,18 @@ public class CommandExecutor {
   public static boolean isToolAvailable(String toolName) {
     try {
       String whichCmd = "which " + toolName;
-      Stream<String> result;
+      Process process;
       if (Commons.runningWindows()) {
-        result = execWsl(whichCmd);
+        process = Runtime.getRuntime().exec(new String[]{"wsl.exe", "bash", "-c", whichCmd});
       } else {
-        result = execLocal(whichCmd);
+        process = Runtime.getRuntime().exec(new String[]{"bash", "-c", whichCmd});
       }
-      boolean found = result.findFirst().isPresent();
-      result.close();
-      return found;
+      boolean finished = process.waitFor(15, TimeUnit.SECONDS);
+      if (!finished) {
+        process.destroyForcibly();
+        return false;
+      }
+      return process.exitValue() == 0;
     } catch (Exception e) {
       return false;
     }
@@ -204,15 +207,18 @@ public class CommandExecutor {
   public static boolean isSshHostKnown(String host) {
     try {
       String cmd = "ssh-keygen -F " + host;
-      Stream<String> result;
+      Process process;
       if (Commons.runningWindows()) {
-        result = execWsl(cmd);
+        process = Runtime.getRuntime().exec(new String[]{"wsl.exe", "bash", "-c", cmd});
       } else {
-        result = execLocal(cmd);
+        process = Runtime.getRuntime().exec(new String[]{"bash", "-c", cmd});
       }
-      boolean found = result.findFirst().isPresent();
-      result.close();
-      return found;
+      boolean finished = process.waitFor(15, TimeUnit.SECONDS);
+      if (!finished) {
+        process.destroyForcibly();
+        return false;
+      }
+      return process.exitValue() == 0;
     } catch (Exception e) {
       return false;
     }

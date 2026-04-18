@@ -37,7 +37,7 @@ public class CommandExecutor {
    * Execute a command via WSL (Windows only).
    */
   public static Stream<String> execWsl(String command) throws IOException {
-    String fullCmd = "wsl.exe bash -c \"" + command.replace("\"", "\\\"") + "\"";
+    String fullCmd = "cmd /c wsl.exe bash -c \"" + command.replace("\"", "\\\"") + "\"";
     Process process = Runtime.getRuntime().exec(fullCmd);
     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
     return reader.lines().onClose(() -> {
@@ -73,7 +73,7 @@ public class CommandExecutor {
 
     String fullCmd;
     if (Commons.runningWindows()) {
-      fullCmd = "wsl.exe bash -c \"" + sshCmd.replace("\"", "\\\"") + "\"";
+      fullCmd = "cmd /c wsl.exe bash -c \"" + sshCmd.replace("\"", "\\\"") + "\"";
     } else {
       fullCmd = sshCmd;
     }
@@ -128,7 +128,7 @@ public class CommandExecutor {
       String whichCmd = "which " + toolName;
       String fullCmd;
       if (Commons.runningWindows()) {
-        fullCmd = "wsl.exe bash -c \"" + whichCmd + "\"";
+        fullCmd = "cmd /c wsl.exe bash -c \"" + whichCmd + "\"";
       } else {
         fullCmd = whichCmd;
       }
@@ -210,7 +210,7 @@ public class CommandExecutor {
       String cmd = "ssh-keygen -F " + host;
       String fullCmd;
       if (Commons.runningWindows()) {
-        fullCmd = "wsl.exe bash -c \"" + cmd + "\"";
+        fullCmd = "cmd /c wsl.exe bash -c \"" + cmd + "\"";
       } else {
         fullCmd = cmd;
       }

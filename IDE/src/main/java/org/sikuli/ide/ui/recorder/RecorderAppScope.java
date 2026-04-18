@@ -215,8 +215,15 @@ class RecorderAppScope {
           waitDialog.dispose();
           remoteMode = true;
           currentApp = new App("vncviewer");
-          onAppLaunched("vnc_" + fHost);
-          codeGen.generateLaunchApp(fHost, appVarName, false);
+          appVarName = "vncSession";
+
+          btnLaunchApp.setEnabled(false);
+          btnCloseApp.setEnabled(true);
+          chkScopeToApp.setEnabled(true);
+
+          codeGen.addLine("# VNC Remote connection to " + fHost);
+          codeGen.addLine("vncSession = VNCScreen.start(\"" + fHost + "\", " + fPort
+              + ", \"<SSH_PASSWORD>\", 1920, 1080)");
           RecorderNotifications.success("VNC connected to " + fHost);
 
         } catch (java.util.concurrent.TimeoutException ex) {

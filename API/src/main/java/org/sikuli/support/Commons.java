@@ -79,6 +79,8 @@ public class Commons {
     isRunningFile = tokenStream;
   }
 
+  private static boolean libOpenCVloaded = false;
+
   static {
     startMoment = new Date().getTime();
 
@@ -1144,10 +1146,7 @@ public class Commons {
   //</editor-fold>
 
   //<editor-fold desc="20 library handling">
-  private static final String libOpenCV = Core.NATIVE_LIBRARY_NAME;
   private static final String libOpenCVclassref = "nu.pattern.OpenCV";
-  private static String libOpenCVresname = "opencv/%s/" + (runningArm64() ? "aarch64" : "x86_64") + "/";
-  private static boolean libOpenCVloaded = false;
 
 public static void loadOpenCV() {
     if (libOpenCVloaded) {

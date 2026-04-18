@@ -62,8 +62,6 @@ public class AppLauncher {
         .build();
 
     CommandExecutor.execFireAndForget(command);
-
-    waitForVncWindow();
   }
 
   /**

@@ -128,8 +128,8 @@ class RecorderAppScope {
       return;
     }
 
-    System.out.println("[VNC-DEBUG] Host=" + host + " User=" + user + " Port=" + port);
-    System.out.println("[VNC-DEBUG] Creating wait dialog...");
+    System.err.println("[VNC-DEBUG] Host=" + host + " User=" + user + " Port=" + port);
+    System.err.println("[VNC-DEBUG] Creating wait dialog...");
 
     JDialog waitDialog = new JDialog(parent, "Pre-flight", false);
     waitDialog.setSize(280, 80);
@@ -140,7 +140,7 @@ class RecorderAppScope {
     waitLabel.setFont(javax.swing.UIManager.getFont("defaultFont"));
     waitDialog.add(waitLabel, java.awt.BorderLayout.CENTER);
     waitDialog.setVisible(true);
-    System.out.println("[VNC-DEBUG] Wait dialog visible, starting SwingWorker...");
+    System.err.println("[VNC-DEBUG] Wait dialog visible, starting SwingWorker...");
 
     final String fHost = host;
     final String fUser = user;
@@ -151,21 +151,21 @@ class RecorderAppScope {
       @Override
       protected List<RemotePreflightCheck.CheckResult> doInBackground() {
         java.util.List<RemotePreflightCheck.CheckResult> results = new java.util.ArrayList<>();
-        System.out.println("[VNC-DEBUG] Worker started - checking sshpass...");
+        System.err.println("[VNC-DEBUG] Worker started - checking sshpass...");
         publish("Starting WSL environment...");
         results.add(RemotePreflightCheck.checkSshpass());
-        System.out.println("[VNC-DEBUG] sshpass: " + results.get(results.size()-1).message);
+        System.err.println("[VNC-DEBUG] sshpass: " + results.get(results.size()-1).message);
         publish("Checking X Server...");
         results.add(RemotePreflightCheck.checkXServer());
-        System.out.println("[VNC-DEBUG] xserver: " + results.get(results.size()-1).message);
+        System.err.println("[VNC-DEBUG] xserver: " + results.get(results.size()-1).message);
         publish("Checking VNC viewer...");
         results.add(RemotePreflightCheck.checkVncViewer());
-        System.out.println("[VNC-DEBUG] vncviewer: " + results.get(results.size()-1).message);
+        System.err.println("[VNC-DEBUG] vncviewer: " + results.get(results.size()-1).message);
         publish("Checking SSH fingerprint for " + fHost + "...");
         results.add(RemotePreflightCheck.checkFingerprint(fHost));
-        System.out.println("[VNC-DEBUG] fingerprint: " + results.get(results.size()-1).message);
+        System.err.println("[VNC-DEBUG] fingerprint: " + results.get(results.size()-1).message);
         publish("Pre-flight complete.");
-        System.out.println("[VNC-DEBUG] All checks done.");
+        System.err.println("[VNC-DEBUG] All checks done.");
         return results;
       }
 

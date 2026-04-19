@@ -829,7 +829,7 @@ public class SikulixIDE extends JFrame {
   /**
    * Rebuilds the workspace explorer cards from the current contexts list.
    */
-  private void refreshWorkspace() {
+  public void refreshWorkspace() {
     if (explorer == null) return;
     List<ScriptExplorer.ScriptInfo> scripts = new ArrayList<>();
     for (PaneContext ctx : contexts) {

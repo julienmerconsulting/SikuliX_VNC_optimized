@@ -299,6 +299,7 @@ public class RecorderAssistant extends JDialog {
         ctx.getPane().insertString(codeStr);
         ctx.reparse();
         RecorderNotifications.success(model.size() + " line(s) inserted.");
+        ide.refreshWorkspace();
       }
       cleanupTempDir();
     });

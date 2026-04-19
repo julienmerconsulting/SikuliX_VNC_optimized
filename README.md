@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="oculix_robot.png" width="300" alt="OculiX"/>
+<img src="gecko_cyclope.png" width="300" alt="OculiX"/>
 
 # OculiX
 

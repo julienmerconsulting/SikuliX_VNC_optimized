@@ -69,7 +69,7 @@ public class RecorderAssistant extends JDialog {
     this.actions = new RecorderActions(this, workflow, codeGen, appScope, imagePicker,
         codePreview, screenshotDir, capturedImages);
 
-    codeGen.initRFHeaders();
+    codeGen.initHeaders();
 
     wireWorkflow();
     checkOcrStatus();

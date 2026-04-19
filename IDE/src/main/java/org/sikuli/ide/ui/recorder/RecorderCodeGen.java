@@ -129,7 +129,7 @@ class RecorderCodeGen {
     }
   }
 
-  void initRFHeaders() {
+  void initHeaders() {
     if (isRF()) {
       addLine("*** Settings ***");
       addLine("Library    SikuliLibrary");
@@ -137,6 +137,17 @@ class RecorderCodeGen {
       addLine("");
       addLine("*** Test Cases ***");
       addLine("Recorded Test");
+    } else if (isJava()) {
+      addLine("import org.sikuli.script.*;");
+      addLine("import org.sikuli.basics.Settings;");
+      addLine("");
+      addLine("public class RecordedTest {");
+      addLine("    public static void main(String[] args) throws FindFailed {");
+      addLine("        Screen screen = new Screen();");
+      addLine("");
+    } else {
+      addLine("from sikuli import *");
+      addLine("");
     }
   }
 }

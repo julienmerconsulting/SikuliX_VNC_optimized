@@ -113,25 +113,27 @@ public class TextRecognizer {
       }
       return tesseract;
     } catch (UnsatisfiedLinkError e) {
-      //TODO open website on Error
-/*
-      String helpURL;
-      if (Commons.runningWindows()) {
-        helpURL = "https://github.com/RaiMan/SikuliX1/wiki/Windows:-Problems-with-libraries-OpenCV-or-Tesseract";
+      String installCmd;
+      if (Commons.runningMac()) {
+        installCmd = "brew install tesseract";
+      } else if (Commons.runningLinux()) {
+        installCmd = "sudo apt-get install tesseract-ocr   (Debian/Ubuntu)\n"
+                   + "  sudo dnf install tesseract            (Fedora/RHEL)\n"
+                   + "  sudo zypper install tesseract         (SUSE)";
       } else {
-        helpURL = "https://github.com/RaiMan/SikuliX1/wiki/macOS-Linux:-Support-libraries-for-Tess4J-Tesseract-4-OCR";
+        installCmd = "Reinstall OculiX — Windows binaries should be bundled with tess4j.";
       }
-      Debug.error("see: " + helpURL);
-      if (RunTime.isIDE()) {
-        Debug.error("Save your work, correct the problem and restart the IDE!");
-        try {
-          Desktop.getDesktop().browse(new URI(helpURL));
-        } catch (IOException ex) {
-        } catch (URISyntaxException ex) {
-        }
-      }
-*/
-      throw new SikuliXception(String.format("OCR: start: Tesseract library problems: %s", e.getMessage()));
+      String msg = "\n\n"
+          + "══════════════════════════════════════════════════════════════\n"
+          + " Tesseract OCR engine not found on your system.\n"
+          + "══════════════════════════════════════════════════════════════\n\n"
+          + " Install it with:\n  " + installCmd + "\n\n"
+          + " Then restart OculiX.\n\n"
+          + " More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
+          + " Original error: " + e.getMessage() + "\n"
+          + "══════════════════════════════════════════════════════════════";
+      Debug.error(msg);
+      throw new SikuliXception(msg);
     }
   }
 

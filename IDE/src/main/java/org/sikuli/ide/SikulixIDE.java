@@ -1525,6 +1525,17 @@ public class SikulixIDE extends JFrame {
     }
 
     private void doShowThumbs() {
+      // Baseline plain text - no in-place filename -> thumbnail replacement.
+      // The original implementation below rescans the pane text after each
+      // reparse(), regexes quoted filenames, and calls select + insertComponent
+      // per match. That path corrupts the document on multiple matches (offsets
+      // drift with every replacement) and the resulting embedded buttons also
+      // vanish after a LaF toggle (issue #165). Images will be re-introduced
+      // later as an explicit async pass (modal + SwingWorker + CompoundEdit)
+      // on top of this known-good plain-text baseline.
+      if (true) {
+        return;
+      }
       if (getShowThumbs()) {
         String[] text = pane.getText().split("\n");
         List<Map<String, Object>> images = collectImages(text);

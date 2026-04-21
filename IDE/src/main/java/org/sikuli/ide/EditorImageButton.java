@@ -234,6 +234,9 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
   }
 
   public String info() {
+    if (options == null || options.get(IButton.FILE) == null) {
+      return "";
+    }
     final String name = FilenameUtils.getBaseName(((File) options.get(IButton.FILE)).getAbsolutePath());
     return String.format("%s", name);
   }

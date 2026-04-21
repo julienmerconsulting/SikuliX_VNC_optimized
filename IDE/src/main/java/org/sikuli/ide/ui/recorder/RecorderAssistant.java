@@ -296,7 +296,15 @@ public class RecorderAssistant extends JDialog {
             }
           }
         }
-        ctx.getPane().insertString(codeStr);
+        // Always append at end of document: the caret may have been moved by
+        // the rename popup that opens after the previous insert, a click on an
+        // embedded image button, or any other prior interaction. Inserting at
+        // the raw caret position splits existing code mid-word. Move caret to
+        // doc end first so each Insert&Close appends cleanly on a new line
+        // (the codeStr already starts with "\n").
+        org.sikuli.ide.EditorPane pane = ctx.getPane();
+        pane.setCaretPosition(pane.getDocument().getLength());
+        pane.insertString(codeStr);
         ctx.reparse();
         RecorderNotifications.success(model.size() + " line(s) inserted.");
         ide.refreshWorkspace();

@@ -144,13 +144,33 @@ public class EditorPane extends JTextPane {
 
     setFont(new Font(PreferencesUser.get().getFontName(), Font.PLAIN, PreferencesUser.get().getFontSize()));
     setMargin(new Insets(3, 3, 3, 3));
+    // Editor background stays white regardless of IDE theme; force dark foreground
+    // and caret so the blinking caret and text remain clearly readable (issue #165).
     setBackground(Color.WHITE);
+    setForeground(Color.BLACK);
+    setCaretColor(Color.BLACK);
+    if (getCaret() != null) {
+      getCaret().setBlinkRate(500);
+    }
     if (!Settings.isMac()) {
       setSelectionColor(new Color(170, 200, 255));
     }
 
     SikulixIDE.getStatusbar().setType(paneType);
     log("InitTab: (%s)", paneType);
+  }
+
+  // Re-apply editor colors after a LaF change so the caret/foreground stay
+  // readable on the white editor background regardless of dark/light theme.
+  @Override
+  public void updateUI() {
+    super.updateUI();
+    setBackground(Color.WHITE);
+    setForeground(Color.BLACK);
+    setCaretColor(Color.BLACK);
+    if (!Settings.isMac()) {
+      setSelectionColor(new Color(170, 200, 255));
+    }
   }
 
   public void loadContent(InputStreamReader isr) throws IOException {

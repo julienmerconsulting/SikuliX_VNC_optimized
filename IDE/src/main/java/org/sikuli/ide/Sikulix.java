@@ -17,6 +17,7 @@ import org.sikuli.support.ide.SikuliIDEI18N;
 
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -112,7 +113,12 @@ public class Sikulix {
     // Use modern system fonts: Segoe UI (Win), SF Pro (Mac), Inter/Cantarell (Linux)
     FlatLaf.setPreferredFontFamily("Segoe UI");
     FlatLaf.setPreferredMonospacedFontFamily("Cascadia Code");
-    FlatDarkLaf.setup();
+    String ideTheme = PreferencesUser.get().getIdeTheme();
+    if (PreferencesUser.THEME_LIGHT.equals(ideTheme)) {
+      FlatLightLaf.setup();
+    } else {
+      FlatDarkLaf.setup();
+    }
 
     ideSplash = new SXDialog("sxidestartup", SikulixIDE.getWindowTop(), SXDialog.POSITION.TOP);
     ideSplash.run();

@@ -462,6 +462,19 @@ public class PreferencesUser {
     return css;
   }
 
+  // ***** IDE theme (dark / light)
+  public final static String THEME_DARK = "dark";
+  public final static String THEME_LIGHT = "light";
+
+  public String getIdeTheme() {
+    String v = pref.get("IDE_THEME", THEME_DARK);
+    return THEME_LIGHT.equals(v) ? THEME_LIGHT : THEME_DARK;
+  }
+
+  public void setIdeTheme(String theme) {
+    pref.put("IDE_THEME", THEME_LIGHT.equals(theme) ? THEME_LIGHT : THEME_DARK);
+  }
+
   // ***** general setter getter
   public void put(String key, String val) {
     pref.put(key, val);
@@ -515,6 +528,7 @@ public class PreferencesUser {
 // ***** IDE general support
     setIdeSize(new Dimension(1024, 700));
     setIdeLocation(new Point(0, 0));
+    setIdeTheme(THEME_DARK);
 
     setPrefMoreImages(false);
     setPrefMoreImagesPath("");

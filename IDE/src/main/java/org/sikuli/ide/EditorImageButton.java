@@ -96,6 +96,19 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
     addMouseListener(this);
   }
 
+  // When the LaF changes (theme toggle), the new ButtonUI may reset the icon
+  // state. Re-apply the cached thumbnail so embedded image buttons keep
+  // rendering after switching between dark and light (issue #165).
+  @Override
+  public void updateUI() {
+    super.updateUI();
+    if (thumbnail != null) {
+      setIcon(new ImageIcon(thumbnail));
+      setMargin(new Insets(0, 0, 0, 0));
+      setBorderPainted(true);
+    }
+  }
+
   @Override
   public void actionPerformed(ActionEvent e) {
     final EditorImageButton source = (EditorImageButton) e.getSource();
@@ -195,7 +208,9 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
     w *= _scale;
     h *= _scale;
     h = (int) h;
-    BufferedImage thumb = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+    // Use ARGB so the thumbnail has an alpha channel and survives LaF changes
+    // (opaque TYPE_INT_RGB caused icons to vanish visually after a theme toggle - issue #165).
+    BufferedImage thumb = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
     Graphics2D g2d = thumb.createGraphics();
     g2d.drawImage(img, 0, 0, w, h, null);
     g2d.dispose();

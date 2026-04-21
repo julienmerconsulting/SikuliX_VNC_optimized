@@ -8,6 +8,7 @@ import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import net.miginfocom.swing.MigLayout;
+import org.sikuli.basics.PreferencesUser;
 
 import javax.swing.*;
 import java.awt.*;
@@ -33,9 +34,9 @@ public class OculixSidebar extends JPanel {
   private SidebarItem navTools;
   private SidebarItem navHelp;
 
-  // Theme toggle
+  // Theme toggle - initialized from user preferences (persisted across sessions)
   private SidebarItem btnTheme;
-  private boolean isDark = true;
+  private boolean isDark = PreferencesUser.THEME_DARK.equals(PreferencesUser.get().getIdeTheme());
 
   // Version label
   private JLabel versionLabel;
@@ -290,6 +291,9 @@ public class OculixSidebar extends JPanel {
     try {
       if (isDark) FlatDarkLaf.setup(); else FlatLightLaf.setup();
       FlatLaf.updateUI();
+      PreferencesUser prefs = PreferencesUser.get();
+      prefs.setIdeTheme(isDark ? PreferencesUser.THEME_DARK : PreferencesUser.THEME_LIGHT);
+      prefs.store();
     } catch (Exception ex) {}
   }
 

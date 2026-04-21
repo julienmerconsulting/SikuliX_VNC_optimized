@@ -336,7 +336,7 @@ public class SikulixIDE extends JFrame {
     sidebar = new OculixSidebar();
     initSidebarActions();
     initSidebarNavigation();
-    sidebar.initFooter(Commons.getSXVersionShort(), null);
+    sidebar.initFooter(Commons.getSXVersionShort(), e -> refreshAfterThemeChange());
     ideContainer.add(sidebar, BorderLayout.WEST);
     updateScriptDependentItems(); // grey out Run/Capture/Record until a script is open
     Debug.log("IDE: Putting all together - after sidebar");
@@ -624,6 +624,25 @@ public class SikulixIDE extends JFrame {
     boolean hasScript = !contexts.isEmpty();
     for (JMenuItem item : scriptDependentItems) {
       item.setEnabled(hasScript);
+    }
+  }
+
+  // Invoked after the sidebar theme toggle has already called FlatLaf.updateUI().
+  // Forces every open editor tab to re-lay out so embedded image buttons are
+  // re-painted with the new LaF (issue #165: image icons vanishing on toggle).
+  private void refreshAfterThemeChange() {
+    if (tabs != null) {
+      for (int i = 0; i < tabs.getTabCount(); i++) {
+        Component tab = tabs.getComponentAt(i);
+        if (tab != null) {
+          tab.revalidate();
+          tab.repaint();
+        }
+      }
+    }
+    if (ideWindow != null) {
+      ideWindow.revalidate();
+      ideWindow.repaint();
     }
   }
 

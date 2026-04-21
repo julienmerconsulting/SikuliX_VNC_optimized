@@ -706,8 +706,22 @@ public class EditorPane extends JTextPane {
       comp = EditorPatternLabel.labelFromString(this, "");
     }
     if (comp != null) {
-      this.select(startOff, endOff);
-      this.insertComponent(comp);
+      // Manipulate the Document directly instead of routing through
+      // JTextPane.select + insertComponent, which relies on the current
+      // caret / selection state and can place the replacement at the wrong
+      // offset when multiple matches are processed in sequence (visible
+      // symptom: filenames inserted mid-code, 'from sikuli import *' split
+      // into 'from sikuli ' + IMG + 'import *').
+      //
+      // doc.remove + doc.insertString with a ComponentAttribute is the same
+      // logical operation minus the caret/selection dependency, and it keeps
+      // the start offset explicitly so parseLine's offset math stays correct
+      // across iterations.
+      Document d = getDocument();
+      d.remove(startOff, endOff - startOff);
+      SimpleAttributeSet attr = new SimpleAttributeSet();
+      StyleConstants.setComponent(attr, comp);
+      d.insertString(startOff, "￼", attr);
       return true;
     }
     return false;

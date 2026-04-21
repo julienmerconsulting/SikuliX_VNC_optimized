@@ -643,25 +643,12 @@ public class EditorPane extends JTextPane {
   }
 
   private int parseRange(int start, int end) {
-    if (!context.getShowThumbs()) {
-      // do not show any thumbnails
-      return end;
-    }
-    // Image thumbnail replacement is only meaningful for Python scripts.
-    // Java and Robot Framework sources get written as plain text, which
-    // matches the clean flow RF has always had and avoids the select/
-    // insertComponent path causing corruption in multi-match sequences.
-    if (!isPython()) {
-      return end;
-    }
-    try {
-      end = parseLine(start, end, patCaptureBtn);
-      end = parseLine(start, end, patPatternStr);
-      end = parseLine(start, end, patRegionStr);
-      end = parseLine(start, end, patPngStr);
-    } catch (BadLocationException e) {
-      error("parseRange: Problem while trying to parse line\n%s", e.getMessage());
-    }
+    // Baseline: every language pane receives the Recorder output as plain
+    // text - same clean flow RF has always had. The image-thumbnail
+    // replacement for Python will be re-introduced later as an async
+    // pass with a modal, on top of this known-good text baseline. For
+    // now: no in-line regex->component transformation, so the
+    // select/insertComponent path can't corrupt the document anymore.
     return end;
   }
 

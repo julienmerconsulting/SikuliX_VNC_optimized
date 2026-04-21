@@ -79,7 +79,6 @@ public class TextRecognizer {
 
   private static boolean isValid = false;
 
-  //TODO check if Tesseract lib is available (issue #110)
   private static void checkLib() {
     if (!isValid) {
       String versionTess4J = net.sourceforge.tess4j.Tesseract1.class.getPackage().getImplementationVersion();
@@ -100,13 +99,14 @@ public class TextRecognizer {
       if (isValid) {
         Debug.log(lvl, "OCR: start: Tess4J %s using Tesseract %s", versionTess4J, versionTesseract);
       } else {
+        //TODO add the respective Oculix wiki page when ready
         String helpURL = String.format("""
           ************************************ ERROR
-          The Tesseract lib (%s) is not available. Save your work, correct it and restart SikuliX.
-          https://github.com/RaiMan/SikuliX1/wiki/macOS-Linux:-Support-libraries-for-Tess4J-Tesseract-4-OCR
-          """, versionTesseractExpected);
-        //TODO how to output as clickable link
+          The Tesseract lib (%s) is not available. Save your work, correct it and try again.
+          https://github.com/oculix-org/SikuliX1/wiki/macOS-Linux:-Tess4J-OCR:-Tesseract-libs
+          ********************************************""", versionTesseractExpected);
         Debug.error(helpURL);
+        throw new SikuliXception("The Tesseract lib is not available");
       }
     }
   }

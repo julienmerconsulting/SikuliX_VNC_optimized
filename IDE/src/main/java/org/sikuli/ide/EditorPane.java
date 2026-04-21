@@ -254,6 +254,10 @@ public class EditorPane extends JTextPane {
   public boolean isPython() {
     return paneType == JythonRunner.TYPE || paneType == PythonRunner.TYPE;
   }
+
+  public boolean isRobot() {
+    return org.sikuli.support.runner.RobotRunner.TYPE.equals(paneType);
+  }
   //</editor-fold>
 
   //<editor-fold desc="15 content file">

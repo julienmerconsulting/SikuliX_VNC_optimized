@@ -261,14 +261,47 @@ public class RecorderAssistant extends JDialog {
     }
     String codeStr = code.toString();
 
-    String[] options = {"Current Script", "New Script", "Cancel"};
-    int choice = JOptionPane.showOptionDialog(this,
-        "Insert " + model.size() + " line(s) of generated code:",
-        "Insert Code",
-        JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-        null, options, options[0]);
+    // Block inserting into a language-mismatched Current Script. E.g. the
+    // Recorder was set to Java but the active tab is a .py file -
+    // appending Java lines would produce invalid code in-place. The user
+    // can still bail out or start a New Script with the right type.
+    String recorderLang = codeGen.isRF() ? "Robot Framework"
+        : codeGen.isJava() ? "Java" : "Python";
+    String paneLang = null;
+    SikulixIDE ideForCheck = (SikulixIDE) getOwner();
+    SikulixIDE.PaneContext activeCtx = ideForCheck.getActiveContext();
+    if (activeCtx != null && activeCtx.getPane() != null) {
+      org.sikuli.ide.EditorPane activePane = activeCtx.getPane();
+      if (activePane.isPython()) {
+        paneLang = "Python";
+      } else if (activePane.isRobot()) {
+        paneLang = "Robot Framework";
+      }
+    }
+    boolean languageMatches = paneLang != null && paneLang.equals(recorderLang);
 
-    if (choice == 2 || choice < 0) return;
+    int choice;
+    if (!languageMatches && paneLang != null) {
+      String[] opts = {"New Script", "Cancel"};
+      int pick = JOptionPane.showOptionDialog(this,
+          "The current script is " + paneLang + " but the Recorder generated "
+              + recorderLang + " code.\nInserting here would produce invalid code."
+              + "\n\nCreate a new " + recorderLang + " script with the " + model.size()
+              + " generated line(s)?",
+          "Language mismatch",
+          JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+          null, opts, opts[0]);
+      if (pick != 0) return;
+      choice = 1; // force New Script path below
+    } else {
+      String[] options = {"Current Script", "New Script", "Cancel"};
+      choice = JOptionPane.showOptionDialog(this,
+          "Insert " + model.size() + " line(s) of generated code:",
+          "Insert Code",
+          JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+          null, options, options[0]);
+      if (choice == 2 || choice < 0) return;
+    }
 
     workflow.dispose();
     SikulixIDE ide = (SikulixIDE) getOwner();

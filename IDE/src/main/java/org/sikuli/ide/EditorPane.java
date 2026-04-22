@@ -41,7 +41,7 @@ import java.util.prefs.PreferenceChangeListener;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class EditorPane extends JTextPane {
+public class EditorPane extends JTextPane implements ThemeAware {
 
   //<editor-fold defaultstate="collapsed" desc="02 Initialization">
   static final String me = "EditorPane: ";
@@ -173,6 +173,69 @@ public class EditorPane extends JTextPane {
     }
   }
 
+  // Theme lifecycle: the LaF swap invalidates the ButtonUI of any embedded
+  // EditorImageButton, which can leave the thumbnails invisible and
+  // un-clickable. Collect their state before the swap, then rebuild fresh
+  // instances under the new LaF afterwards.
+  private java.util.List<int[]> savedThumbOffsets;
+  private java.util.List<EditorImageButton> savedThumbButtons;
+
+  @Override
+  public void beforeThemeChange() {
+    savedThumbOffsets = new java.util.ArrayList<>();
+    savedThumbButtons = new java.util.ArrayList<>();
+    if (!(getDocument() instanceof DefaultStyledDocument)) return;
+    DefaultStyledDocument doc = (DefaultStyledDocument) getDocument();
+    int len = doc.getLength();
+    int i = 0;
+    while (i < len) {
+      Element el = doc.getCharacterElement(i);
+      int next = el.getEndOffset();
+      if (next <= i) break;
+      if (StyleConstants.ComponentElementName.equals(el.getName())) {
+        java.awt.Component c = StyleConstants.getComponent(el.getAttributes());
+        if (c instanceof EditorImageButton) {
+          savedThumbOffsets.add(new int[]{el.getStartOffset()});
+          savedThumbButtons.add((EditorImageButton) c);
+        }
+      }
+      i = next;
+    }
+  }
+
+  @Override
+  public void afterThemeChange() {
+    setBackground(Color.WHITE);
+    setForeground(Color.BLACK);
+    setCaretColor(Color.BLACK);
+    if (!Settings.isMac()) {
+      setSelectionColor(new Color(170, 200, 255));
+    }
+    if (savedThumbButtons == null || savedThumbButtons.isEmpty()) return;
+    if (!(getDocument() instanceof DefaultStyledDocument)) return;
+    DefaultStyledDocument doc = (DefaultStyledDocument) getDocument();
+    // Process in reverse offset order so earlier offsets remain valid as we
+    // remove+reinsert later ones.
+    for (int idx = savedThumbOffsets.size() - 1; idx >= 0; idx--) {
+      int pos = savedThumbOffsets.get(idx)[0];
+      EditorImageButton old = savedThumbButtons.get(idx);
+      EditorImageButton fresh = old.cloneForRefresh(this);
+      if (fresh == null) continue;
+      try {
+        doc.remove(pos, 1);
+        SimpleAttributeSet attr = new SimpleAttributeSet();
+        StyleConstants.setComponent(attr, fresh);
+        doc.insertString(pos, "￼", attr);
+      } catch (BadLocationException e) {
+        error("afterThemeChange: cannot swap component at %d: %s", pos, e.getMessage());
+      }
+    }
+    savedThumbOffsets = null;
+    savedThumbButtons = null;
+    revalidate();
+    repaint();
+  }
+
   public void loadContent(InputStreamReader isr) throws IOException {
     read(new BufferedReader(isr), null);
     getDocument().addDocumentListener(new DirtyHandler());
@@ -253,6 +316,10 @@ public class EditorPane extends JTextPane {
 
   public boolean isPython() {
     return paneType == JythonRunner.TYPE || paneType == PythonRunner.TYPE;
+  }
+
+  public boolean isRobot() {
+    return org.sikuli.support.runner.RobotRunner.TYPE.equals(paneType);
   }
   //</editor-fold>
 
@@ -643,18 +710,11 @@ public class EditorPane extends JTextPane {
   }
 
   private int parseRange(int start, int end) {
-    if (!context.getShowThumbs()) {
-      // do not show any thumbnails
-      return end;
-    }
-    try {
-      end = parseLine(start, end, patCaptureBtn);
-      end = parseLine(start, end, patPatternStr);
-      end = parseLine(start, end, patRegionStr);
-      end = parseLine(start, end, patPngStr);
-    } catch (BadLocationException e) {
-      error("parseRange: Problem while trying to parse line\n%s", e.getMessage());
-    }
+    // Inline parsing disabled: doShowThumbs() runs on every reparse() which
+    // is always called after Insert&Close and after file load, so scanning
+    // the full document there is enough to populate thumbnails. Running
+    // both meant double conversion attempts on the same matches - a recipe
+    // for the offset-drift corruption we just escaped. Keep one codepath.
     return end;
   }
 
@@ -706,8 +766,22 @@ public class EditorPane extends JTextPane {
       comp = EditorPatternLabel.labelFromString(this, "");
     }
     if (comp != null) {
-      this.select(startOff, endOff);
-      this.insertComponent(comp);
+      // Manipulate the Document directly instead of routing through
+      // JTextPane.select + insertComponent, which relies on the current
+      // caret / selection state and can place the replacement at the wrong
+      // offset when multiple matches are processed in sequence (visible
+      // symptom: filenames inserted mid-code, 'from sikuli import *' split
+      // into 'from sikuli ' + IMG + 'import *').
+      //
+      // doc.remove + doc.insertString with a ComponentAttribute is the same
+      // logical operation minus the caret/selection dependency, and it keeps
+      // the start offset explicitly so parseLine's offset math stays correct
+      // across iterations.
+      Document d = getDocument();
+      d.remove(startOff, endOff - startOff);
+      SimpleAttributeSet attr = new SimpleAttributeSet();
+      StyleConstants.setComponent(attr, comp);
+      d.insertString(startOff, "￼", attr);
       return true;
     }
     return false;

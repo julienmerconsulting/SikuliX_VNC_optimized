@@ -334,7 +334,10 @@ public class SX {
     } else {
       timeoutJob.cancel(false);
     }
-    TIMEOUT_EXECUTOR.shutdown();
+    // Do NOT shutdown the singleton TIMEOUT_EXECUTOR here: it is reused by
+    // every subsequent popup, so shutting it down on the first call causes
+    // every later SX.input / SX.popup to fail with RejectedExecutionException.
+    // The JVM will dispose of it at process exit.
     return returnValue;
   }
 

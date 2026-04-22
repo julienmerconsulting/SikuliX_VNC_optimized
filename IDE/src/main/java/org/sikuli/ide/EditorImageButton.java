@@ -116,6 +116,20 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
     setFocusPainted(false);
   }
 
+  // Build a fresh clone of this button carrying the same visible state but
+  // with a fresh ButtonUI installed under the active LaF. Called by
+  // EditorPane.afterThemeChange() to replace every embedded image button
+  // after a theme toggle so the Flat ButtonUI defaults don't leave the
+  // thumbnails invisible or un-clickable.
+  public EditorImageButton cloneForRefresh(EditorPane pane) {
+    if (options == null) return null;
+    Object patt = options.get(IButton.PATT);
+    if (patt instanceof Pattern) return new EditorImageButton((Pattern) patt);
+    Object file = options.get(IButton.FILE);
+    if (file instanceof File) return new EditorImageButton((File) file);
+    return null;
+  }
+
   @Override
   public void actionPerformed(ActionEvent e) {
     final EditorImageButton source = (EditorImageButton) e.getSource();
@@ -253,10 +267,31 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
   }
 
   public static void renameImage(String name, Map<String, Object> options) {
-    Commons.error("N/A: EditorImageButton::renameImage (%s -> %s)", options.get("image"), name);
-    // rename image file
-    // replace image name usage in script
-    // thumbnails off/on
+    if (name == null || name.trim().isEmpty()) return;
+    File oldFile = (File) options.get("image");
+    if (oldFile == null) {
+      Commons.error("renameImage: no source file in options");
+      return;
+    }
+    String newBaseName = name.trim();
+    if (!newBaseName.toLowerCase().endsWith(".png")
+        && !newBaseName.toLowerCase().endsWith(".jpg")
+        && !newBaseName.toLowerCase().endsWith(".jpeg")) {
+      newBaseName += "." + FilenameUtils.getExtension(oldFile.getName()).toLowerCase();
+    }
+    File newFile = new File(oldFile.getParentFile(), newBaseName);
+    boolean overwritten = newFile.exists() && !newFile.equals(oldFile);
+    try {
+      java.nio.file.Files.move(oldFile.toPath(), newFile.toPath(),
+          java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    } catch (IOException e) {
+      Commons.error("renameImage: cannot move %s -> %s: %s",
+          oldFile, newFile, e.getMessage());
+      return;
+    }
+    options.put("image", newFile);
+    SikulixIDE.get().reparseOnRenameImage(oldFile.getAbsolutePath(),
+        newFile.getAbsolutePath(), overwritten);
   }
 
   //imgBtn.setImage(filename);

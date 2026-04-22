@@ -15,7 +15,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseListener;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.Serializable;
+import java.util.Locale;
 import java.util.Map;
 
 class EditorPatternButton extends EditorImageButton implements ActionListener, Serializable, MouseListener {
@@ -200,6 +202,24 @@ class EditorPatternButton extends EditorImageButton implements ActionListener, S
     pwin = null;
   }
 
+  // Rebuild a fresh instance carrying the same state under the active LaF.
+  // Uses the filename + similarity/exact/offset/resize/numMatches params so
+  // the fresh button's ButtonUI is clean and the ComponentView is forced
+  // to re-layout after a theme toggle (issue #165).
+  @Override
+  public EditorImageButton cloneForRefresh(EditorPane pane) {
+    if (_imgFilename == null) return null;
+    EditorPatternButton fresh = new EditorPatternButton(pane, _imgFilename);
+    fresh.setExact(_exact);
+    fresh.setSimilarity(_similarity);
+    fresh.setResizeFactor(_resizeFactor);
+    if (_offset != null) fresh.setTargetOffset(_offset);
+    fresh._numMatches = _numMatches;
+    if (_mask != null) fresh.setMask(_mask);
+    fresh.setButtonText();
+    return fresh;
+  }
+
 /*
   public String getFilename() {
     File img = new File(_imgFilename);
@@ -226,6 +246,35 @@ class EditorPatternButton extends EditorImageButton implements ActionListener, S
     _imgFilename = _image.getFilename();
     setIcon(new ImageIcon(createThumbnailImage(_image, PreferencesUser.get().getDefaultThumbHeight())));
     setButtonText();
+  }
+
+  // Regenerate the source code expression this button was created from.
+  // Called by SikuliEditorKit.write() when the document is serialized back
+  // to disk (save / copy). Mirrors the parsing logic in createFromString()
+  // and the format produced by JythonCodeGenerator.pattern().
+  @Override
+  public String toString() {
+    if (_imgFilename == null) {
+      return super.toString();
+    }
+    String imgName = new File(_imgFilename).getName();
+    StringBuilder mods = new StringBuilder();
+    if (_resizeFactor > 0 && _resizeFactor != 1f) {
+      mods.append(String.format(Locale.ENGLISH, ".resize(%.2f)", _resizeFactor));
+    }
+    if (_exact) {
+      mods.append(".exact()");
+    } else if (_similarity > 0 && _similarity != DEFAULT_SIMILARITY) {
+      mods.append(String.format(Locale.ENGLISH, ".similar(%.2f)", _similarity));
+    }
+    if (_offset != null && (_offset.x != 0 || _offset.y != 0)) {
+      mods.append(".targetOffset(").append(_offset.x).append(",").append(_offset.y).append(")");
+    }
+    if (mods.length() == 0) {
+      // No modifiers: write a bare quoted filename (same shortcut as JythonCodeGenerator)
+      return "\"" + imgName + "\"";
+    }
+    return "Pattern(\"" + imgName + "\")" + mods;
   }
 
   public void reloadImage() {

@@ -260,14 +260,31 @@ public class OculixSidebar extends JPanel {
 
   // ── Navigation wiring ──
 
+  private SidebarSubmenu fileSub, editSub, runSub, toolsSub, helpSub;
+
   public void initNavigation(SidebarSubmenu fileSub, SidebarSubmenu editSub,
                               SidebarSubmenu runSub, SidebarSubmenu toolsSub,
                               SidebarSubmenu helpSub) {
+    this.fileSub = fileSub;
+    this.editSub = editSub;
+    this.runSub = runSub;
+    this.toolsSub = toolsSub;
+    this.helpSub = helpSub;
     navFile.addActionListener(e -> fileSub.showBelow(navFile));
     navEdit.addActionListener(e -> editSub.showBelow(navEdit));
     navRun.addActionListener(e -> runSub.showBelow(navRun));
     navTools.addActionListener(e -> toolsSub.showBelow(navTools));
     navHelp.addActionListener(e -> helpSub.showBelow(navHelp));
+  }
+
+  // Popup submenus live outside the visible window tree until clicked, so
+  // FlatLaf.updateUI() does not reach them. Call updateComponentTreeUI on
+  // each after a theme swap so the next popup render picks up the new LaF
+  // instead of showing old Dark colors on a Light theme (and vice-versa).
+  public void refreshSubmenuLaF() {
+    for (SidebarSubmenu sub : new SidebarSubmenu[]{fileSub, editSub, runSub, toolsSub, helpSub}) {
+      if (sub != null) SwingUtilities.updateComponentTreeUI(sub);
+    }
   }
 
   // ── Footer ──

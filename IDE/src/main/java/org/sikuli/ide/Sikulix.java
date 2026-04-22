@@ -128,29 +128,47 @@ public class Sikulix {
       Commons.showOptions("ARG_");
     }
 
+    // Belt-and-suspenders: make sure the splash is dismissed on any JVM exit
+    // (crash mid-startup, Ctrl+C, uncaught exception, etc.). Without this an
+    // abrupt termination can leave the splash window on top indefinitely.
+    Runtime.getRuntime().addShutdownHook(new Thread(Sikulix::stopSplash, "oculix-splash-closer"));
+
     if (!Commons.hasOption(MULTI)) {
-      File isRunning;
-      FileOutputStream isRunningFile;
-      String isRunningFilename = "s_i_k_u_l_i-ide-isrunning";
-      isRunning = new File(Commons.getTempFolder(), isRunningFilename);
+      File isRunning = new File(Commons.getTempFolder(), "s_i_k_u_l_i-ide-isrunning");
+      FileOutputStream isRunningFile = null;
       boolean shouldTerminate = false;
+      String terminateMsg = null;
+
+      // Stale-lock recovery: OS releases file locks when a process dies, so if
+      // the file is still on disk it is either a live IDE or a killed-JVM
+      // leftover (typical after Ctrl+C). Try to delete it first - delete will
+      // succeed only if no live process still has the file open.
+      if (isRunning.exists() && !isRunning.delete()) {
+        // File still open by a live process - give it a short moment (dying
+        // JVM may take a beat to release handles on Windows) and retry once.
+        try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
+        isRunning.delete();
+      }
+
       try {
         isRunning.createNewFile();
         isRunningFile = new FileOutputStream(isRunning);
         if (null == isRunningFile.getChannel().tryLock()) {
-          Class<?> classIDE = Class.forName("org.sikuli.ide.SikulixIDE");
-          Method stopSplash = classIDE.getMethod("stopSplash", new Class[0]);
-          stopSplash.invoke(null, new Object[0]);
-          org.sikuli.script.Sikulix.popError("Terminating: IDE already running");
+          terminateMsg = "Terminating: another IDE instance is already running";
           shouldTerminate = true;
         } else {
           Commons.setIsRunning(isRunning, isRunningFile);
         }
       } catch (Exception ex) {
-        org.sikuli.script.Sikulix.popError("Terminating on FatalError: cannot access IDE lock for/n" + isRunning);
+        terminateMsg = "Terminating on FatalError: cannot access IDE lock\n"
+            + isRunning + "\n" + ex.getMessage();
         shouldTerminate = true;
       }
       if (shouldTerminate) {
+        // Dismiss the splash BEFORE showing the popup - otherwise the top-most
+        // splash hides the error dialog and the user only sees a stuck splash.
+        stopSplash();
+        org.sikuli.script.Sikulix.popError(terminateMsg);
         System.exit(1);
       }
       for (String aFile : Commons.getTempFolder().list()) {

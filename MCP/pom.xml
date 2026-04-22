@@ -10,7 +10,7 @@
 
   <groupId>io.github.oculix-org</groupId>
   <artifactId>oculixmcp</artifactId>
-  <version>3.0.2</version>
+  <version>3.0.3-rc1</version>
 
   <packaging>jar</packaging>
 
@@ -51,7 +51,7 @@
     <dependency>
       <groupId>io.github.oculix-org</groupId>
       <artifactId>oculixapi</artifactId>
-      <version>3.0.2</version>
+      <version>3.0.3-rc1</version>
     </dependency>
 
     <!-- JSON (already used by API, keep consistent) -->

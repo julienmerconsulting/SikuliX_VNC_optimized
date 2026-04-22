@@ -627,10 +627,23 @@ public class SikulixIDE extends JFrame {
     }
   }
 
-  // Invoked after the sidebar theme toggle has already called FlatLaf.updateUI().
-  // Forces every open editor tab to re-lay out so embedded image buttons are
-  // re-painted with the new LaF (issue #165: image icons vanishing on toggle).
+  // Invoked by OculixSidebar.initFooter around the Dark/Light toggle. The
+  // sidebar triggers FlatLaf.updateUI() itself; we dispatch a symmetric
+  // before/after pair so every ThemeAware component can tear down and
+  // rebuild its LaF-sensitive state around the swap. This is the central
+  // entry point for theme lifecycle (issue #165).
   private void refreshAfterThemeChange() {
+    java.util.List<ThemeAware> themeAware = collectThemeAware();
+    for (ThemeAware t : themeAware) {
+      try { t.beforeThemeChange(); }
+      catch (Exception ex) { error("beforeThemeChange on %s: %s", t, ex.getMessage()); }
+    }
+    // FlatLaf.updateUI() has already been run by the sidebar toggle before
+    // this callback; the actual swap happens between the two phases.
+    for (ThemeAware t : themeAware) {
+      try { t.afterThemeChange(); }
+      catch (Exception ex) { error("afterThemeChange on %s: %s", t, ex.getMessage()); }
+    }
     if (tabs != null) {
       for (int i = 0; i < tabs.getTabCount(); i++) {
         Component tab = tabs.getComponentAt(i);
@@ -644,6 +657,26 @@ public class SikulixIDE extends JFrame {
       ideWindow.revalidate();
       ideWindow.repaint();
     }
+  }
+
+  private java.util.List<ThemeAware> collectThemeAware() {
+    java.util.List<ThemeAware> list = new java.util.ArrayList<>();
+    if (contexts != null) {
+      for (PaneContext ctx : contexts) {
+        if (ctx != null && ctx.pane instanceof ThemeAware) {
+          list.add((ThemeAware) ctx.pane);
+        }
+      }
+    }
+    if (sidebar != null) {
+      // Sidebar is not a ThemeAware by itself, but its cached submenus need
+      // updateUI() replayed since JPopupMenu lives outside the window tree.
+      list.add(new ThemeAware() {
+        @Override public void beforeThemeChange() {}
+        @Override public void afterThemeChange() { sidebar.refreshSubmenuLaF(); }
+      });
+    }
+    return list;
   }
 
   private SidebarSubmenu buildSubmenuFrom(JMenu sourceMenu) {
@@ -1525,27 +1558,43 @@ public class SikulixIDE extends JFrame {
     }
 
     private void doShowThumbs() {
-      if (getShowThumbs()) {
-        String[] text = pane.getText().split("\n");
-        List<Map<String, Object>> images = collectImages(text);
-        List<Map<String, Object>> patterns = patternMatcher(images, text);
-        if (images.size() > 0 || patterns.size() > 0) {
-          for (Map<String, Object> item : images) {
-            final File imgFile = (File) item.get(IButton.FILE);
-            //TODO make it optional? _image as thumb
-            if (imgFile.getName().startsWith("_")) {
-              continue;
-            }
-            final EditorImageButton button = new EditorImageButton(item);
-            int itemStart = getLineStart((Integer) item.get(IButton.LINE)) + (Integer) item.get(IButton.LOFF);
-            int itemEnd = itemStart + ((String) item.get(IButton.TEXT)).length();
-            pane.select(itemStart, itemEnd);
-            pane.insertComponent(button);
-          }
-          pane.setCaretPosition(0);
-        }
-        log("ImageButtons: images(%d) patterns(%d)", images.size(), patterns.size());
+      if (!getShowThumbs()) return;
+      String[] text = pane.getText().split("\n");
+      List<Map<String, Object>> images = collectImages(text);
+      List<Map<String, Object>> patterns = patternMatcher(images, text);
+      if (images.size() == 0 && patterns.size() == 0) {
+        log("ImageButtons: images(0) patterns(0)");
+        return;
       }
+      // Process matches in REVERSE document order so each remove+insert on
+      // a later offset cannot shift earlier ones out of sync. This is the
+      // fix to the offset-drift corruption that the old
+      // select + insertComponent sequence produced on multi-match inserts.
+      List<Map<String, Object>> ordered = new ArrayList<>(images);
+      ordered.sort((a, b) -> {
+        int lineCmp = Integer.compare((Integer) b.get(IButton.LINE), (Integer) a.get(IButton.LINE));
+        if (lineCmp != 0) return lineCmp;
+        return Integer.compare((Integer) b.get(IButton.LOFF), (Integer) a.get(IButton.LOFF));
+      });
+      javax.swing.text.Document doc = pane.getDocument();
+      int kept = pane.getCaretPosition();
+      for (Map<String, Object> item : ordered) {
+        final File imgFile = (File) item.get(IButton.FILE);
+        if (imgFile.getName().startsWith("_")) continue;
+        try {
+          int itemStart = getLineStart((Integer) item.get(IButton.LINE)) + (Integer) item.get(IButton.LOFF);
+          int itemLen = ((String) item.get(IButton.TEXT)).length();
+          EditorImageButton button = new EditorImageButton(item);
+          javax.swing.text.SimpleAttributeSet attr = new javax.swing.text.SimpleAttributeSet();
+          javax.swing.text.StyleConstants.setComponent(attr, button);
+          doc.remove(itemStart, itemLen);
+          doc.insertString(itemStart, "￼", attr);
+        } catch (javax.swing.text.BadLocationException e) {
+          error("doShowThumbs: cannot swap match: %s", e.getMessage());
+        }
+      }
+      pane.setCaretPosition(Math.min(kept, doc.getLength()));
+      log("ImageButtons: images(%d) patterns(%d)", images.size(), patterns.size());
     }
 
     private List<Map<String, Object>> collectImages(String[] text) {

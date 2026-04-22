@@ -101,27 +101,23 @@ public class TextRecognizer {
       if (isValid) {
         Debug.log(lvl, "OCR: start: Tess4J %s using Tesseract %s", versionTess4J, versionTesseract);
       } else {
-        String installCmd;
-        if (Commons.runningMac()) {
-          installCmd = "brew install tesseract";
-        } else if (Commons.runningLinux()) {
+        String installCmd = "brew install tesseract";
+        if (Commons.runningLinux()) {
           installCmd = "sudo apt-get install tesseract-ocr   (Debian/Ubuntu)\n"
               + "  sudo dnf install tesseract            (Fedora/RHEL)\n"
               + "  sudo zypper install tesseract         (SUSE)";
-        } else {
-          installCmd = "Reinstall OculiX — Windows binaries should be bundled with tess4j.";
-          //TODO add the respective Oculix wiki page when ready
-          String msg = "\n\n"
-              + "══════════════════════════════════════════════════════════════\n"
-              + " Tesseract OCR engine not found on your system.\n"
-              + "══════════════════════════════════════════════════════════════\n\n"
-              + " Install it with:\n  " + installCmd + "\n\n"
-              + " Then restart OculiX.\n\n"
-              + " More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
-              + "══════════════════════════════════════════════════════════════";
-          Debug.error(msg);
-          throw new SikuliXception(msg);
         }
+        //TODO add the respective Oculix wiki page when ready
+        String msg = "\n\n"
+            + "══════════════════════════════════════════════════════════════\n"
+            + " Tesseract OCR engine not found on your system.\n"
+            + "══════════════════════════════════════════════════════════════\n\n"
+            + " Install it with:\n  " + installCmd + "\n\n"
+            + " Then restart OculiX.\n\n"
+            + " More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
+            + "══════════════════════════════════════════════════════════════";
+        Debug.error(msg);
+        throw new SikuliXception("Tesseract OCR engine not found on your system.");
       }
     }
   }

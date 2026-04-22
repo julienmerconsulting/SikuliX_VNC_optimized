@@ -128,6 +128,20 @@ public class TextRecognizer {
       tesseract.setConfigs(new ArrayList<>(options.configs()));
     }
     return tesseract;
+    checkLib();
+
+    ITesseract tesseract = new Tesseract1();
+    tesseract.setOcrEngineMode(options.oem());
+    tesseract.setPageSegMode(options.psm());
+    tesseract.setLanguage(options.language());
+    tesseract.setDatapath(options.dataPath());
+    for (Map.Entry<String, String> entry : options.variables().entrySet()) {
+      tesseract.setVariable(entry.getKey(), entry.getValue());
+    }
+    if (!options.configs().isEmpty()) {
+      tesseract.setConfigs(new ArrayList<>(options.configs()));
+    }
+    return tesseract;
     try {
       ITesseract tesseract = new Tesseract1();
       tesseract.setOcrEngineMode(options.oem());

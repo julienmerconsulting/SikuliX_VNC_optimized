@@ -1,10 +1,19 @@
-name: Build and Release
+name: Build and Release (RC)
+
+# Dedicated workflow for release candidates / pre-releases.
+# Runs only on explicit dispatch or when something is pushed to the
+# release/oculix-rc branch. Guards against running on a stable version
+# (pom.xml version must end in -rc*, -beta*, or -alpha*). Produces all
+# three modules (API, IDE, MCP) for Windows, macOS and Linux, and
+# publishes a GitHub release marked as pre-release with the "latest"
+# pointer left untouched - so users pulling /releases/latest keep
+# getting the last stable, not an RC.
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - 'release/oculix'
+      - 'release/oculix-rc'
 
 jobs:
   build-windows:
@@ -22,6 +31,8 @@ jobs:
       run: mvn -B -pl API -P complete-win-jar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Build IDE fat JAR (Windows)
       run: mvn -B -pl IDE -P complete-win-jar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
+    - name: Build MCP fat JAR
+      run: mvn -B -pl MCP -P mcp-fatjar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -29,6 +40,7 @@ jobs:
         path: |
           API/target/*complete-win*.jar
           IDE/target/*complete-win*.jar
+          MCP/target/oculix-mcp-server.jar
 
   build-macos:
     runs-on: ubuntu-latest
@@ -45,6 +57,8 @@ jobs:
       run: mvn -B -pl API -P complete-mac-jar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Build IDE fat JAR (macOS)
       run: mvn -B -pl IDE -P complete-mac-jar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
+    - name: Build MCP fat JAR
+      run: mvn -B -pl MCP -P mcp-fatjar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -52,6 +66,7 @@ jobs:
         path: |
           API/target/*complete-mac*.jar
           IDE/target/*complete-mac*.jar
+          MCP/target/oculix-mcp-server.jar
 
   build-linux:
     runs-on: ubuntu-latest
@@ -68,6 +83,8 @@ jobs:
       run: mvn -B -pl API -P complete-lux-jar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Build IDE fat JAR (Linux)
       run: mvn -B -pl IDE -P complete-lux-jar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
+    - name: Build MCP fat JAR
+      run: mvn -B -pl MCP -P mcp-fatjar package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -75,6 +92,7 @@ jobs:
         path: |
           API/target/*complete-lux*.jar
           IDE/target/*complete-lux*.jar
+          MCP/target/oculix-mcp-server.jar
 
   release:
     needs: [build-windows, build-macos, build-linux]
@@ -89,15 +107,15 @@ jobs:
       id: version
       run: echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_OUTPUT
 
-    - name: Verify stable version
+    - name: Verify pre-release version
       run: |
         VERSION="${{ steps.version.outputs.VERSION }}"
-        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "::error::Version $VERSION is not a stable X.Y.Z release"
-          echo "::error::Use the RC workflow (release-rc.yml) for -rc / -beta / -alpha / -SNAPSHOT versions"
+        if [[ ! "$VERSION" =~ -(rc|beta|alpha)[0-9]*$ ]]; then
+          echo "::error::Version $VERSION is not a pre-release (must end with -rc*, -beta*, or -alpha*)"
+          echo "::error::Use the stable release workflow (release.yml) for non-RC versions"
           exit 1
         fi
-        echo "Stable version confirmed: $VERSION"
+        echo "Pre-release version confirmed: $VERSION"
 
     - name: Download all artifacts
       uses: actions/download-artifact@v4
@@ -109,9 +127,18 @@ jobs:
       run: |
         VERSION="${{ steps.version.outputs.VERSION }}"
         mkdir -p release-assets
+
+        # OS-specific API + IDE fat jars
         find windows-jars -name "*complete-win*" -exec cp {} release-assets/ \;
         find macos-jars -name "*complete-mac*" -exec cp {} release-assets/ \;
         find linux-jars -name "*complete-lux*" -exec cp {} release-assets/ \;
+
+        # MCP is cross-platform: one jar, but uploaded from one of the
+        # build matrices. Rename with version suffix for clarity.
+        cp windows-jars/oculix-mcp-server.jar "release-assets/oculix-mcp-server-${VERSION}.jar" || \
+          cp macos-jars/oculix-mcp-server.jar "release-assets/oculix-mcp-server-${VERSION}.jar" || \
+          cp linux-jars/oculix-mcp-server.jar "release-assets/oculix-mcp-server-${VERSION}.jar"
+
         cd release-assets
         for f in *-complete-win.jar; do mv "$f" "${f%-complete-win.jar}-windows.jar"; done
         for f in *-complete-mac.jar; do mv "$f" "${f%-complete-mac.jar}-macos.jar"; done
@@ -119,16 +146,19 @@ jobs:
         echo "=== Release assets ==="
         ls -lh
 
-    - name: Create release if it does not exist
+    - name: Create pre-release if it does not exist
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        TAG="v${{ steps.version.outputs.VERSION }}"
+        VERSION="${{ steps.version.outputs.VERSION }}"
+        TAG="v${VERSION}"
         if ! gh release view "$TAG" > /dev/null 2>&1; then
           gh release create "$TAG" \
-            --title "OculiX ${{ steps.version.outputs.VERSION }}" \
-            --notes "OculiX ${{ steps.version.outputs.VERSION }}" \
-            --target master
+            --title "OculiX ${VERSION} (release candidate)" \
+            --notes "Pre-release build. Do not use in production. See CHANGELOG / commits for the included fixes." \
+            --target master \
+            --prerelease \
+            --latest=false
         fi
 
     - name: Upload assets to release

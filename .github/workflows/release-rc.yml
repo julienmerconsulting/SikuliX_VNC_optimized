@@ -133,11 +133,14 @@ jobs:
         find macos-jars -name "*complete-mac*" -exec cp {} release-assets/ \;
         find linux-jars -name "*complete-lux*" -exec cp {} release-assets/ \;
 
-        # MCP is cross-platform: one jar, but uploaded from one of the
-        # build matrices. Rename with version suffix for clarity.
-        cp windows-jars/oculix-mcp-server.jar "release-assets/oculix-mcp-server-${VERSION}.jar" || \
-          cp macos-jars/oculix-mcp-server.jar "release-assets/oculix-mcp-server-${VERSION}.jar" || \
-          cp linux-jars/oculix-mcp-server.jar "release-assets/oculix-mcp-server-${VERSION}.jar"
+        # MCP is cross-platform: one jar, but uploaded from each matrix
+        # build. Grab the first one found and rename with version suffix.
+        MCP_JAR=$(find windows-jars macos-jars linux-jars -name "oculix-mcp-server.jar" | head -1)
+        if [ -n "$MCP_JAR" ]; then
+          cp "$MCP_JAR" "release-assets/oculix-mcp-server-${VERSION}.jar"
+        else
+          echo "::warning::MCP jar not found in any artifact"
+        fi
 
         cd release-assets
         for f in *-complete-win.jar; do mv "$f" "${f%-complete-win.jar}-windows.jar"; done

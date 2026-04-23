@@ -233,7 +233,11 @@ public class App {
   }
 
   public App setArguments(String arguments) {
-    this.cmd = CommandLine.parse("\"" + cmd.getExecutable() + "\" " + arguments);
+    String exe = cmd.getExecutable();
+    this.cmd = new CommandLine(exe);
+    if (StringUtils.isNotBlank(arguments)) {
+      this.cmd.addArguments(arguments);
+    }
     return this;
   }
 
@@ -257,10 +261,7 @@ public class App {
     if (StringUtils.isBlank(name)) {
       return;
     }
-
-    // Use apache.commons.exec.CommandLine to correctly tokenize given command.
-    cmd = CommandLine.parse(name);
-
+    cmd = new CommandLine(name);
     process = osUtil.findProcesses(cmd.getExecutable()).stream().findFirst().orElse(new NullProcess());
   }
 

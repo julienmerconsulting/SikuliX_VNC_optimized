@@ -1,3 +1,4 @@
 sikulixvproject=${project.version}
 sikulixbuild=${timestamp}
 sikulixbuildnumber=${buildnumber}
+versiontess4j=${versiontess4j}

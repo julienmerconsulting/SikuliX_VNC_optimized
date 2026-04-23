@@ -14,6 +14,7 @@ import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.sikuli.basics.Debug;
 import org.sikuli.basics.Settings;
+import org.sikuli.script.runners.ProcessRunner;
 import org.sikuli.support.Commons;
 import org.sikuli.support.RunTime;
 
@@ -37,12 +38,7 @@ public class TextRecognizer {
   private TextRecognizer() {
   }
 
-  private static boolean isValid = false;
-
   private static int lvl = 3;
-
-  private static final String versionTess4J = net.sourceforge.tess4j.Tesseract1.class.getPackage().getImplementationVersion();
-  private static String versionTesseract = "NotKnown";
 
   private OCR.Options options;
 
@@ -66,16 +62,10 @@ public class TextRecognizer {
    * @return a new TextRecognizer instance
    */
   protected static TextRecognizer get(OCR.Options options) {
-    if (!isValid) {
-      //TODO check if Tesseract is available (issue #110)
-      versionTesseract = LoadLibs.LIB_NAME.replace("libtesseract", "");
-      Commons.loadOpenCV();
-      isValid = true;
-    }
+    checkLib();
 
     initDefaultDataPath();
 
-    Debug.log(lvl, "OCR: start: Tess4J %s using Tesseract %s", versionTess4J, versionTesseract);
     if (options == null) {
       options = OCR.globalOptions();
     }
@@ -87,43 +77,66 @@ public class TextRecognizer {
     return textRecognizer;
   }
 
-  private ITesseract getTesseractAPI() {
-    try {
-      ITesseract tesseract = new Tesseract1();
-      tesseract.setOcrEngineMode(options.oem());
-      tesseract.setPageSegMode(options.psm());
-      tesseract.setLanguage(options.language());
-      tesseract.setDatapath(options.dataPath());
-      for (Map.Entry<String, String> entry : options.variables().entrySet()) {
-        tesseract.setVariable(entry.getKey(), entry.getValue());
+  private static boolean isValid = false;
+
+  private static void checkLib() {
+    if (!isValid) {
+      String versionTess4J = Commons.getSXVersionTess4j();
+      String versionTesseractExpected = LoadLibs.LIB_NAME.replace("libtesseract", "");
+      String versionTesseract = "" + versionTesseractExpected;
+      if (!Commons.runningWindows()) {
+        versionTesseract = "";
+        String run = ProcessRunner.run(new String[]{"tesseract", "--version"});
+        String[] result = run.split(" ");
+        if (result.length > 1) {
+          if (result[0].contains("tesseract")) {
+            versionTesseract = result[1];
+          }
+          if (!versionTesseractExpected.equals(versionTesseract.replace(".", ""))) {
+            Debug.log(lvl, "OCR: start: Tesseract version mismatch: found %s != expected %s (but might work)", versionTesseract, versionTesseractExpected);
+          }
+        }
       }
-      if (!options.configs().isEmpty()) {
-        tesseract.setConfigs(new ArrayList<>(options.configs()));
-      }
-      return tesseract;
-    } catch (UnsatisfiedLinkError e) {
-      String installCmd;
-      if (Commons.runningMac()) {
-        installCmd = "brew install tesseract";
-      } else if (Commons.runningLinux()) {
-        installCmd = "sudo apt-get install tesseract-ocr   (Debian/Ubuntu)\n"
-                   + "  sudo dnf install tesseract            (Fedora/RHEL)\n"
-                   + "  sudo zypper install tesseract         (SUSE)";
+      isValid = !versionTesseract.isEmpty();
+      if (isValid) {
+        Debug.log(lvl, "OCR: start: Tess4J %s using Tesseract %s", versionTess4J, versionTesseract);
       } else {
-        installCmd = "Reinstall OculiX — Windows binaries should be bundled with tess4j.";
+        String installCmd = "brew install tesseract";
+        if (Commons.runningLinux()) {
+          installCmd = "sudo apt-get install tesseract-ocr   (Debian/Ubuntu)\n"
+              + "  sudo dnf install tesseract            (Fedora/RHEL)\n"
+              + "  sudo zypper install tesseract         (SUSE)";
+        }
+        //TODO add the respective Oculix wiki page when ready
+        String msg = "\n\n"
+            + "══════════════════════════════════════════════════════════════\n"
+            + " Tesseract OCR engine not found on your system.\n"
+            + "══════════════════════════════════════════════════════════════\n\n"
+            + " Install it with:\n  " + installCmd + "\n\n"
+            + " Then restart OculiX.\n\n"
+            + " More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
+            + "══════════════════════════════════════════════════════════════";
+        Debug.error(msg);
+        throw new SikuliXception("Tesseract OCR engine not found on your system.");
       }
-      String msg = "\n\n"
-          + "══════════════════════════════════════════════════════════════\n"
-          + " Tesseract OCR engine not found on your system.\n"
-          + "══════════════════════════════════════════════════════════════\n\n"
-          + " Install it with:\n  " + installCmd + "\n\n"
-          + " Then restart OculiX.\n\n"
-          + " More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
-          + " Original error: " + e.getMessage() + "\n"
-          + "══════════════════════════════════════════════════════════════";
-      Debug.error(msg);
-      throw new SikuliXception(msg);
     }
+  }
+
+  private ITesseract getTesseractAPI() {
+    checkLib();
+
+    ITesseract tesseract = new Tesseract1();
+    tesseract.setOcrEngineMode(options.oem());
+    tesseract.setPageSegMode(options.psm());
+    tesseract.setLanguage(options.language());
+    tesseract.setDatapath(options.dataPath());
+    for (Map.Entry<String, String> entry : options.variables().entrySet()) {
+      tesseract.setVariable(entry.getKey(), entry.getValue());
+    }
+    if (!options.configs().isEmpty()) {
+      tesseract.setConfigs(new ArrayList<>(options.configs()));
+    }
+    return tesseract;
   }
 
   /**
@@ -385,10 +398,10 @@ public class TextRecognizer {
     for (Word textItem : textItems) {
       Rectangle boundingBox = textItem.getBoundingBox();
       Rectangle realBox = new Rectangle(
-              (int) (boundingBox.x * wFactor) - 1,
-              (int) (boundingBox.y * hFactor) - 1,
-              1 + (int) (boundingBox.width * wFactor) + 2,
-              1 + (int) (boundingBox.height * hFactor) + 2);
+          (int) (boundingBox.x * wFactor) - 1,
+          (int) (boundingBox.y * hFactor) - 1,
+          1 + (int) (boundingBox.width * wFactor) + 2,
+          1 + (int) (boundingBox.height * hFactor) + 2);
       lines.add(new Match(realBox, textItem.getConfidence(), textItem.getText().trim()));
     }
     return lines;

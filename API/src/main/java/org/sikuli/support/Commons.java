@@ -49,6 +49,8 @@ public class Commons {
   private static String sxBuildStamp;
   private static String sxBuildNumber;
 
+  private static String sxversiontess4j;
+
   private static final String osName = System.getProperty("os.name").toLowerCase();
   private static final String osVersion = System.getProperty("os.version").toLowerCase();
   private static final String osArch = System.getProperty("os.arch").toLowerCase();
@@ -132,6 +134,8 @@ public class Commons {
       sxVersionLong = sxVersion + String.format("-#%s-%s", sxBuildNumber, sxBuildStamp);
     }
     sxVersionShort = sxVersion.replace("-SNAPSHOT", "");
+
+    sxversiontess4j = sxProps.getProperty("versiontess4j");
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
@@ -572,6 +576,10 @@ public class Commons {
       return "dev";
     }
     return sxBuildNumber;
+  }
+
+  public static String getSXVersionTess4j() {
+    return sxversiontess4j;
   }
 
   public static boolean hasVersionFile(File folder) {

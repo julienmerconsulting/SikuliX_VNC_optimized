@@ -120,9 +120,33 @@ public class App {
     process = new NullProcess();
   }
 
-  public App(String name) {
+  public App(String executable) {
+    this(executable, null);
+  }
+
+  /**
+   * Creates an App from an executable path and an optional arguments string.
+   * The executable is stored verbatim (no whitespace splitting, no quote
+   * stripping) — use this constructor when the path contains spaces, such as
+   * {@code C:\Program Files\MyApp\app.exe} or
+   * {@code /Applications/Some App.app/Contents/MacOS/app}.
+   *
+   * @param executable absolute or resolvable path of the binary; whitespace-safe
+   * @param arguments  space-separated arguments string, or {@code null} / empty
+   *                   for none. Standard shell quoting is tokenised inside
+   *                   {@code arguments}; the executable is never parsed.
+   * @since 3.0.3 — see #191
+   */
+  public App(String executable, String arguments) {
     this();
-    setName(name);
+    if (StringUtils.isBlank(executable)) {
+      return;
+    }
+    cmd = new CommandLine(executable);
+    if (StringUtils.isNotBlank(arguments)) {
+      cmd.addArguments(arguments);
+    }
+    process = osUtil.findProcesses(cmd.getExecutable()).stream().findFirst().orElse(new NullProcess());
   }
 
   private App(OsProcess process) {
@@ -209,7 +233,11 @@ public class App {
   }
 
   public App setArguments(String arguments) {
-    this.cmd = CommandLine.parse("\"" + cmd.getExecutable() + "\" " + arguments);
+    String exe = cmd.getExecutable();
+    this.cmd = new CommandLine(exe);
+    if (StringUtils.isNotBlank(arguments)) {
+      this.cmd.addArguments(arguments);
+    }
     return this;
   }
 
@@ -233,10 +261,7 @@ public class App {
     if (StringUtils.isBlank(name)) {
       return;
     }
-
-    // Use apache.commons.exec.CommandLine to correctly tokenize given command.
-    cmd = CommandLine.parse(name);
-
+    cmd = new CommandLine(name);
     process = osUtil.findProcesses(cmd.getExecutable()).stream().findFirst().orElse(new NullProcess());
   }
 

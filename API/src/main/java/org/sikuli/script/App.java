@@ -120,23 +120,21 @@ public class App {
     process = new NullProcess();
   }
 
-  public App(String name) {
-    this();
-    setName(name);
+  public App(String executable) {
+    this(executable, null);
   }
 
   /**
-   * Creates an App from an executable path and an optional arguments string,
-   * kept as separate parameters so the executable path is never run through
-   * {@link CommandLine#parse(String)} — which strips surrounding quotes and
-   * re-tokenises on whitespace. Use this overload for executables whose path
-   * contains spaces (e.g. {@code C:\Program Files\...}, {@code /Applications/
-   * Some App.app/...}).
+   * Creates an App from an executable path and an optional arguments string.
+   * The executable is stored verbatim (no whitespace splitting, no quote
+   * stripping) — use this constructor when the path contains spaces, such as
+   * {@code C:\Program Files\MyApp\app.exe} or
+   * {@code /Applications/Some App.app/Contents/MacOS/app}.
    *
    * @param executable absolute or resolvable path of the binary; whitespace-safe
    * @param arguments  space-separated arguments string, or {@code null} / empty
    *                   for none. Standard shell quoting is tokenised inside
-   *                   {@code arguments}; the executable is not parsed.
+   *                   {@code arguments}; the executable is never parsed.
    * @since 3.0.3 — see #191
    */
   public App(String executable, String arguments) {

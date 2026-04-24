@@ -58,6 +58,36 @@
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
+
+    <!-- Selenium 4 compile-time API. Kept `optional` so users who don't use
+         Selenium never pull it transitively. The single listener class
+         implements BOTH Selenium 3 (WebDriverEventListener) and Selenium 4
+         (WebDriverListener) interfaces — SeleniumWrap dispatches at runtime
+         based on what's on the user's classpath. Selenium-support 4.10.0
+         still ships the deprecated Selenium 3 interfaces, which is why we
+         pin that version for compile-time only. -->
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-support</artifactId>
+      <version>4.10.0</version>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- TestNG support — optional. User brings their own TestNG at runtime. -->
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <version>7.10.2</version>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- JUnit 5 (Jupiter) support — optional, user brings their own. -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.10.2</version>
+      <optional>true</optional>
+    </dependency>
   </dependencies>
 
   <build>

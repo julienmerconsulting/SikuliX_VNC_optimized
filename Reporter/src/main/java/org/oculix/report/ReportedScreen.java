@@ -37,11 +37,36 @@ import java.util.Base64;
  */
 public class ReportedScreen extends Screen {
 
-    private final Test test;
+    // When null → read from OculixReporter.currentTest() on each call
+    // (ambient mode, used by TestNG / JUnit listeners). When non-null →
+    // emit steps to this specific test (explicit mode, pre-Phase-5 usage).
+    private final Test explicitTest;
 
+    /**
+     * Ambient mode. The current {@link Test} is looked up from
+     * {@link org.oculix.report.OculixReporter#currentTest()} at each
+     * action — meaning this instance follows the per-thread test context
+     * set by listeners like {@code OculixTestNGListener} and
+     * {@code OculixJUnit5Extension}. Events fired outside a test window
+     * are silently dropped, no exception.
+     */
+    public ReportedScreen() {
+        super();
+        this.explicitTest = null;
+    }
+
+    /**
+     * Explicit mode. All actions on this instance emit steps to the
+     * given test regardless of any thread-local context.
+     */
     public ReportedScreen(Test test) {
         super();
-        this.test = test;
+        this.explicitTest = test;
+    }
+
+    private Test currentTest() {
+        if (explicitTest != null) return explicitTest;
+        return org.oculix.report.OculixReporter.currentTest();
     }
 
     // ---- click ----
@@ -142,6 +167,12 @@ public class ReportedScreen extends Screen {
     }
 
     private Object traced(String action, Object target, Action body) throws FindFailed {
+        Test test = currentTest();
+        // If no test context is active, just delegate without tracing —
+        // prevents NPE when a user's code runs before any listener has
+        // opened a test.
+        if (test == null) return body.invoke();
+
         Instant start = Instant.now();
         Step step = new Step(action, describeTarget(target), start);
         Screenshot before = captureSafe("before — " + action);

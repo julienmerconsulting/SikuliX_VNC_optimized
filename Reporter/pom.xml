@@ -88,6 +88,14 @@
       <version>5.10.2</version>
       <optional>true</optional>
     </dependency>
+
+    <!-- JUnit 5 engine for our own integration tests (test scope only). -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -98,6 +106,17 @@
         <version>3.1.0</version>
         <configuration>
           <mainClass>org.oculix.report.mock.MockReportDemo</mainClass>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <!-- Let the deliberately-failing demo test run to completion
+               without failing the Maven build — the point is to produce
+               the HTML report artefact, not to guard against regressions. -->
+          <testFailureIgnore>true</testFailureIgnore>
         </configuration>
       </plugin>
     </plugins>

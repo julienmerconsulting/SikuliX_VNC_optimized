@@ -79,6 +79,25 @@ public class TextRecognizer {
 
   private static boolean isValid = false;
 
+  private static String getTesseractInstallCommand() {
+    String installCmd;
+    if (Commons.runningMac()) {
+      installCmd = "  brew install tesseract";
+    } else if (Commons.runningLinux()) {
+      installCmd = "  sudo apt-get install tesseract-ocr   (Debian/Ubuntu)\n"
+          + "  sudo dnf install tesseract            (Fedora/RHEL)\n"
+          + "  sudo zypper install tesseract         (SUSE)";
+    } else {
+      installCmd = "Reinstall OculiX — Windows binaries should be bundled with tess4j.";
+    }
+    //TODO add the respective Oculix wiki page when ready
+    installCmd += "\n\n"
+        + " Then restart OculiX.\n\n"
+        + " More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
+        + "══════════════════════════════════════════════════════════════";
+    return installCmd;
+  }
+
   private static void checkLib() {
     if (!isValid) {
       String versionTess4J = Commons.getSXVersionTess4j();
@@ -101,21 +120,12 @@ public class TextRecognizer {
       if (isValid) {
         Debug.log(lvl, "OCR: start: Tess4J %s using Tesseract %s", versionTess4J, versionTesseract);
       } else {
-        String installCmd = "brew install tesseract";
-        if (Commons.runningLinux()) {
-          installCmd = "sudo apt-get install tesseract-ocr   (Debian/Ubuntu)\n"
-              + "  sudo dnf install tesseract            (Fedora/RHEL)\n"
-              + "  sudo zypper install tesseract         (SUSE)";
-        }
-        //TODO add the respective Oculix wiki page when ready
+        String installCmd = getTesseractInstallCommand();
         String msg = "\n\n"
             + "══════════════════════════════════════════════════════════════\n"
             + " Tesseract OCR engine not found on your system.\n"
             + "══════════════════════════════════════════════════════════════\n\n"
-            + " Install it with:\n  " + installCmd + "\n\n"
-            + " Then restart OculiX.\n\n"
-            + " More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
-            + "══════════════════════════════════════════════════════════════";
+            + " Install it with:\n" + installCmd;
         Debug.error(msg);
         throw new SikuliXception("Tesseract OCR engine not found on your system.");
       }
@@ -145,29 +155,17 @@ public class TextRecognizer {
       // fails to load the native library — a distinct failure mode the
       // pre-flight doesn't cover: bundled DLL broken on Windows, arch
       // mismatch on Apple Silicon, missing from java.library.path, etc.
-      String installCmd;
-      if (Commons.runningMac()) {
-        installCmd = "brew install tesseract";
-      } else if (Commons.runningLinux()) {
-        installCmd = "sudo apt-get install tesseract-ocr   (Debian/Ubuntu)\n"
-                   + "  sudo dnf install tesseract            (Fedora/RHEL)\n"
-                   + "  sudo zypper install tesseract         (SUSE)";
-      } else {
-        installCmd = "Reinstall OculiX — Windows binaries should be bundled with tess4j.";
-      }
+      String installCmd = getTesseractInstallCommand();
       String msg = "\n\n"
           + "══════════════════════════════════════════════════════════════\n"
           + " Tesseract native library failed to load (JNA).\n"
           + "══════════════════════════════════════════════════════════════\n\n"
           + " The tesseract CLI may be present on your system, but the\n"
-          + " shared library JNA needs could not be loaded. Try:\n  "
-          + installCmd + "\n\n"
-          + " Then restart OculiX.\n\n"
-          + " More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
-          + " Original error: " + e.getMessage() + "\n"
-          + "══════════════════════════════════════════════════════════════";
+          + " shared library JNA needs could not be loaded."
+          + " Original error: \n" + e.getMessage() + "\n"
+          + " Try:\n  " + installCmd;
       Debug.error(msg);
-      throw new SikuliXception(msg);
+      throw new SikuliXception("Tesseract native library failed to load (JNA).");
     }
   }
 

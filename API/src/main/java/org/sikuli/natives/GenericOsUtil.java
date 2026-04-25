@@ -108,7 +108,7 @@ public abstract class GenericOsUtil implements OSUtil {
 
 			return new GenericOsProcess(p.toHandle());
 		} catch (Exception e) {
-			System.out.println("[error] WinUtil.open:\n" + e.getMessage());
+			System.out.println("[error] GenericOsProcess.open:\n" + e.getMessage());
 			return null;
 		}
 	}

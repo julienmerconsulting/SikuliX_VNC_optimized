@@ -19,6 +19,21 @@ import com.sun.jna.platform.mac.CoreFoundation.CFNumberRef;
 import com.sun.jna.platform.mac.CoreFoundation.CFStringRef;
 
 public class MacUtil extends GenericOsUtil {
+  /*
+  ### Summary (solved with Junie)
+    - Fixed the macOS `aarch64` crash path caused by Rococoa initialization in `MacUtil`.
+    - On Apple Silicon, the code now safely avoids Rococoa-dependent calls instead of crashing.
+
+    ### Changes
+    - Updated `API/src/main/java/org/sikuli/natives/MacUtil.java` to route `NSRunningApplication` access through a new helper `getRunningApplication(int pid)`.
+    - Added an architecture guard (`ROCOCOA_SUPPORTED`) that disables Rococoa usage on `os.arch` containing `aarch64`.
+    - Added defensive error handling in the helper (`catch (Throwable)`) to return `null` if Rococoa linkage/class-init fails, preserving runtime stability.
+
+    ### Verification
+    - Ran `mvn -pl API -DskipTests compile` successfully (`BUILD SUCCESS`).
+    - Confirmed modified focus/active-window code paths now use the guarded helper.
+   */
+  private static final boolean ROCOCOA_SUPPORTED = !System.getProperty("os.arch", "").toLowerCase().contains("aarch64");
 
   @Override
   public boolean isUserProcess(OsProcess process) {
@@ -75,7 +90,7 @@ public class MacUtil extends GenericOsUtil {
 
     @Override
     public boolean focus() {
-      NSRunningApplication app = NSRunningApplication.CLASS.runningApplicationWithProcessIdentifier((int) pid);
+      NSRunningApplication app = getRunningApplication((int) pid);
 
       if (app != null) {
         return app.activateWithOptions(NSRunningApplication.NSApplicationActivationOptions.NSApplicationActivateAllWindows | NSRunningApplication.NSApplicationActivationOptions.NSApplicationActivateIgnoringOtherApps);
@@ -116,8 +131,7 @@ public class MacUtil extends GenericOsUtil {
       OsProcess process = w.getProcess();
 
       if (process != null) {
-        NSRunningApplication app = NSRunningApplication.CLASS
-            .runningApplicationWithProcessIdentifier((int) w.getProcess().getPid());
+        NSRunningApplication app = getRunningApplication((int) w.getProcess().getPid());
 
         if (app != null) {
           if (app.isActive()) {
@@ -140,6 +154,18 @@ public class MacUtil extends GenericOsUtil {
   @Override
   public List<OsWindow> getWindows() {
     return allWindows();
+  }
+
+  private static NSRunningApplication getRunningApplication(int pid) {
+    if (!ROCOCOA_SUPPORTED) {
+      return null;
+    }
+
+    try {
+      return NSRunningApplication.CLASS.runningApplicationWithProcessIdentifier(pid);
+    } catch (Throwable ignored) {
+      return null;
+    }
   }
 
   private static List<OsWindow> allWindows() {

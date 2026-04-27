@@ -6,6 +6,7 @@ import org.oculix.report.model.TestRun;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * SVG Gantt timeline of tests on a horizontal time axis.
@@ -42,7 +43,7 @@ public final class Timeline {
 
         // Axis line
         int axisY = TOP_PAD - 6;
-        sb.append(String.format(
+        sb.append(String.format(Locale.ROOT,
             "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"currentColor\" "
                 + "stroke-opacity=\"0.2\" stroke-width=\"1\"></line>\n",
             LEFT_PAD, axisY, WIDTH - RIGHT_PAD, axisY));
@@ -51,11 +52,11 @@ public final class Timeline {
         for (int pct = 0; pct <= 100; pct += 25) {
             int tx = LEFT_PAD + chartWidth * pct / 100;
             long tMs = totalMs * pct / 100;
-            sb.append(String.format(
+            sb.append(String.format(Locale.ROOT,
                 "<text x=\"%d\" y=\"%d\" font-size=\"9\" fill=\"currentColor\" "
                     + "fill-opacity=\"0.5\" text-anchor=\"middle\">%s</text>\n",
                 tx, axisY - 4, formatTick(tMs)));
-            sb.append(String.format(
+            sb.append(String.format(Locale.ROOT,
                 "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"currentColor\" "
                     + "stroke-opacity=\"0.1\" stroke-width=\"1\"></line>\n",
                 tx, axisY, tx, height - 10));
@@ -76,13 +77,13 @@ public final class Timeline {
             // Test name (truncated)
             String name = t.name();
             if (name.length() > 34) name = name.substring(0, 31) + "...";
-            sb.append(String.format(
+            sb.append(String.format(Locale.ROOT,
                 "<text x=\"%d\" y=\"%d\" font-size=\"10\" fill=\"currentColor\" "
                     + "fill-opacity=\"0.75\" text-anchor=\"end\">%s</text>\n",
                 LEFT_PAD - 8, y + ROW_HEIGHT - 4, escape(name)));
 
             // Bar
-            sb.append(String.format(
+            sb.append(String.format(Locale.ROOT,
                 "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"2\" ry=\"2\" fill=\"%s\">"
                     + "<title>%s — %s</title></rect>\n",
                 x, y, w, ROW_HEIGHT, t.outcome().color(),
@@ -97,15 +98,15 @@ public final class Timeline {
 
     private static String formatTick(long ms) {
         if (ms < 1000) return ms + " ms";
-        if (ms < 60_000) return String.format("%.1f s", ms / 1000.0);
+        if (ms < 60_000) return String.format(Locale.ROOT, "%.1f s", ms / 1000.0);
         return (ms / 60_000) + "m";
     }
 
     private static String formatDuration(Duration d) {
         long ms = d.toMillis();
         if (ms < 1000) return ms + " ms";
-        if (ms < 60_000) return String.format("%.2f s", ms / 1000.0);
-        return String.format("%dm %ds", ms / 60_000, (ms % 60_000) / 1000);
+        if (ms < 60_000) return String.format(Locale.ROOT, "%.2f s", ms / 1000.0);
+        return String.format(Locale.ROOT, "%dm %ds", ms / 60_000, (ms % 60_000) / 1000);
     }
 
     private static String escape(String s) {

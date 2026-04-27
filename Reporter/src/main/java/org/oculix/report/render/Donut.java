@@ -2,6 +2,7 @@ package org.oculix.report.render;
 
 import org.oculix.report.model.Outcome;
 
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -29,7 +30,7 @@ public final class Donut {
           .append("\" role=\"img\" aria-label=\"outcomes donut chart\">\n");
 
         if (total == 0) {
-            sb.append(String.format(
+            sb.append(String.format(Locale.ROOT,
                 "<circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\" stroke=\"currentColor\" "
                     + "stroke-width=\"%.2f\" style=\"opacity:0.15\" fill=\"none\"></circle>\n",
                 cx, cy, r, strokeWidth));
@@ -41,7 +42,7 @@ public final class Donut {
                 double fraction = (double) v / total;
                 double dash = fraction * circumference;
                 double gap = circumference - dash;
-                sb.append(String.format(
+                sb.append(String.format(Locale.ROOT,
                     "<circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\" stroke=\"%s\" "
                         + "stroke-width=\"%.2f\" fill=\"none\" "
                         + "stroke-dasharray=\"%.3f %.3f\" stroke-dashoffset=\"%.3f\"></circle>\n",
@@ -51,11 +52,11 @@ public final class Donut {
         }
 
         // Center label: total count + "tests"
-        sb.append(String.format(
+        sb.append(String.format(Locale.ROOT,
             "<text x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\" dominant-baseline=\"central\" "
                 + "font-size=\"%.0f\" fill=\"currentColor\" font-weight=\"700\">%d</text>\n",
             cx, cy - size * 0.04, size * 0.22, total));
-        sb.append(String.format(
+        sb.append(String.format(Locale.ROOT,
             "<text x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\" dominant-baseline=\"central\" "
                 + "font-size=\"%.0f\" fill=\"currentColor\" fill-opacity=\"0.6\">tests</text>\n",
             cx, cy + size * 0.10, size * 0.06));

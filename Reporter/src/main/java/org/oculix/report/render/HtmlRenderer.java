@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -92,7 +93,7 @@ public final class HtmlRenderer {
           .append("<div class=\"subtitle\">")
           .append(run.total()).append(" tests · ")
           .append(formatDuration(run.duration())).append(" · ")
-          .append(String.format("%.1f%% success", run.successRate()))
+          .append(String.format(Locale.ROOT, "%.1f%% success", run.successRate()))
           .append("</div>\n</div>\n");
     }
 
@@ -259,10 +260,10 @@ public final class HtmlRenderer {
         long millis = d.toMillis();
         if (millis < 1) return "< 1 ms";
         if (millis < 1000) return millis + " ms";
-        if (millis < 60_000) return String.format("%.2f s", millis / 1000.0);
+        if (millis < 60_000) return String.format(Locale.ROOT, "%.2f s", millis / 1000.0);
         long mins = millis / 60_000;
         double secs = (millis % 60_000) / 1000.0;
-        return String.format("%dm %.1fs", mins, secs);
+        return String.format(Locale.ROOT, "%dm %.1fs", mins, secs);
     }
 
     private static String capitalize(String s) {

@@ -99,11 +99,11 @@ public final class HtmlRenderer {
 
     private void renderOverview(StringBuilder sb, TestRun run) {
         Map<Outcome, Integer> c = run.counts();
-        String timelineSvg = Timeline.generate(run);
-        boolean hasTimeline = !timelineSvg.isEmpty();
+        String slowestHtml = SlowestTests.generate(run);
+        boolean hasSlowest = !slowestHtml.isEmpty();
 
         sb.append("<section class=\"overview")
-          .append(hasTimeline ? "" : " no-timeline")
+          .append(hasSlowest ? "" : " no-slowest")
           .append("\">\n");
 
         // Donut column
@@ -121,11 +121,11 @@ public final class HtmlRenderer {
         }
         sb.append("</ul>\n</div>\n");
 
-        // Timeline column (skip if no timing data)
-        if (hasTimeline) {
-            sb.append("<div class=\"overview-timeline\">\n")
-              .append("<h4>Timeline</h4>\n")
-              .append(timelineSvg)
+        // Slowest tests column (skip if no timing data)
+        if (hasSlowest) {
+            sb.append("<div class=\"overview-slowest\">\n")
+              .append("<h4>Slowest tests</h4>\n")
+              .append(slowestHtml)
               .append("</div>\n");
         }
 

@@ -127,7 +127,7 @@ code, pre, .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
   text-align: center;
 }
 .sidebar-nav li a.active .nav-count { background: rgba(255, 255, 255, 0.25); color: white; }
-.main { padding: 2rem 2rem 4rem; max-width: 1200px; width: 100%; }
+.main { padding: 2rem 2rem 4rem; width: 100%; min-width: 0; }
 
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
@@ -379,16 +379,17 @@ code, pre, .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
 /* ========== Overview (donut + timeline) ========== */
 .overview {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 260px 1fr;
+  gap: 2rem;
   margin: 1.5rem 0 2rem;
-  padding: 1.5rem;
+  padding: 1.75rem;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow);
+  align-items: center;
 }
-.overview.no-timeline {
+.overview.no-slowest {
   grid-template-columns: 1fr;
   justify-items: center;
 }
@@ -427,20 +428,63 @@ code, pre, .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
   font-weight: 600;
   color: var(--fg);
 }
-.overview-timeline h4 {
-  margin: 0 0 0.5rem;
-  font-size: 0.85rem;
+
+/* Slowest tests panel */
+.overview-slowest h4 {
+  margin: 0 0 1rem;
+  font-size: 0.78rem;
   color: var(--muted);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
-.overview-timeline svg {
-  width: 100%;
-  height: auto;
+.slowest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.slowest-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 28%) 1fr 80px;
+  align-items: center;
+  gap: 1rem;
+}
+.slowest-name {
+  font-size: 0.92rem;
+  color: var(--fg);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slowest-track {
+  height: 14px;
+  background: var(--bg-soft);
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.slowest-bar {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.3s ease;
+  min-width: 4px;
+}
+.slowest-duration {
+  font-size: 0.85rem;
+  color: var(--fg-soft);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 @media (max-width: 900px) {
   .overview {
     grid-template-columns: 1fr;
+  }
+  .slowest-row {
+    grid-template-columns: minmax(120px, 40%) 1fr 70px;
+    gap: 0.6rem;
   }
 }

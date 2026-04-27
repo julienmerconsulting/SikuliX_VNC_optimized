@@ -88,11 +88,12 @@
     <dependency>
       <groupId>io.github.julienmerconsulting.apertix</groupId>
       <artifactId>opencv</artifactId>
-      <version>4.10.0-2</version>
+      <version>4.10.0-3</version>
       <!-- https://github.com/julienmerconsulting/Apertix
-           4.10.0-2 builds OpenCV with WITH_OBSENSOR=OFF, removing the broken
-           libOrbbecSDK.1.9.dylib dependency that caused UnsatisfiedLinkError
-           on macOS (both Intel and Apple Silicon). -->
+           4.10.0-3 ships dual Linux native builds: modern (glibc >= 2.38) at
+           linux-{x86-64,aarch64}/ and legacy (manylinux_2_28, glibc >= 2.28)
+           at linux-{x86-64,aarch64}-legacy/. Selection is done at runtime
+           in Commons.loadOpenCV() based on detected glibc version. -->
     </dependency>
     <dependency>
       <groupId>commons-cli</groupId>

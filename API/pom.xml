@@ -49,7 +49,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <sikuli.jartype>plain.xml</sikuli.jartype>
     <sikulixjythonversion>2.7.4</sikulixjythonversion>
-    <sikulixjrubyversion>10.1.0.0</sikulixjrubyversion>
+    <sikulixjrubyversion>9.4.14.0</sikulixjrubyversion>
     <versiontess4j>5.18.0</versiontess4j>
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd_HH:mm</maven.build.timestamp.format>

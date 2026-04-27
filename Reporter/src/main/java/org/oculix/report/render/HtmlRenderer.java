@@ -2,6 +2,9 @@ package org.oculix.report.render;
 
 import org.oculix.report.diagnosis.Diagnosis;
 import org.oculix.report.diagnosis.DiagnosisEngine;
+import org.oculix.report.history.FlakyDetector;
+import org.oculix.report.history.HistoryEntry;
+import org.oculix.report.history.HistoryStore;
 import org.oculix.report.model.Outcome;
 import org.oculix.report.model.Screenshot;
 import org.oculix.report.model.Step;
@@ -35,6 +38,13 @@ public final class HtmlRenderer {
     private static final String JS_RESOURCE = "/org/oculix/report/reporter.js";
     private static final DiagnosisEngine DIAGNOSIS = DiagnosisEngine.defaultEngine();
 
+    private HistoryStore history;
+
+    public HtmlRenderer withHistory(HistoryStore history) {
+        this.history = history;
+        return this;
+    }
+
     private static final DateTimeFormatter FMT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
 
@@ -52,6 +62,7 @@ public final class HtmlRenderer {
         sb.append("<main class=\"main\">\n");
         renderHeader(sb, run);
         renderOverview(sb, run);
+        renderTrends(sb, run);
         renderTiles(sb, run);
         renderMeta(sb, run);
         renderTests(sb, run);
@@ -160,6 +171,43 @@ public final class HtmlRenderer {
         sb.append("</div>\n");
     }
 
+    private void renderTrends(StringBuilder sb, TestRun run) {
+        if (history == null || history.isEmpty()) return;
+        HistoryEntry prev = history.entries().get(history.entries().size() - 1);
+        int regressions = 0, newPasses = 0, flakyCount = 0;
+        for (Test t : run.tests()) {
+            Outcome cur = t.outcome();
+            Outcome prevOut = prev.outcomes().get(t.name());
+            if (prevOut != null) {
+                boolean prevPassed = prevOut == Outcome.PASSED || prevOut == Outcome.XPASSED;
+                boolean curPassed = cur == Outcome.PASSED || cur == Outcome.XPASSED;
+                if (prevPassed && !curPassed) regressions++;
+                else if (!prevPassed && curPassed) newPasses++;
+            }
+            if (FlakyDetector.isFlaky(FlakyDetector.flakyScore(t.name(), history.entries()))) {
+                flakyCount++;
+            }
+        }
+        if (regressions == 0 && newPasses == 0 && flakyCount == 0) return;
+        sb.append("<div class=\"trends\">\n")
+          .append("<span class=\"trends-label\">vs previous run</span>");
+        if (regressions > 0) {
+            sb.append("<span class=\"trend-pill trend-regression\">")
+              .append("<span class=\"trend-arrow\">▾</span>")
+              .append(regressions).append(" regression").append(regressions > 1 ? "s" : "").append("</span>");
+        }
+        if (newPasses > 0) {
+            sb.append("<span class=\"trend-pill trend-improvement\">")
+              .append("<span class=\"trend-arrow\">▴</span>")
+              .append(newPasses).append(" new pass").append(newPasses > 1 ? "es" : "").append("</span>");
+        }
+        if (flakyCount > 0) {
+            sb.append("<span class=\"trend-pill trend-flaky\">")
+              .append(flakyCount).append(" flaky").append("</span>");
+        }
+        sb.append("\n</div>\n");
+    }
+
     private void renderMeta(StringBuilder sb, TestRun run) {
         sb.append("<div class=\"meta\">\n")
           .append(metaRow("Started", FMT.format(run.startedAt())))
@@ -200,19 +248,34 @@ public final class HtmlRenderer {
         for (Step s : t.steps()) shotCount += s.screenshots().size();
         long durationMs = t.duration().toMillis();
 
+        boolean haveHistory = history != null && !history.isEmpty();
+        double flakyScore = haveHistory ? FlakyDetector.flakyScore(t.name(), history.entries()) : 0.0;
+        boolean flaky = FlakyDetector.isFlaky(flakyScore);
+
         sb.append("<article class=\"test\" id=\"test-").append(index)
           .append("\" data-outcome=\"").append(t.outcome().slug())
           .append("\" data-test-index=\"").append(index)
           .append("\" data-name=\"").append(esc(t.name()))
-          .append("\" data-duration-ms=\"").append(durationMs).append("\">\n")
+          .append("\" data-duration-ms=\"").append(durationMs)
+          .append("\" data-flaky=\"").append(flaky).append("\">\n")
           .append("<div class=\"test-header\">")
           .append("<span class=\"chevron\">&#9654;</span>")
           .append("<span class=\"badge\">").append(t.outcome().slug()).append("</span>")
-          .append("<span class=\"test-name\">").append(esc(t.name())).append("</span>")
-          .append("<span class=\"test-meta\">")
+          .append("<span class=\"test-name\">").append(esc(t.name())).append("</span>");
+        if (flaky) {
+            sb.append("<span class=\"flaky-badge\" title=\"Flaky score ")
+              .append(String.format(Locale.ROOT, "%.0f%%", flakyScore * 100))
+              .append("\">flaky</span>");
+        }
+        sb.append("<span class=\"test-meta\">")
           .append("<span class=\"steps-count\">").append(t.steps().size()).append(" steps</span>");
         if (shotCount > 0) {
             sb.append("<span class=\"shots-count\">").append(shotCount).append(" shots</span>");
+        }
+        if (haveHistory) {
+            sb.append("<span class=\"test-history\">")
+              .append(Sparkline.generate(t.name(), history.entries()))
+              .append("</span>");
         }
         sb.append("<span class=\"duration\">").append(formatDuration(t.duration())).append("</span>")
           .append("<a class=\"test-permalink\" href=\"#test-").append(index)

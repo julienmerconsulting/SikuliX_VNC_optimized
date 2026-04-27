@@ -1,5 +1,7 @@
 package org.oculix.report.mock;
 
+import org.oculix.report.history.HistoryEntry;
+import org.oculix.report.history.HistoryStore;
 import org.oculix.report.model.Outcome;
 import org.oculix.report.model.Screenshot;
 import org.oculix.report.model.Step;
@@ -17,6 +19,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -53,9 +57,59 @@ public final class MockReportDemo {
 
         Path out = Path.of("target", "demo-report.html");
         Files.createDirectories(out.getParent());
-        new HtmlRenderer().renderTo(run, out);
+        new HtmlRenderer().withHistory(buildFakeHistory(t0)).renderTo(run, out);
         System.out.println("Report written to: " + out.toAbsolutePath());
         System.out.println("Open it in a browser to preview.");
+    }
+
+    /**
+     * Synthesizes 6 prior runs to make sparkline + flaky badges + trends
+     * visible in the demo. Tests in the current run that exist in history
+     * get a sparkline; one test ({@code CheckoutTest.apply_promo_code}) is
+     * intentionally flippy across runs to trigger the flaky badge.
+     */
+    private static HistoryStore buildFakeHistory(Instant currentRunStart) {
+        HistoryStore store = new HistoryStore();
+        String[] names = {
+            "LoginTest.valid_credentials",
+            "LoginTest.remember_me_checkbox",
+            "CartTest.add_single_product",
+            "CartTest.add_out_of_stock_product",
+            "CheckoutTest.guest_checkout",
+            "CheckoutTest.apply_promo_code",
+            "CheckoutTest.apple_pay",
+            "OrderTest.history_view",
+            "OrderTest.reorder_previous",
+        };
+        // Past run patterns — most are stable PASSED, the last two columns simulate
+        // the regressions/flakiness that should surface in the trends bar.
+        Outcome[][] past = {
+            // run -6: everything green
+            { Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED,
+              Outcome.PASSED, Outcome.SKIPPED, Outcome.PASSED, Outcome.PASSED },
+            // run -5: promo_code starts flipping
+            { Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED,
+              Outcome.FAILED, Outcome.SKIPPED, Outcome.PASSED, Outcome.PASSED },
+            // run -4
+            { Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED,
+              Outcome.PASSED, Outcome.SKIPPED, Outcome.PASSED, Outcome.PASSED },
+            // run -3: promo_code error, out_of_stock flaky starts
+            { Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED,
+              Outcome.ERROR, Outcome.SKIPPED, Outcome.PASSED, Outcome.PASSED },
+            // run -2
+            { Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED,
+              Outcome.PASSED, Outcome.SKIPPED, Outcome.PASSED, Outcome.PASSED },
+            // run -1 (previous run): out_of_stock was passing, will regress this run → 1 regression
+            { Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED, Outcome.PASSED,
+              Outcome.PASSED, Outcome.SKIPPED, Outcome.PASSED, Outcome.PASSED },
+        };
+        for (int i = 0; i < past.length; i++) {
+            Map<String, Outcome> m = new LinkedHashMap<>();
+            for (int j = 0; j < names.length; j++) m.put(names[j], past[i][j]);
+            Instant ts = currentRunStart.minus(Duration.ofDays(past.length - i));
+            store.append(new HistoryEntry(ts.toString(), ts.toEpochMilli(), m));
+        }
+        return store;
     }
 
     // ---- Test builders ----

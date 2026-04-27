@@ -578,6 +578,64 @@ code, pre, .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
   font-weight: 600;
 }
 
+/* ========== History sparkline + flaky badge ========== */
+.test-history {
+  display: inline-flex;
+  align-items: center;
+}
+.sparkline {
+  display: block;
+  vertical-align: middle;
+}
+.flaky-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: white;
+  background: var(--c-skipped);
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+/* ========== Trends bar (vs previous run) ========== */
+.trends {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0 0 1.25rem;
+  padding: 0.65rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.trends-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+  margin-right: 0.4rem;
+}
+.trend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+}
+.trend-arrow { font-size: 0.95rem; line-height: 1; }
+.trend-regression  { color: var(--c-failed);  background: var(--c-failed-soft);  border-color: var(--c-failed); }
+.trend-improvement { color: var(--c-passed);  background: var(--c-passed-soft);  border-color: var(--c-passed); }
+.trend-flaky       { color: #b45309;          background: rgba(245, 158, 11, 0.18); border-color: var(--c-skipped); }
+
 /* ========== Overview (donut + timeline) ========== */
 .overview {
   display: grid;

@@ -1,5 +1,7 @@
 package org.oculix.report;
 
+import org.oculix.report.history.HistoryEntry;
+import org.oculix.report.history.HistoryStore;
 import org.oculix.report.model.Outcome;
 import org.oculix.report.model.Test;
 import org.oculix.report.model.TestRun;
@@ -91,7 +93,16 @@ public final class OculixReporter {
     public static void writeTo(Path path) throws IOException {
         if (currentRun == null) return;
         if (path.getParent() != null) Files.createDirectories(path.getParent());
-        new HtmlRenderer().renderTo(currentRun, path);
+        Path historyFile = (path.getParent() == null ? Path.of(".oculix") : path.getParent().resolve(".oculix"))
+            .resolve("history.json");
+        HistoryStore history = HistoryStore.loadFrom(historyFile);
+        new HtmlRenderer().withHistory(history).renderTo(currentRun, path);
+        history.append(HistoryEntry.of(currentRun));
+        try {
+            history.saveTo(historyFile);
+        } catch (IOException ignored) {
+            // History persistence is best-effort — don't fail the report write on it.
+        }
     }
 
     // ---- Wrappers — syntactic sugar ----

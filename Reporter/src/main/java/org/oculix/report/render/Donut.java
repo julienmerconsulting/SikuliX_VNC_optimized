@@ -24,7 +24,8 @@ public final class Donut {
         double circumference = 2.0 * Math.PI * r;
 
         StringBuilder sb = new StringBuilder(1024);
-        sb.append("<svg viewBox=\"0 0 ").append(size).append(' ').append(size)
+        sb.append("<svg width=\"").append(size).append("\" height=\"").append(size)
+          .append("\" viewBox=\"0 0 ").append(size).append(' ').append(size)
           .append("\" role=\"img\" aria-label=\"outcomes donut chart\">\n");
 
         if (total == 0) {

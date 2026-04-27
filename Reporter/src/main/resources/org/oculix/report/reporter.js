@@ -49,4 +49,46 @@
       lightbox.classList.add('open');
     });
   });
+
+  // --- Test detail modal (triggered from Slowest tests rows) ---
+  var modal = document.querySelector('.test-modal-overlay');
+  if (modal) {
+    var modalBody = modal.querySelector('.test-modal-body');
+    var modalClose = modal.querySelector('.test-modal-close');
+
+    function openTestModal(idx) {
+      var article = document.querySelector('article.test[data-test-index="' + idx + '"]');
+      if (!article) return;
+      var clone = article.cloneNode(true);
+      clone.classList.add('open');
+      modalBody.innerHTML = '';
+      modalBody.appendChild(clone);
+      modal.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+    function closeTestModal() {
+      modal.hidden = true;
+      modalBody.innerHTML = '';
+      document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('.slowest-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        openTestModal(row.getAttribute('data-test-index'));
+      });
+      row.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openTestModal(row.getAttribute('data-test-index'));
+        }
+      });
+    });
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeTestModal();
+    });
+    modalClose.addEventListener('click', closeTestModal);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !modal.hidden) closeTestModal();
+    });
+  }
 })();

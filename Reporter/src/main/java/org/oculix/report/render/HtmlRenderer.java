@@ -54,6 +54,13 @@ public final class HtmlRenderer {
         renderTests(sb, run);
         sb.append("</main>\n</div>\n");
 
+        // Modal overlay (populated dynamically by JS when a slowest-row is clicked)
+        sb.append("<div class=\"test-modal-overlay\" hidden role=\"dialog\" aria-modal=\"true\" aria-label=\"Test details\">\n")
+          .append("<div class=\"test-modal\">\n")
+          .append("<button class=\"test-modal-close\" aria-label=\"Close\" type=\"button\">&times;</button>\n")
+          .append("<div class=\"test-modal-body\"></div>\n")
+          .append("</div>\n</div>\n");
+
         sb.append("<script>").append(loadResource(JS_RESOURCE)).append("</script>\n")
           .append("</body>\n</html>\n");
         return sb.toString();
@@ -165,12 +172,14 @@ public final class HtmlRenderer {
         sb.append("<div class=\"section-title\"><h3>Tests</h3>")
           .append("<span class=\"subtitle\">Click a test to expand its steps</span></div>\n")
           .append("<div class=\"tests\">\n");
-        for (Test t : run.tests()) renderTest(sb, t);
+        int i = 0;
+        for (Test t : run.tests()) renderTest(sb, t, i++);
         sb.append("</div>\n");
     }
 
-    private void renderTest(StringBuilder sb, Test t) {
-        sb.append("<article class=\"test\" data-outcome=\"").append(t.outcome().slug()).append("\">\n")
+    private void renderTest(StringBuilder sb, Test t, int index) {
+        sb.append("<article class=\"test\" data-outcome=\"").append(t.outcome().slug())
+          .append("\" data-test-index=\"").append(index).append("\">\n")
           .append("<div class=\"test-header\">")
           .append("<span class=\"chevron\">&#9654;</span>")
           .append("<span class=\"badge\">").append(t.outcome().slug()).append("</span>")

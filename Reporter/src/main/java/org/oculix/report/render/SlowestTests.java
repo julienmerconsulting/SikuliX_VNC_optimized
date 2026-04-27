@@ -4,10 +4,12 @@ import org.oculix.report.model.Test;
 import org.oculix.report.model.TestRun;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 /**
  * Renders a "Top N slowest tests" panel as plain HTML — sorted bars where
@@ -28,11 +30,13 @@ public final class SlowestTests {
         List<Test> all = run.tests();
         if (all.isEmpty()) return "";
 
-        List<Test> slowest = all.stream()
-            .filter(t -> t.endedAt() != null && !t.duration().isZero())
-            .sorted(Comparator.comparing(Test::duration).reversed())
-            .limit(topN)
-            .collect(Collectors.toList());
+        Map<Test, Integer> indexOf = new IdentityHashMap<>();
+        for (int i = 0; i < all.size(); i++) indexOf.put(all.get(i), i);
+
+        List<Test> slowest = new ArrayList<>(all);
+        slowest.removeIf(t -> t.endedAt() == null || t.duration().isZero());
+        slowest.sort(Comparator.comparing(Test::duration).reversed());
+        if (slowest.size() > topN) slowest = slowest.subList(0, topN);
 
         if (slowest.isEmpty()) return "";
 
@@ -43,7 +47,8 @@ public final class SlowestTests {
         for (Test t : slowest) {
             long ms = t.duration().toMillis();
             double pct = 100.0 * ms / maxMs;
-            sb.append("<li class=\"slowest-row\" data-outcome=\"").append(t.outcome().slug()).append("\">")
+            sb.append("<li class=\"slowest-row\" data-outcome=\"").append(t.outcome().slug())
+              .append("\" data-test-index=\"").append(indexOf.get(t)).append("\" tabindex=\"0\" role=\"button\">")
               .append("<span class=\"slowest-name\" title=\"").append(escape(t.name())).append("\">")
               .append(escape(t.name())).append("</span>")
               .append("<div class=\"slowest-track\">")

@@ -376,6 +376,48 @@ code, pre, .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
 .lightbox.open { display: flex; }
 .lightbox img { max-width: 100%; max-height: 100%; border-radius: 4px; }
 
+/* ========== Test detail modal (opened from Slowest tests rows) ========== */
+.test-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 1000;
+  padding: 3rem 1rem;
+  overflow-y: auto;
+}
+.test-modal-overlay[hidden] { display: none; }
+.test-modal {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 1rem 1.25rem 1.5rem;
+}
+.test-modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  background: transparent;
+  border: 0;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+.test-modal-close:hover { color: var(--fg); }
+.test-modal-body .test { margin: 0; box-shadow: none; border: 0; }
+.test-modal-body .test-header { cursor: default; }
+.test-modal-body .test-header .chevron { display: none; }
+.slowest-row { cursor: pointer; border-radius: 6px; padding: 0.25rem 0.4rem; transition: background 0.15s; }
+.slowest-row:hover, .slowest-row:focus { background: var(--card-hover); outline: none; }
+
 /* ========== Overview (donut + timeline) ========== */
 .overview {
   display: grid;

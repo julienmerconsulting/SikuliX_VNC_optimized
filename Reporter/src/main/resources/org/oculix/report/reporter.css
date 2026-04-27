@@ -521,6 +521,63 @@ code, pre, .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
 .copy-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
 .copy-btn.copied { background: var(--c-passed); color: white; border-color: var(--c-passed); opacity: 1; }
 
+/* ========== Diagnosis banner ========== */
+.diag-banner {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  margin: 0 0 0.85rem;
+  border-radius: 8px;
+  border-left: 4px solid var(--muted);
+  background: var(--bg-soft);
+}
+.diag-banner.diag-sev-error {
+  border-left-color: var(--c-failed);
+  background: var(--c-failed-soft);
+}
+.diag-banner.diag-sev-warning {
+  border-left-color: var(--c-error);
+  background: rgba(249, 115, 22, 0.12);
+}
+.diag-banner.diag-sev-info {
+  border-left-color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+}
+.diag-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  margin-top: 0.1rem;
+}
+.diag-sev-error .diag-icon   { color: var(--c-failed); }
+.diag-sev-warning .diag-icon { color: var(--c-error); }
+.diag-sev-info .diag-icon    { color: var(--accent); }
+.diag-content { flex: 1; min-width: 0; }
+.diag-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--fg);
+  margin-bottom: 0.25rem;
+}
+.diag-hint {
+  color: var(--fg-soft);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.diag-category {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
 /* ========== Overview (donut + timeline) ========== */
 .overview {
   display: grid;

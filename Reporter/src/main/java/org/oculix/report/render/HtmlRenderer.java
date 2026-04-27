@@ -1,5 +1,7 @@
 package org.oculix.report.render;
 
+import org.oculix.report.diagnosis.Diagnosis;
+import org.oculix.report.diagnosis.DiagnosisEngine;
 import org.oculix.report.model.Outcome;
 import org.oculix.report.model.Screenshot;
 import org.oculix.report.model.Step;
@@ -31,6 +33,7 @@ public final class HtmlRenderer {
 
     private static final String CSS_RESOURCE = "/org/oculix/report/reporter.css";
     private static final String JS_RESOURCE = "/org/oculix/report/reporter.js";
+    private static final DiagnosisEngine DIAGNOSIS = DiagnosisEngine.defaultEngine();
 
     private static final DateTimeFormatter FMT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
@@ -217,8 +220,10 @@ public final class HtmlRenderer {
           .append("</span></div>\n")
           .append("<div class=\"test-body\">\n");
 
-        if (!t.errorMessage().isEmpty() || !t.stackTrace().isEmpty()) {
+        boolean hasTestError = !t.errorMessage().isEmpty() || !t.stackTrace().isEmpty();
+        if (hasTestError) {
             sb.append("<div class=\"section\"><h4>Error</h4>");
+            renderDiagnosis(sb, t.errorMessage(), t.stackTrace());
             if (!t.errorMessage().isEmpty()) {
                 sb.append("<div class=\"error-block\">")
                   .append("<button type=\"button\" class=\"copy-btn\" aria-label=\"Copy\">Copy</button>")
@@ -232,6 +237,17 @@ public final class HtmlRenderer {
                   .append("</div>");
             }
             sb.append("</div>\n");
+        } else {
+            // No test-level error — surface the first failing step's error at the
+            // test level so the diagnosis banner is visible without expanding steps.
+            for (Step s : t.steps()) {
+                if (!s.errorMessage().isEmpty() || !s.stackTrace().isEmpty()) {
+                    sb.append("<div class=\"section\">");
+                    renderDiagnosis(sb, s.errorMessage(), s.stackTrace());
+                    sb.append("</div>\n");
+                    break;
+                }
+            }
         }
 
         sb.append("<div class=\"section\"><h4>Steps</h4>\n<div class=\"steps\">\n");
@@ -239,6 +255,19 @@ public final class HtmlRenderer {
         sb.append("</div></div>\n");
 
         sb.append("</div></article>\n");
+    }
+
+    private void renderDiagnosis(StringBuilder sb, String message, String trace) {
+        Diagnosis d = DIAGNOSIS.diagnose(message, trace);
+        if (d == null) return;
+        String sevClass = "diag-sev-" + d.severity().name().toLowerCase();
+        sb.append("<div class=\"diag-banner ").append(sevClass).append("\">")
+          .append("<div class=\"diag-icon\" aria-hidden=\"true\">&#9888;</div>")
+          .append("<div class=\"diag-content\">")
+          .append("<div class=\"diag-label\">").append(esc(d.label())).append("</div>")
+          .append("<div class=\"diag-hint\">").append(esc(d.hint())).append("</div>")
+          .append("<div class=\"diag-category\">").append(esc(d.category())).append("</div>")
+          .append("</div></div>\n");
     }
 
     private void renderStep(StringBuilder sb, Step s) {

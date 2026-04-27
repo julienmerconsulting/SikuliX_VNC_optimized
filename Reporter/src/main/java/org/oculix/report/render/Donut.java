@@ -49,6 +49,16 @@ public final class Donut {
             }
         }
 
+        // Center label: total count + "tests"
+        sb.append(String.format(
+            "<text x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\" dominant-baseline=\"central\" "
+                + "font-size=\"%.0f\" fill=\"currentColor\" font-weight=\"700\">%d</text>\n",
+            cx, cy - size * 0.04, size * 0.22, total));
+        sb.append(String.format(
+            "<text x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\" dominant-baseline=\"central\" "
+                + "font-size=\"%.0f\" fill=\"currentColor\" fill-opacity=\"0.6\">tests</text>\n",
+            cx, cy + size * 0.10, size * 0.06));
+
         sb.append("</svg>\n");
         return sb.toString();
     }

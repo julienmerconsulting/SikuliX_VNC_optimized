@@ -47,6 +47,7 @@ public final class HtmlRenderer {
         renderSidebar(sb, run);
         sb.append("<main class=\"main\">\n");
         renderHeader(sb, run);
+        renderOverview(sb, run);
         renderTiles(sb, run);
         renderMeta(sb, run);
         renderTests(sb, run);
@@ -93,6 +94,41 @@ public final class HtmlRenderer {
           .append(formatDuration(run.duration())).append(" · ")
           .append(String.format("%.1f%% success", run.successRate()))
           .append("</div>\n</div>\n");
+    }
+
+    private void renderOverview(StringBuilder sb, TestRun run) {
+        Map<Outcome, Integer> c = run.counts();
+        String timelineSvg = Timeline.generate(run);
+        boolean hasTimeline = !timelineSvg.isEmpty();
+
+        sb.append("<section class=\"overview")
+          .append(hasTimeline ? "" : " no-timeline")
+          .append("\">\n");
+
+        // Donut column
+        sb.append("<div class=\"overview-donut\">\n")
+          .append(Donut.generate(c, 220))
+          .append("<ul class=\"donut-legend\">\n");
+        for (Outcome o : Outcome.values()) {
+            int n = c.getOrDefault(o, 0);
+            if (n == 0) continue;
+            sb.append("<li>")
+              .append("<span class=\"swatch\" style=\"background:").append(o.color()).append("\"></span>")
+              .append("<span>").append(capitalize(o.slug())).append("</span>")
+              .append("<span class=\"legend-count\">").append(n).append("</span>")
+              .append("</li>\n");
+        }
+        sb.append("</ul>\n</div>\n");
+
+        // Timeline column (skip if no timing data)
+        if (hasTimeline) {
+            sb.append("<div class=\"overview-timeline\">\n")
+              .append("<h4>Timeline</h4>\n")
+              .append(timelineSvg)
+              .append("</div>\n");
+        }
+
+        sb.append("</section>\n");
     }
 
     private void renderTiles(StringBuilder sb, TestRun run) {

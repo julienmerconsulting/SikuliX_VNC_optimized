@@ -375,3 +375,72 @@ code, pre, .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
 }
 .lightbox.open { display: flex; }
 .lightbox img { max-width: 100%; max-height: 100%; border-radius: 4px; }
+
+/* ========== Overview (donut + timeline) ========== */
+.overview {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  margin: 1.5rem 0 2rem;
+  padding: 1.5rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.overview.no-timeline {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+.overview-donut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.overview-donut svg {
+  width: 220px;
+  height: 220px;
+}
+.donut-legend {
+  list-style: none;
+  padding: 0;
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+.donut-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--fg-soft);
+}
+.donut-legend .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.donut-legend .legend-count {
+  font-weight: 600;
+  color: var(--fg);
+}
+.overview-timeline h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.overview-timeline svg {
+  width: 100%;
+  height: auto;
+}
+@media (max-width: 900px) {
+  .overview {
+    grid-template-columns: 1fr;
+  }
+}

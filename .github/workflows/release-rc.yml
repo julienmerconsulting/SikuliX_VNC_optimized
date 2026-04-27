@@ -159,7 +159,7 @@ jobs:
           gh release create "$TAG" \
             --title "OculiX ${VERSION} (release candidate)" \
             --notes "Pre-release build. Do not use in production. See CHANGELOG / commits for the included fixes." \
-            --target master \
+            --target "$GITHUB_SHA" \
             --prerelease \
             --latest=false
         fi

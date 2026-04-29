@@ -70,7 +70,7 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
     thumbnail = createThumbnailImage(imgFile, MAXHEIGHT);
     options = new HashMap<>();
     options.put(IButton.FILE, imgFile);
-    options.put(IButton.TEXT, "\"" + info() + "\"");
+    options.put(IButton.TEXT, "\"" + imgFile.getName() + "\"");
 
     init();
   }
@@ -78,8 +78,9 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
   public EditorImageButton(Pattern pattern) {
     thumbnail = createThumbnailImage(pattern, MAXHEIGHT);
     options = new HashMap<>();
-    options.put(IButton.FILE, pattern.getImage().file());
-    options.put(IButton.TEXT, "\"" + info() + "\"");
+    File imgFile = pattern.getImage().file();
+    options.put(IButton.FILE, imgFile);
+    options.put(IButton.TEXT, "\"" + imgFile.getName() + "\"");
     options.put(IButton.PATT, pattern);
 
     init();

@@ -178,11 +178,140 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
 
   @Override
   public void mouseEntered(MouseEvent me) {
+    showPreviewPopup(true);
   }
 
   @Override
   public void mouseExited(MouseEvent me) {
+    showPreviewPopup(false);
   }
+
+  private JFrame previewPopup;
+  private JLabel previewModifierLabel;
+
+  /**
+   * Recreate the SikuliX 2.0.5 hover preview: a borderless always-on-top
+   * window that shows the captured image at full size with the parsed
+   * Pattern signature underneath. Invoked on mouse-entered, hidden on
+   * mouse-exited. The signature line is re-extracted from the document
+   * every time the popup is shown so it stays accurate when the user
+   * edits chained {@code .similar()} or {@code .targetOffset()} arguments.
+   */
+  private void showPreviewPopup(boolean show) {
+    if (!show) {
+      if (previewPopup != null) {
+        previewPopup.setVisible(false);
+      }
+      return;
+    }
+    if (options == null || options.get(IButton.FILE) == null) {
+      return;
+    }
+    File imgFile = (File) options.get(IButton.FILE);
+    BufferedImage img;
+    try {
+      img = ImageIO.read(imgFile);
+    } catch (IOException e) {
+      return;
+    }
+    if (img == null) {
+      return;
+    }
+    if (previewPopup == null) {
+      previewPopup = new JFrame();
+      previewPopup.setAlwaysOnTop(true);
+      previewPopup.setUndecorated(true);
+      previewPopup.setResizable(false);
+      previewPopup.setFocusableWindowState(false);
+      previewPopup.setBackground(Color.WHITE);
+      Container p = previewPopup.getContentPane();
+      p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+      p.setBackground(Color.WHITE);
+      JLabel imgLbl = new JLabel(new ImageIcon(img));
+      imgLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+      imgLbl.setBorder(BorderFactory.createLineBorder(new Color(0, 128, 128), 1));
+      p.add(imgLbl);
+      previewModifierLabel = new JLabel(" ");
+      previewModifierLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+      previewModifierLabel.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+      previewModifierLabel.setForeground(Color.DARK_GRAY);
+      p.add(previewModifierLabel);
+    }
+    previewModifierLabel.setText(buildSignatureFromContext());
+    previewPopup.pack();
+    Point btn = getLocationOnScreen();
+    Rectangle screen = getGraphicsConfiguration().getBounds();
+    Point at = new Point();
+    if (btn.y - screen.y < screen.height / 2) {
+      at.y = btn.y + getHeight() + 3;
+    } else {
+      at.y = btn.y - 3 - previewPopup.getHeight();
+    }
+    if (btn.x - screen.x < screen.width / 2) {
+      at.x = btn.x;
+    } else {
+      at.x = btn.x - previewPopup.getWidth() + getWidth();
+    }
+    previewPopup.setLocation(at);
+    previewPopup.setVisible(true);
+  }
+
+  /**
+   * Reconstruct the {@code Pattern("name.png").similar(X).targetOffset(X,Y)}
+   * call from the source code surrounding this button, so the hover preview
+   * stays informative when the original Pattern() has chained modifiers.
+   * Falls back to bare {@code Pattern("name.png")} when the button is not
+   * yet attached to a JTextPane (palette / drag preview / detached state).
+   */
+  private String buildSignatureFromContext() {
+    String name = info();
+    String sig = "Pattern(\"" + name + ".png\")";
+    Container ancestor = SwingUtilities.getAncestorOfClass(JTextPane.class, this);
+    if (!(ancestor instanceof JTextPane)) {
+      return sig;
+    }
+    JTextPane pane = (JTextPane) ancestor;
+    javax.swing.text.StyledDocument doc = pane.getStyledDocument();
+    int myOffset = -1;
+    int i = 0;
+    while (i < doc.getLength()) {
+      javax.swing.text.Element el = doc.getCharacterElement(i);
+      Component comp = javax.swing.text.StyleConstants.getComponent(el.getAttributes());
+      if (comp == this) {
+        myOffset = el.getStartOffset();
+        break;
+      }
+      i = Math.max(el.getEndOffset(), i + 1);
+    }
+    if (myOffset < 0) {
+      return sig;
+    }
+    String after;
+    try {
+      javax.swing.text.Element para = doc.getParagraphElement(myOffset);
+      int from = myOffset + 1;
+      int len = Math.max(0, para.getEndOffset() - from);
+      after = doc.getText(from, len);
+    } catch (javax.swing.text.BadLocationException e) {
+      return sig;
+    }
+    StringBuilder sb = new StringBuilder(sig);
+    java.util.regex.Matcher mSim = SIMILAR_PAT.matcher(after);
+    if (mSim.find()) {
+      sb.append(".similar(").append(mSim.group(1)).append(")");
+    }
+    java.util.regex.Matcher mOff = OFFSET_PAT.matcher(after);
+    if (mOff.find()) {
+      sb.append(".targetOffset(")
+          .append(mOff.group(1)).append(",").append(mOff.group(2)).append(")");
+    }
+    return sb.toString();
+  }
+
+  private static final java.util.regex.Pattern SIMILAR_PAT =
+      java.util.regex.Pattern.compile("\\.similar\\s*\\(\\s*([0-9]*\\.?[0-9]+)\\s*\\)");
+  private static final java.util.regex.Pattern OFFSET_PAT =
+      java.util.regex.Pattern.compile("\\.targetOffset\\s*\\(\\s*(-?\\d+)\\s*,\\s*(-?\\d+)\\s*\\)");
 
   @Override
   public void mousePressed(MouseEvent me) {

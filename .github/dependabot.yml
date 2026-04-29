@@ -16,6 +16,10 @@ updates:
     labels:
       - "dependencies"
       - "module:IDE"
+    # JRuby 10.x requires Java 21; OculiX targets Java 17. Stay on the 9.4 line.
+    ignore:
+      - dependency-name: "org.jruby:jruby-complete"
+        update-types: ["version-update:semver-major"]
 
   # Module API
   - package-ecosystem: "maven"
@@ -29,6 +33,10 @@ updates:
     labels:
       - "dependencies"
       - "module:API"
+    # JRuby 10.x requires Java 21; OculiX targets Java 17. Stay on the 9.4 line.
+    ignore:
+      - dependency-name: "org.jruby:jruby-complete"
+        update-types: ["version-update:semver-major"]
 
   # Module MCP
   - package-ecosystem: "maven"
@@ -42,3 +50,7 @@ updates:
     labels:
       - "dependencies"
       - "module:MCP"
+    # Defensive: same ignore as API/IDE in case JRuby gets added here later.
+    ignore:
+      - dependency-name: "org.jruby:jruby-complete"
+        update-types: ["version-update:semver-major"]

@@ -160,24 +160,93 @@ class RecorderActions {
     if (appScope.warnIfNoApp(assistant)) return;
     if (!workflow.startDragDrop()) return;
 
-    String sourcePath = imagePicker.pickImage("Drag SOURCE");
-    if (sourcePath == null) { workflow.reset(); return; }
-    workflow.advanceDragDrop();
+    pickImageAsync("Drag SOURCE", sourcePath -> {
+      if (sourcePath == null) { workflow.reset(); return; }
+      workflow.advanceDragDrop();
 
-    String destPath = imagePicker.pickImage("Drop DESTINATION");
-    if (destPath == null) { workflow.reset(); return; }
+      pickImageAsync("Drop DESTINATION", destPath -> {
+        if (destPath == null) { workflow.reset(); return; }
+        try {
+          Pattern sourcePattern = new Pattern(sourcePath);
+          Pattern destPattern = new Pattern(destPath);
+          String code = codeGen.getGenerator().dragDrop(sourcePattern, destPattern);
+          codeGen.addActionCode(code, appScope.isAppScoped(), appScope.getAppVarName());
+          workflow.onActionComplete();
+          RecorderNotifications.success("Drag & Drop recorded");
+        } catch (Exception ex) {
+          workflow.reset();
+          RecorderNotifications.error("Drag & Drop failed: " + ex.getMessage());
+        }
+      });
+    });
+  }
 
-    try {
-      Pattern sourcePattern = new Pattern(sourcePath);
-      Pattern destPattern = new Pattern(destPath);
-      String code = codeGen.getGenerator().dragDrop(sourcePattern, destPattern);
-      codeGen.addActionCode(code, appScope.isAppScoped(), appScope.getAppVarName());
-      workflow.onActionComplete();
-      RecorderNotifications.success("Drag & Drop recorded");
-    } catch (Exception ex) {
-      workflow.reset();
-      RecorderNotifications.error("Drag & Drop failed: " + ex.getMessage());
+  /**
+   * Mirror handleImageCapture's source-selection flow but expose the result
+   * via a callback so callers (notably handleDragDrop's two-step source/dest
+   * pickers) can chain them without blocking the EDT.
+   *
+   * <p>Capture path: assistant.hideForCapture(), userCapture on a worker
+   * thread, naming + save back on the EDT, callback with the saved path.
+   * Browse / library paths stay synchronous (no userCapture, no focus
+   * issue) and just invoke the callback inline.
+   *
+   * <p>Replaces the previous synchronous imagePicker.pickImage() chain
+   * which blocked the EDT during userCapture and prevented the Windows
+   * capture overlay from receiving drag events.
+   */
+  private void pickImageAsync(String purpose, java.util.function.Consumer<String> callback) {
+    java.util.List<String> options = new java.util.ArrayList<>();
+    options.add("Capture screen");
+    options.add("Browse file...");
+    if (!capturedImages.isEmpty()) {
+      options.add("Use existing image");
     }
+    int choice = JOptionPane.showOptionDialog(assistant,
+        "Choose image source for: " + purpose,
+        purpose,
+        JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+        null, options.toArray(), options.get(0));
+    if (choice < 0) { callback.accept(null); return; }
+    String selected = (String) options.get(choice);
+
+    if ("Browse file...".equals(selected)) {
+      callback.accept(imagePicker.browseImage());
+      return;
+    }
+    if ("Use existing image".equals(selected)) {
+      callback.accept(imagePicker.pickFromLibrary());
+      return;
+    }
+
+    assistant.hideForCapture();
+    new Thread(() -> {
+      ScreenImage capture = new Screen().userCapture("Select region for " + purpose);
+      SwingUtilities.invokeLater(() -> {
+        assistant.showAfterCapture();
+        if (capture == null) { callback.accept(null); return; }
+        try {
+          String defaultName = purpose.replaceAll("\\s+", "_").toLowerCase()
+              + "_" + System.currentTimeMillis();
+          String imageName = JOptionPane.showInputDialog(assistant,
+              "Name this image:", defaultName);
+          if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
+          imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
+          if (!imageName.endsWith(".png")) imageName += ".png";
+          String imagePath = capture.save(screenshotDir.getAbsolutePath(), imageName);
+          if (imagePath == null) {
+            callback.accept(null);
+            RecorderNotifications.error("Failed to save captured image");
+            return;
+          }
+          capturedImages.add(imagePath);
+          callback.accept(imagePath);
+        } catch (Exception ex) {
+          callback.accept(null);
+          RecorderNotifications.error("Action failed: " + ex.getMessage());
+        }
+      });
+    }, "RecorderDragDrop-" + purpose).start();
   }
 
   void handleSwipe() {

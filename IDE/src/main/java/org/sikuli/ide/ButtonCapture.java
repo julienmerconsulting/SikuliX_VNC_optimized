@@ -152,7 +152,7 @@ class ButtonCapture extends ButtonOnToolbar implements Cloneable, EventObserver 
       if (context.getShowThumbs()) {
         context.insertImageButton(imgFile);
       } else {
-        context.getPane().insertString("\"" + givenName + "\"");
+        context.getPane().insertString("\"" + givenName + ".png\"");
       }
     }
     ScreenDevice.closeCapturePrompts();

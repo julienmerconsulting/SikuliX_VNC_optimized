@@ -10,7 +10,7 @@
 
   <groupId>io.github.oculix-org</groupId>
   <artifactId>oculixide</artifactId>
-  <version>3.0.3-rc1</version>
+  <version>3.0.3-rc2</version>
 
   <name>OculiX IDE</name>
   <description>Visual automation IDE - edit and run OculiX scripts</description>
@@ -46,7 +46,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <sikulixjythonversion>2.7.4</sikulixjythonversion>
-    <sikulixjrubyversion>10.1.0.0</sikulixjrubyversion>
+    <sikulixjrubyversion>9.4.14.0</sikulixjrubyversion>
   </properties>
 
   <dependencies>

@@ -122,7 +122,7 @@
     <dependency>
       <groupId>io.github.oculix-org</groupId>
       <artifactId>legerix</artifactId>
-      <version>5.5.0-2</version>
+      <version>5.5.0-3</version>
       <!-- Bundled Tesseract/Leptonica natives + tessdata (eng, fra, spa,
            chi_sim, hin) for all supported platforms. Legerix.loadNatives()
            extracts the right binaries to a cache dir and loads them via JNA,

@@ -135,21 +135,13 @@
       <artifactId>jnativehook</artifactId>
       <version>2.2.2</version>
     </dependency>
-    <dependency>
-      <groupId>org.rococoa</groupId>
-      <artifactId>rococoa-core</artifactId>
-      <version>0.5</version>
-      <exclusions>
-        <exclusion>
-          <groupId>asm</groupId>
-          <artifactId>asm</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>cglib</groupId>
-          <artifactId>cglib</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
+    <!--
+      Rococoa (org.rococoa:rococoa-core:0.5) was removed here — its native
+      librococoa.dylib shipped only ppc_7400 / ppc64 / i386 / x86_64 slices
+      (last built circa 2010, upstream dormant) and crashed on Apple Silicon.
+      Direct libobjc calls via JNA now fill the same role; see
+      org.sikuli.natives.mac.jna.ObjC.
+    -->
     <!-- cglib-nodep repackage ASM sous net.sf.cglib.asm au lieu de org.objectweb.asm -->
     <!-- evite le conflit ASM 3.x vs 7.x qui casse Jython sur macOS -->
     <dependency>

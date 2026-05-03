@@ -142,7 +142,7 @@ public class App {
     if (StringUtils.isBlank(executable)) {
       return;
     }
-    cmd = new CommandLine(executable);
+    cmd = new CommandLine(stripOuterQuotes(executable));
     if (StringUtils.isNotBlank(arguments)) {
       cmd.addArguments(arguments);
     }
@@ -261,8 +261,24 @@ public class App {
     if (StringUtils.isBlank(name)) {
       return;
     }
-    cmd = new CommandLine(name);
+    cmd = new CommandLine(stripOuterQuotes(name));
     process = osUtil.findProcesses(cmd.getExecutable()).stream().findFirst().orElse(new NullProcess());
+  }
+
+  /**
+   * Tolerates callers that still wrap the executable in matched double quotes
+   * — a habit left over from the pre-#191 era, when {@code CommandLine.parse}
+   * was invoked on the executable and quoting was the only way to survive a
+   * path with spaces. Since #191 parsing is gone; the quotes now reach
+   * {@code ProcessBuilder} verbatim and surface as "No such file or directory".
+   * Stripping a single matched pair here preserves the old call sites without
+   * changing the behaviour for properly unquoted inputs.
+   */
+  private static String stripOuterQuotes(String s) {
+    if (s != null && s.length() >= 2 && s.charAt(0) == '"' && s.charAt(s.length() - 1) == '"') {
+      return s.substring(1, s.length() - 1);
+    }
+    return s;
   }
 
   public String getName() {

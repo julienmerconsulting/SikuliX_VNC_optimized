@@ -586,12 +586,12 @@ public class Finder implements Iterator<Match> {
     private FindInput2 fInput = null;
 
     // ========================================================
-    // OculiX : lecture DPI depuis les metadonnees PNG
+    // OculiX: read DPI from PNG metadata
     // ========================================================
 
     /**
-     * Lit le DPI horizontal embarque dans les metadonnees d'une image PNG.
-     * Retourne -1 si non disponible.
+     * Reads the horizontal DPI embedded in a PNG image's metadata.
+     * Returns -1 if unavailable.
      */
     private static int getDpiFromImage(Image img) {
       if (img == null || img.getFilename() == null) {
@@ -618,7 +618,7 @@ public class Finder implements Iterator<Match> {
           iis.close();
           return -1;
         }
-        // Parcourir les metadonnees standard pour trouver le DPI
+        // Walk the standard metadata formats looking for DPI
         String[] formatNames = metadata.getMetadataFormatNames();
         for (String formatName : formatNames) {
           Node root = metadata.getAsTree(formatName);
@@ -630,20 +630,20 @@ public class Finder implements Iterator<Match> {
         }
         iis.close();
       } catch (Exception e) {
-        log.trace("getDpiFromImage: erreur lecture DPI: %s", e.getMessage());
+        log.trace("getDpiFromImage: DPI read error: %s", e.getMessage());
       }
       return -1;
     }
 
     /**
-     * Parcourt recursivement les noeuds XML des metadonnees
-     * pour trouver la resolution horizontale (DPI).
+     * Recursively walks the XML metadata tree to find the
+     * horizontal resolution (DPI).
      */
     private static int searchDpiInNode(Node node) {
       if (node == null) {
         return -1;
       }
-      // Chercher dans les noeuds pHYs (PNG) ou HorizontalPixelSize
+      // Look in pHYs (PNG) or HorizontalPixelSize nodes
       String nodeName = node.getNodeName();
       if ("pHYs".equals(nodeName)) {
         NamedNodeMap attrs = node.getAttributes();
@@ -652,7 +652,7 @@ public class Finder implements Iterator<Match> {
           Node unit = attrs.getNamedItem("unitSpecifier");
           if (ppux != null && unit != null && "meter".equals(unit.getNodeValue())) {
             int ppu = Integer.parseInt(ppux.getNodeValue());
-            return (int) Math.round(ppu / 39.3701); // metres vers pouces
+            return (int) Math.round(ppu / 39.3701); // metres to inches
           }
         }
       }
@@ -668,7 +668,7 @@ public class Finder implements Iterator<Match> {
           }
         }
       }
-      // Parcours recursif des enfants
+      // Recurse into children
       Node child = node.getFirstChild();
       while (child != null) {
         int dpi = searchDpiInNode(child);
@@ -681,8 +681,8 @@ public class Finder implements Iterator<Match> {
     }
 
     /**
-     * Recupere le DPI systeme courant.
-     * 96 = scaling 100%, 120 = 125%, 144 = 150%, etc.
+     * Returns the current system DPI.
+     * 96 = 100% scaling, 120 = 125%, 144 = 150%, etc.
      */
     private static int getSystemDpi() {
       try {
@@ -694,14 +694,14 @@ public class Finder implements Iterator<Match> {
         try {
           return Toolkit.getDefaultToolkit().getScreenResolution();
         } catch (Exception e2) {
-          return 96; // valeur par defaut
+          return 96; // default
         }
       }
     }
 
     /**
-     * Calcule le ratio DPI entre l'ecran courant et l'image template.
-     * Retourne 1.0 si pas de difference ou si les DPI ne sont pas disponibles.
+     * Computes the DPI ratio between the current screen and the template image.
+     * Returns 1.0 if there is no difference or if either DPI is unavailable.
      */
     private static double getDpiRatio(FindInput2 findInput) {
       int screenDpi = getSystemDpi();
@@ -727,12 +727,12 @@ public class Finder implements Iterator<Match> {
         return 1.0;
       }
       double ratio = (double) screenDpi / templateDpi;
-      log.trace("OculiX DPI-aware: template=%d dpi, ecran=%d dpi, ratio=%.4f", templateDpi, screenDpi, ratio);
+      log.trace("OculiX DPI-aware: template=%d dpi, screen=%d dpi, ratio=%.4f", templateDpi, screenDpi, ratio);
       return ratio;
     }
 
     // ========================================================
-    // Fin OculiX DPI
+    // End OculiX DPI
     // ========================================================
 
     protected static FindResult2 find(FindInput2 findInput) {
@@ -874,12 +874,12 @@ public class Finder implements Iterator<Match> {
       }
 
       // ========================================================
-      // OculiX : pipeline cascade multi-mode
-      // Mode 1 (ci-dessus) = match exact standard
+      // OculiX: multi-mode cascade pipeline
+      // Mode 1 (above) = standard exact match
       // Mode 2 = DPI-aware scale
       // Mode 3 = tolerant match (GaussianBlur)
       // Mode 4 = smart match (grayscale)
-      // Mode 5 = relative search (gere au niveau Region/Pattern)
+      // Mode 5 = relative search (handled at the Region/Pattern level)
       // ========================================================
 
       // --- MODE 2 : DPI-aware scale ---
@@ -890,7 +890,7 @@ public class Finder implements Iterator<Match> {
           Mat scaledTarget = new Mat();
           Imgproc.resize(findInput.getTarget(), scaledTarget, new Size(),
               dpiRatio, dpiRatio, Imgproc.INTER_LINEAR);
-          // Verifier que le template redimensionne tient dans la source
+          // Check that the rescaled template still fits inside the source
           if (scaledTarget.width() <= findWhere.width() && scaledTarget.height() <= findWhere.height()) {
             mResult = doFindMatch(scaledTarget, findWhere, findInput);
             mMinMax = Core.minMaxLoc(mResult);
@@ -904,7 +904,7 @@ public class Finder implements Iterator<Match> {
         }
       }
 
-      // --- MODE 3 : tolerant match (flou gaussien) ---
+      // --- MODE 3: tolerant match (Gaussian blur) ---
       double originalScore = findInput.getScore();
       if (findResult == null && !findInput.isFindAll() && !findInput.hasMask()) {
         begin_lap = new Date().getTime();
@@ -918,7 +918,7 @@ public class Finder implements Iterator<Match> {
         if (mMinMax.maxVal > tolerantScore) {
           findInput.setSimilarity(tolerantScore);
           findResult = new FindResult2(mResult, findInput);
-          log.trace("OculiX Mode 3 tolerant: match %%%.4f (seuil=%%%.4f) %d msec",
+          log.trace("OculiX Mode 3 tolerant: match %%%.4f (threshold=%%%.4f) %d msec",
               mMinMax.maxVal * 100, tolerantScore * 100, new Date().getTime() - begin_lap);
         }
         whatBlur.release();
@@ -940,16 +940,16 @@ public class Finder implements Iterator<Match> {
           if (mMinMax.maxVal > smartScore) {
             findInput.setSimilarity(smartScore);
             findResult = new FindResult2(mResultGray, findInput);
-            log.trace("OculiX Mode 4 smart: match %%%.4f (seuil=%%%.4f) %d msec",
+            log.trace("OculiX Mode 4 smart: match %%%.4f (threshold=%%%.4f) %d msec",
                 mMinMax.maxVal * 100, smartScore * 100, new Date().getTime() - begin_lap);
           }
         } catch (Exception e) {
-          log.trace("OculiX Mode 4 smart: erreur conversion grayscale: %s", e.getMessage());
+          log.trace("OculiX Mode 4 smart: grayscale conversion error: %s", e.getMessage());
         }
         whatGray.release();
         whereGray.release();
       }
-      // --- MODE 5 : multi-scale brute-force (dernier recours) ---
+      // --- MODE 5: multi-scale brute-force (last resort) ---
       if (findResult == null && !findInput.isFindAll() && !findInput.hasMask()) {
         double[] commonScales = {1.25, 1.5, 1.75, 2.0, 0.8, 0.67, 0.5};
         double multiScaleScore = originalScore * 0.9;
@@ -976,13 +976,13 @@ public class Finder implements Iterator<Match> {
         }
       }
 
-      // Restaurer le seuil original si aucun mode degrade n'a matche
+      // Restore the original threshold if no degraded mode matched
       if (findResult == null) {
         findInput.setSimilarity(originalScore);
       }
 
       // ========================================================
-      // Fin OculiX pipeline cascade
+      // End OculiX cascade pipeline
       // ========================================================
       log.trace("doFindImage: end %d msec", new Date().getTime() - begin_find);
       return findResult;
@@ -1328,7 +1328,7 @@ public class Finder implements Iterator<Match> {
 
     private Image image = null;
 
-    // --- OculiX : reference vers l'Image source pour lecture DPI ---
+    // --- OculiX: reference to the source Image for DPI lookup ---
     private Image targetImage = null;
 
     public void setTargetImage(Image img) {
@@ -1338,7 +1338,7 @@ public class Finder implements Iterator<Match> {
     public Image getTargetImage() {
       return targetImage;
     }
-    // --- fin OculiX ---
+    // --- end OculiX ---
 
     private double similarity = 0.7;
 

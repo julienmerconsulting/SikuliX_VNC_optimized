@@ -80,55 +80,61 @@ public class TextRecognizer {
   private static boolean isValid = false;
 
   private static String getTesseractInstallCommand() {
-    String installCmd;
-    if (Commons.runningMac()) {
-      installCmd = "  brew install tesseract";
-    } else if (Commons.runningLinux()) {
-      installCmd = "  sudo apt-get install tesseract-ocr   (Debian/Ubuntu)\n"
-          + "  sudo dnf install tesseract            (Fedora/RHEL)\n"
-          + "  sudo zypper install tesseract         (SUSE)";
-    } else {
-      installCmd = "Reinstall OculiX — Windows binaries should be bundled with tess4j.";
-    }
-    //TODO add the respective Oculix wiki page when ready
-    installCmd += "\n\n"
-        + " Then restart OculiX.\n\n"
-        + " More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
+    // Tesseract natives are bundled via Legerix on all supported platforms
+    // (mac/linux x86_64 + aarch64, windows x86_64). If Legerix failed to load,
+    // it almost always means a packaging/extraction problem rather than a
+    // missing system binary, so we direct the user to reinstall OculiX rather
+    // than to install tesseract from a package manager.
+    return "  Reinstall OculiX — Tesseract binaries are bundled via Legerix.\n"
+        + "  If the problem persists, please open an issue.\n\n"
+        + "  More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
         + "══════════════════════════════════════════════════════════════";
-    return installCmd;
   }
 
   private static void checkLib() {
-    if (!isValid) {
+    if (isValid) {
+      return;
+    }
+    // Fast path: Legerix has already loaded bundled libtesseract via JNA in
+    // Commons.loadTesseract(). No need to shell out to a system `tesseract`
+    // binary — the Tess4J Tesseract1() wrapper will pick up the JNA-loaded
+    // library directly.
+    if (Commons.isTesseractLoaded()) {
       String versionTess4J = Commons.getSXVersionTess4j();
-      String versionTesseractExpected = LoadLibs.LIB_NAME.replace("libtesseract", "");
-      String versionTesseract = "" + versionTesseractExpected;
-      if (!Commons.runningWindows()) {
-        versionTesseract = "";
-        String run = ProcessRunner.run(new String[]{"tesseract", "--version"});
-        String[] result = run.split(" ");
-        if (result.length > 1) {
-          if (result[0].contains("tesseract")) {
-            versionTesseract = result[1];
-          }
-          if (!versionTesseractExpected.equals(versionTesseract.replace(".", ""))) {
-            Debug.log(lvl, "OCR: start: Tesseract version mismatch: found %s != expected %s (but might work)", versionTesseract, versionTesseractExpected);
-          }
+      isValid = true;
+      Debug.log(lvl, "OCR: start: Tess4J %s using bundled Tesseract (Legerix)", versionTess4J);
+      return;
+    }
+    // Legacy fallback: legerix not on classpath (or failed to extract). Probe
+    // for a system-installed tesseract so existing setups keep working.
+    String versionTess4J = Commons.getSXVersionTess4j();
+    String versionTesseractExpected = LoadLibs.LIB_NAME.replace("libtesseract", "");
+    String versionTesseract = "" + versionTesseractExpected;
+    if (!Commons.runningWindows()) {
+      versionTesseract = "";
+      String run = ProcessRunner.run(new String[]{"tesseract", "--version"});
+      String[] result = run.split(" ");
+      if (result.length > 1) {
+        if (result[0].contains("tesseract")) {
+          versionTesseract = result[1];
+        }
+        if (!versionTesseractExpected.equals(versionTesseract.replace(".", ""))) {
+          Debug.log(lvl, "OCR: start: Tesseract version mismatch: found %s != expected %s (but might work)", versionTesseract, versionTesseractExpected);
         }
       }
-      isValid = !versionTesseract.isEmpty();
-      if (isValid) {
-        Debug.log(lvl, "OCR: start: Tess4J %s using Tesseract %s", versionTess4J, versionTesseract);
-      } else {
-        String installCmd = getTesseractInstallCommand();
-        String msg = "\n\n"
-            + "══════════════════════════════════════════════════════════════\n"
-            + " Tesseract OCR engine not found on your system.\n"
-            + "══════════════════════════════════════════════════════════════\n\n"
-            + " Install it with:\n" + installCmd;
-        Debug.error(msg);
-        throw new SikuliXception("Tesseract OCR engine not found on your system.");
-      }
+    }
+    isValid = !versionTesseract.isEmpty();
+    if (isValid) {
+      Debug.log(lvl, "OCR: start: Tess4J %s using Tesseract %s", versionTess4J, versionTesseract);
+    } else {
+      String installCmd = getTesseractInstallCommand();
+      String msg = "\n\n"
+          + "══════════════════════════════════════════════════════════════\n"
+          + " Tesseract OCR engine not found.\n"
+          + "══════════════════════════════════════════════════════════════\n\n"
+          + " Fix:\n" + installCmd;
+      Debug.error(msg);
+      throw new SikuliXception("Tesseract OCR engine not found.");
     }
   }
 
@@ -385,8 +391,23 @@ public class TextRecognizer {
 
   //<editor-fold desc="30 helper">
   private static void initDefaultDataPath() {
-    if (OCR.Options.defaultDataPath == null) {
-      // export SikuliX eng.traineddata, if libs are exported as well
+    if (OCR.Options.defaultDataPath != null) {
+      return;
+    }
+    // Priority order:
+    //   1. Settings.OcrDataPath (user override)
+    //   2. Legerix bundled tessdata (eng, fra, spa, chi_sim, hin)
+    //   3. Legacy SikulixTesseract resource extraction
+    String defaultDataPath = null;
+    if (Settings.OcrDataPath != null) {
+      defaultDataPath = new File(Settings.OcrDataPath, "tessdata").getAbsolutePath();
+    } else {
+      String legerixPath = Commons.getTesseractDataPath();
+      if (legerixPath != null && new File(legerixPath).isDirectory()) {
+        defaultDataPath = legerixPath;
+      }
+    }
+    if (defaultDataPath == null) {
       File fTessDataPath = new File(Commons.getAppDataPath(), "SikulixTesseract/tessdata");
       boolean shouldExport = Commons.shouldExport();
       boolean fExists = fTessDataPath.exists();
@@ -395,15 +416,9 @@ public class TextRecognizer {
           throw new SikuliXception(String.format("OCR: start: export tessdata did not work: %s", fTessDataPath));
         }
       }
-      // if set, try with provided tessdata parent folder
-      String defaultDataPath;
-      if (Settings.OcrDataPath != null) {
-        defaultDataPath = new File(Settings.OcrDataPath, "tessdata").getAbsolutePath();
-      } else {
-        defaultDataPath = fTessDataPath.getAbsolutePath();
-      }
-      OCR.Options.defaultDataPath = defaultDataPath;
+      defaultDataPath = fTessDataPath.getAbsolutePath();
     }
+    OCR.Options.defaultDataPath = defaultDataPath;
   }
 
   protected <SFIRBS> String doRead(SFIRBS from) {

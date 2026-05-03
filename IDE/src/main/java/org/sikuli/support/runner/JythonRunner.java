@@ -12,6 +12,7 @@ import static org.sikuli.util.CommandArgsEnum.*;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.Arrays;
+import javax.swing.SwingUtilities;
 import java.util.regex.Matcher;
 
 /**
@@ -97,7 +98,7 @@ public class JythonRunner extends AbstractLocalFileScriptRunner {
       }
       Commons.startLog(3, "Jython ready: version %s (%4.1f sec)", interpreterVersion, Commons.getSinceStart());
       if (!Commons.hasOption(RUN)) {
-        SikulixIDE.showAfterStart();
+        SwingUtilities.invokeLater(() -> SikulixIDE.showAfterStart());
       }
     }
   }

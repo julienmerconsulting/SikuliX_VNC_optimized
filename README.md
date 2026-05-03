@@ -162,9 +162,9 @@ mvn clean install -DskipTests
 
 ```xml
 <dependency>
-  <groupId>com.sikulix</groupId>
-  <artifactId>oculixapi</artifactId>
-  <version>3.0.2</version>
+    <groupId>io.github.oculix-org</groupId>
+    <artifactId>oculixapi</artifactId>
+    <version>3.0.2</version>
 </dependency>
 ```
 

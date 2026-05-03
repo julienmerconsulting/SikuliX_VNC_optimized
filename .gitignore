@@ -22,6 +22,8 @@ original/
 .DS_Store
 native/
 *.class 
-Test*.java 
+Test*.java
+# Reporter module uses Test/TestRun as legitimate domain model classes — whitelist them
+!Reporter/src/main/java/**/Test*.java
 *.txt
 

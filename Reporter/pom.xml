@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+<!--
+  ~ Copyright (c) 2010-2026, sikuli.org, sikulix.com, oculix-org - MIT license
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.github.oculix-org</groupId>
+  <artifactId>oculixreporter</artifactId>
+  <version>3.0.3-rc1</version>
+
+  <packaging>jar</packaging>
+
+  <name>OculiX Reporter</name>
+  <description>Self-contained HTML test reporter for OculiX — single-file output with base64 screenshots, offline diagnosis, history tracking. Opt-in via the ReportedScreen wrapper — zero impact on existing code.</description>
+
+  <url>https://github.com/oculix-org/Oculix</url>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://github.com/oculix-org/Oculix/blob/master/LICENSE</url>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>julienmerconsulting</id>
+      <name>Julien Mer</name>
+      <email>julien.mer38@gmail.com</email>
+    </developer>
+    <developer>
+      <id>RaiMan</id>
+      <name>Raimund Hocke</name>
+      <email>rmhdevelop@me.com</email>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git@github.com:oculix-org/Oculix.git</connection>
+    <developerConnection>scm:git:git@github.com:oculix-org/Oculix.git</developerConnection>
+    <url>https://github.com/oculix-org/Oculix</url>
+  </scm>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.oculix-org</groupId>
+      <artifactId>oculixapi</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Selenium 4 compile-time API. Kept `optional` so users who don't use
+         Selenium never pull it transitively. The single listener class
+         implements BOTH Selenium 3 (WebDriverEventListener) and Selenium 4
+         (WebDriverListener) interfaces — SeleniumWrap dispatches at runtime
+         based on what's on the user's classpath. Selenium-support 4.10.0
+         still ships the deprecated Selenium 3 interfaces, which is why we
+         pin that version for compile-time only. -->
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-support</artifactId>
+      <version>4.10.0</version>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- TestNG support — optional. User brings their own TestNG at runtime. -->
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <version>7.10.2</version>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- JUnit 5 (Jupiter) support — optional, user brings their own. -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.10.2</version>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- JUnit 5 engine for our own integration tests (test scope only). -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <configuration>
+          <mainClass>org.oculix.report.mock.MockReportDemo</mainClass>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <!-- Let the deliberately-failing demo test run to completion
+               without failing the Maven build — the point is to produce
+               the HTML report artefact, not to guard against regressions. -->
+          <testFailureIgnore>true</testFailureIgnore>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

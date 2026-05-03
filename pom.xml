@@ -38,6 +38,7 @@
     <module>API</module>
     <module>IDE</module>
     <module>MCP</module>
+    <module>Reporter</module>
   </modules>
 
   <profiles>

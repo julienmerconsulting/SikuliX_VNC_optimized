@@ -229,14 +229,16 @@ public class VNCScreen extends Region implements IScreen, EventObserver {
   }
 
   /**
-   * Wait for the screen to stabilize by comparing successive captures.
-   * Useful after UI transitions to ensure the framebuffer is fully updated.
+   * Wait for the VNC screen to stabilize by comparing successive captures.
+   * Overrides {@link Region#waitForStable(long, long)} to force a framebuffer
+   * refresh before each capture (otherwise the VNC client may serve cached pixels).
    *
    * @param maxWaitMs maximum time to wait in milliseconds
    * @param stabilityMs how long the screen must remain unchanged to be considered stable
    * @return true if screen stabilized within the timeout, false otherwise
    */
-  public boolean waitForScreenStable(long maxWaitMs, long stabilityMs) {
+  @Override
+  public boolean waitForStable(long maxWaitMs, long stabilityMs) {
     if (!isRunning()) {
       return false;
     }
@@ -252,7 +254,7 @@ public class VNCScreen extends Region implements IScreen, EventObserver {
 
       if (previousImage != null && imagesEqual(previousImage, currentImage)) {
         if (System.currentTimeMillis() - lastChangeTime >= stabilityMs) {
-          Debug.log(3, "VNCScreen: screen stable after %d ms", System.currentTimeMillis() - startTime);
+          Debug.log(3, "VNCScreen: stable after %d ms", System.currentTimeMillis() - startTime);
           return true;
         }
       } else {
@@ -261,29 +263,24 @@ public class VNCScreen extends Region implements IScreen, EventObserver {
       previousImage = currentImage;
       try { Thread.sleep(100); } catch (InterruptedException ignored) {}
     }
-    Debug.log(3, "VNCScreen: screen did not stabilize within %d ms", maxWaitMs);
+    Debug.log(3, "VNCScreen: did not stabilize within %d ms", maxWaitMs);
     return false;
   }
 
   /**
-   * Wait for screen stability with default parameters (5s max, 500ms stability).
+   * @deprecated Use {@link #waitForStable(long, long)} instead.
    */
-  public boolean waitForScreenStable() {
-    return waitForScreenStable(5000, 500);
+  @Deprecated
+  public boolean waitForScreenStable(long maxWaitMs, long stabilityMs) {
+    return waitForStable(maxWaitMs, stabilityMs);
   }
 
-  private static boolean imagesEqual(BufferedImage img1, BufferedImage img2) {
-    if (img1.getWidth() != img2.getWidth() || img1.getHeight() != img2.getHeight()) {
-      return false;
-    }
-    for (int y = 0; y < img1.getHeight(); y += 10) {
-      for (int x = 0; x < img1.getWidth(); x += 10) {
-        if (img1.getRGB(x, y) != img2.getRGB(x, y)) {
-          return false;
-        }
-      }
-    }
-    return true;
+  /**
+   * @deprecated Use {@link #waitForStable()} instead.
+   */
+  @Deprecated
+  public boolean waitForScreenStable() {
+    return waitForStable();
   }
 
   @Override

@@ -15,6 +15,10 @@ import org.sikuli.util.Highlight;
 import java.awt.Rectangle;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferInt;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -285,6 +289,79 @@ public class Region extends Element {
 
   private int repeatWaitTimeDefault = Settings.RepeatWaitTime;
   private int repeatWaitTime = repeatWaitTimeDefault;
+
+  /**
+   * Wait for this region to visually stabilize by comparing successive captures.
+   * Useful after UI transitions (page navigation, modal opening, animation,
+   * filter re-render) to ensure the rendered pixels have settled before
+   * proceeding with the next action.
+   * <p>
+   * Pattern: capture -&gt; compare to previous capture -&gt; if identical for
+   * stabilityMs consecutive milliseconds, return true. Otherwise reset
+   * the stability timer and retry.
+   *
+   * @param maxWaitMs   maximum time to wait in milliseconds
+   * @param stabilityMs how long the region must remain pixel-identical
+   *                    to be considered stable
+   * @return true if region stabilized within timeout, false otherwise
+   */
+  public boolean waitForStable(long maxWaitMs, long stabilityMs) {
+    long startTime = System.currentTimeMillis();
+    long lastChangeTime = startTime;
+    BufferedImage previousImage = null;
+
+    while (System.currentTimeMillis() - startTime < maxWaitMs) {
+      ScreenImage shot = getScreen().capture(this);
+      BufferedImage currentImage = shot == null ? null : shot.getImage();
+      if (currentImage == null) {
+        try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        continue;
+      }
+
+      if (previousImage != null && imagesEqual(previousImage, currentImage)) {
+        if (System.currentTimeMillis() - lastChangeTime >= stabilityMs) {
+          Debug.log(3, "Region: stable after %d ms", System.currentTimeMillis() - startTime);
+          return true;
+        }
+      } else {
+        lastChangeTime = System.currentTimeMillis();
+      }
+      previousImage = currentImage;
+      try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+    }
+    Debug.log(3, "Region: did not stabilize within %d ms", maxWaitMs);
+    return false;
+  }
+
+  /**
+   * Wait for stability with default thresholds: 5000ms max wait, 500ms stable.
+   *
+   * @return true if region stabilized within 5s, false otherwise
+   */
+  public boolean waitForStable() {
+    return waitForStable(5000, 500);
+  }
+
+  protected static boolean imagesEqual(BufferedImage a, BufferedImage b) {
+    if (a == null || b == null) return false;
+    if (a.getWidth() != b.getWidth() || a.getHeight() != b.getHeight()) return false;
+    try {
+      DataBuffer da = a.getRaster().getDataBuffer();
+      DataBuffer db = b.getRaster().getDataBuffer();
+      if (da instanceof DataBufferByte && db instanceof DataBufferByte) {
+        return Arrays.equals(((DataBufferByte) da).getData(), ((DataBufferByte) db).getData());
+      }
+      if (da instanceof DataBufferInt && db instanceof DataBufferInt) {
+        return Arrays.equals(((DataBufferInt) da).getData(), ((DataBufferInt) db).getData());
+      }
+    } catch (Throwable ignored) {}
+    for (int y = 0; y < a.getHeight(); y++) {
+      for (int x = 0; x < a.getWidth(); x++) {
+        if (a.getRGB(x, y) != b.getRGB(x, y)) return false;
+      }
+    }
+    return true;
+  }
   //</editor-fold>
 
   //<editor-fold desc="004 housekeeping">

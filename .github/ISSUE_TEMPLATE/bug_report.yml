@@ -1,0 +1,128 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly in OculiX
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+
+        Before submitting, please:
+        - Search [existing issues](https://github.com/oculix-org/Oculix/issues?q=is%3Aissue) to avoid duplicates
+        - Make sure you can reproduce the bug on the latest release or RC
+        - Include the smallest possible reproducer — minimal scripts go a long way
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear, one-sentence description of what is broken.
+      placeholder: e.g. "Tools → Capture inserts the image filename without the .png extension"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps that will reliably trigger the bug. Include the exact action sequence.
+      placeholder: |
+        1. Launch oculixide-3.0.3-rc2-windows.jar
+        2. Open a new .sikuli script
+        3. Click "Tools" → "Capture"
+        4. Capture any region on screen
+        5. Observe the inserted code in the editor
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Paste error messages, traceback, screenshots if applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Minimal reproducer (script)
+      description: If the bug happens inside a Jython/Python script, paste the smallest snippet that triggers it.
+      render: python
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon — M1/M2/M3/M4)
+        - macOS (Intel)
+        - Ubuntu / Debian
+        - Fedora / RHEL
+        - Other Linux
+        - Android (ADB)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: java
+    attributes:
+      label: Java version
+      description: Output of `java --version`
+      placeholder: "e.g. openjdk 17.0.10 2026-01-20"
+    validations:
+      required: true
+
+  - type: input
+    id: oculix
+    attributes:
+      label: OculiX version / artifact
+      description: Exact JAR name or Maven coordinates you are running.
+      placeholder: "e.g. oculixide-3.0.3-rc2-windows.jar  OR  io.github.oculix-org:oculixapi:3.0.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where does the bug happen?
+      multiple: true
+      options:
+        - IDE (editor, menus, dialogs)
+        - API (Screen / Region / Pattern / Match)
+        - VNC stack
+        - SSH tunnel
+        - Android / ADB
+        - PaddleOCR / Tesseract
+        - Script runners (Jython, JRuby, Python, PowerShell, Robot)
+        - Build / Maven / packaging
+        - MCP server
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / console output
+      description: Paste relevant stdout/stderr output (full traceback if applicable). Long logs welcome — wrap in a `<details>` block if needed.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else worth knowing — screenshots, screen resolution, multi-monitor setup, remote VNC details, etc.

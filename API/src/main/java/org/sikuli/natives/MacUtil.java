@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.sikuli.natives.mac.jna.CoreGraphics;
-import org.sikuli.natives.mac.jna.NSRunningApplication;
+import org.sikuli.natives.mac.jna.ObjC;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.mac.CoreFoundation;
 import com.sun.jna.platform.mac.CoreFoundation.CFArrayRef;
@@ -19,21 +19,15 @@ import com.sun.jna.platform.mac.CoreFoundation.CFNumberRef;
 import com.sun.jna.platform.mac.CoreFoundation.CFStringRef;
 
 public class MacUtil extends GenericOsUtil {
-  /*
-  ### Summary (solved with Junie)
-    - Fixed the macOS `aarch64` crash path caused by Rococoa initialization in `MacUtil`.
-    - On Apple Silicon, the code now safely avoids Rococoa-dependent calls instead of crashing.
 
-    ### Changes
-    - Updated `API/src/main/java/org/sikuli/natives/MacUtil.java` to route `NSRunningApplication` access through a new helper `getRunningApplication(int pid)`.
-    - Added an architecture guard (`ROCOCOA_SUPPORTED`) that disables Rococoa usage on `os.arch` containing `aarch64`.
-    - Added defensive error handling in the helper (`catch (Throwable)`) to return `null` if Rococoa linkage/class-init fails, preserving runtime stability.
+  // NSApplicationActivationOptions — see Apple docs for NSRunningApplication.
+  private static final int NS_ACTIVATE_ALL_WINDOWS          = 1 << 0;
+  private static final int NS_ACTIVATE_IGNORING_OTHER_APPS  = 1 << 1;
 
-    ### Verification
-    - Ran `mvn -pl API -DskipTests compile` successfully (`BUILD SUCCESS`).
-    - Confirmed modified focus/active-window code paths now use the guarded helper.
-   */
-  private static final boolean ROCOCOA_SUPPORTED = !System.getProperty("os.arch", "").toLowerCase().contains("aarch64");
+  private static final Pointer NS_RUNNING_APP_CLASS = ObjC.cls("NSRunningApplication");
+  private static final Pointer SEL_RUNNING_WITH_PID = ObjC.sel("runningApplicationWithProcessIdentifier:");
+  private static final Pointer SEL_ACTIVATE_WITH   = ObjC.sel("activateWithOptions:");
+  private static final Pointer SEL_IS_ACTIVE       = ObjC.sel("isActive");
 
   @Override
   public boolean isUserProcess(OsProcess process) {
@@ -90,13 +84,12 @@ public class MacUtil extends GenericOsUtil {
 
     @Override
     public boolean focus() {
-      NSRunningApplication app = getRunningApplication((int) pid);
-
-      if (app != null) {
-        return app.activateWithOptions(NSRunningApplication.NSApplicationActivationOptions.NSApplicationActivateAllWindows | NSRunningApplication.NSApplicationActivationOptions.NSApplicationActivateIgnoringOtherApps);
+      Pointer app = getRunningApplication((int) pid);
+      if (app == null) {
+        return false;
       }
-
-      return false;
+      return ObjC.msgSendBool(app, SEL_ACTIVATE_WITH,
+          NS_ACTIVATE_ALL_WINDOWS | NS_ACTIVATE_IGNORING_OTHER_APPS);
     }
 
     @Override
@@ -131,12 +124,9 @@ public class MacUtil extends GenericOsUtil {
       OsProcess process = w.getProcess();
 
       if (process != null) {
-        NSRunningApplication app = getRunningApplication((int) w.getProcess().getPid());
-
-        if (app != null) {
-          if (app.isActive()) {
-            return true;
-          }
+        Pointer app = getRunningApplication((int) w.getProcess().getPid());
+        if (app != null && ObjC.msgSendBool(app, SEL_IS_ACTIVE)) {
+          return true;
         }
       }
       return false;
@@ -156,13 +146,10 @@ public class MacUtil extends GenericOsUtil {
     return allWindows();
   }
 
-  private static NSRunningApplication getRunningApplication(int pid) {
-    if (!ROCOCOA_SUPPORTED) {
-      return null;
-    }
-
+  private static Pointer getRunningApplication(int pid) {
     try {
-      return NSRunningApplication.CLASS.runningApplicationWithProcessIdentifier(pid);
+      Pointer app = ObjC.msgSend(NS_RUNNING_APP_CLASS, SEL_RUNNING_WITH_PID, pid);
+      return (app == null || Pointer.nativeValue(app) == 0L) ? null : app;
     } catch (Throwable ignored) {
       return null;
     }

@@ -56,7 +56,11 @@ public class RecorderSwipeDialog extends JDialog {
     content.add(lblImg);
 
     imagePanel = new ImagePanel();
-    int minW = 380, minH = 240, maxW = 1200, maxH = 800;
+    int minW = 380, minH = 240;
+    java.awt.Rectangle screenBounds = java.awt.GraphicsEnvironment
+        .getLocalGraphicsEnvironment().getMaximumWindowBounds();
+    int maxW = Math.min(1200, (int) (screenBounds.width * 0.8));
+    int maxH = (int) (screenBounds.height * 0.5);
     int imgW = capture.getWidth(), imgH = capture.getHeight();
     double scale;
     if (imgW < minW || imgH < minH) {

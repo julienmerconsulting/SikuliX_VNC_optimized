@@ -4,6 +4,7 @@
 
 package org.sikuli.support.runner;
 
+import java.awt.GraphicsEnvironment;
 import java.io.File;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -11,6 +12,9 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import org.sikuli.ide.EditorConsolePane;
 import org.sikuli.ide.SikulixIDE;
 import org.sikuli.script.ImagePath;
+import org.sikuli.support.Commons;
+
+import static org.sikuli.util.CommandArgsEnum.RUN;
 
 public abstract class AbstractLocalFileScriptRunner extends AbstractRunner {
 
@@ -56,9 +60,13 @@ public abstract class AbstractLocalFileScriptRunner extends AbstractRunner {
 
 	public void checkAndSetConsole() {
 		if (!consoleChecked()) {
-			setConsole(SikulixIDE.get().getConsole());
+			// In batch (-r) or headless mode, leave System.out/err pointing at the launching
+			// shell. Touching SikulixIDE.get() would force <clinit> on a JFrame and crash
+			// with HeadlessException on servers / CI / containers without a display.
+			if (!Commons.hasOption(RUN) && !GraphicsEnvironment.isHeadless()) {
+				setConsole(SikulixIDE.get().getConsole());
+			}
 			consoleChecked(true);
 		}
-		
 	}
 }

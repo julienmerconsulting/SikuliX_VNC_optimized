@@ -165,7 +165,11 @@ public class OCR {
     public Options reset() {
       oem = OEM.DEFAULT.ordinal();
       psm = PSM.AUTO.ordinal();
-      language = "eng";
+      // Honour Settings.OcrLanguage if set, else fall back to eng. Keeps a
+      // single source of truth so both globalOptions() and freshly-cloned
+      // Options agree on the default language.
+      String settingsLang = Settings.OcrLanguage;
+      language = (settingsLang == null || settingsLang.isEmpty()) ? "eng" : settingsLang;
       dataPath = null;
       isLightFont = false;
       textHeight = getDefaultTextHeight();
@@ -207,10 +211,27 @@ public class OCR {
      * INTERNAL: validates this Options before OCR usage.
      */
     protected void validate() {
-      if (!new File(dataPath(), language() + ".traineddata").exists()) {
-        throw new SikuliXception(String.format("OCR: language: no %s.traineddata in %s",
-                language(), dataPath()));
+      String lang = language();
+      File trained = new File(dataPath(), lang + ".traineddata");
+      if (!trained.exists()) {
+        List<String> available = availableLanguages();
+        String availMsg = available.isEmpty() ? "(none found)" : String.join(", ", available);
+        String msg = "\n\n"
+            + "══════════════════════════════════════════════════════════════\n"
+            + " OCR language '" + lang + "' is not available.\n"
+            + "══════════════════════════════════════════════════════════════\n\n"
+            + " Looked in: " + dataPath() + "\n"
+            + " Languages currently bundled: " + availMsg + "\n\n"
+            + " Fix:\n"
+            + "  - Pick a bundled language via Settings.OcrLanguage = \"eng\";\n"
+            + "  - Or drop a <lang>.traineddata file into a custom tessdata\n"
+            + "    folder and set Settings.OcrDataPath to its parent.\n"
+            + "══════════════════════════════════════════════════════════════";
+        Debug.error(msg);
+        throw new SikuliXception(String.format("OCR: language: no %s.traineddata in %s (available: %s)",
+                lang, dataPath(), availMsg));
       }
+      maybePrintWelcome(this);
     }
     //</editor-fold>
 
@@ -681,6 +702,59 @@ public class OCR {
    */
   public static void status() {
     Debug.logp("Global settings " + globalOptions().toString());
+  }
+
+  /**
+   * @return the language codes (e.g. "eng", "fra", "chi_sim") for which a
+   *         &lt;lang&gt;.traineddata file exists in the current default tessdata
+   *         folder. Empty list if the folder is missing or unreadable.
+   */
+  public static List<String> availableLanguages() {
+    List<String> out = new ArrayList<>();
+    String dataPath = globalOptions().dataPath();
+    if (dataPath == null) {
+      // OCR not yet exercised — fall back to the Legerix-bundled tessdata
+      // so callers (e.g. IDE Preferences) can populate a language picker
+      // before the first read.
+      dataPath = Commons.getTesseractDataPath();
+    }
+    if (dataPath == null) {
+      return out;
+    }
+    File dir = new File(dataPath);
+    File[] files = dir.listFiles((d, name) -> name.endsWith(".traineddata"));
+    if (files == null) {
+      return out;
+    }
+    for (File f : files) {
+      String name = f.getName();
+      out.add(name.substring(0, name.length() - ".traineddata".length()));
+    }
+    Collections.sort(out);
+    return out;
+  }
+
+  private static volatile boolean welcomePrinted = false;
+
+  private static void maybePrintWelcome(Options opts) {
+    if (welcomePrinted) {
+      return;
+    }
+    welcomePrinted = true;
+    List<String> langs = availableLanguages();
+    String tessVersion = "?";
+    if (Commons.isTesseractLoaded()) {
+      try {
+        Class<?> legerix = Class.forName("io.github.julienmerconsulting.legerix.Legerix");
+        Object v = legerix.getMethod("getTesseractVersion").invoke(null);
+        if (v != null) tessVersion = v.toString();
+      } catch (Throwable ignore) { }
+    }
+    String engine = Commons.isTesseractLoaded()
+        ? "bundled Tesseract " + tessVersion + " (Legerix)"
+        : "system Tesseract";
+    Debug.log(3, "OCR: ready — engine=%s, lang=%s, available=%s",
+        engine, opts.language(), langs.isEmpty() ? "(none)" : String.join(",", langs));
   }
   //</editor-fold>
 

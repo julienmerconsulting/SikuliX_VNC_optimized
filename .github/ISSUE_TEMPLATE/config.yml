@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or usage help
+    url: https://github.com/oculix-org/Oculix/discussions
+    about: For "how do I…" or design discussions, please open a Discussion instead of an issue.
+  - name: SikuliX 1.x archived repo
+    url: https://github.com/RaiMan/SikuliX1
+    about: Bugs that only reproduce on legacy SikuliX 1.x belong upstream — that project is archived but kept for reference.

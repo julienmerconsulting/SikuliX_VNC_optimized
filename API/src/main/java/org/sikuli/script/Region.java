@@ -296,16 +296,22 @@ public class Region extends Element {
    * filter re-render) to ensure the rendered pixels have settled before
    * proceeding with the next action.
    * <p>
-   * Pattern: capture -&gt; compare to previous capture -&gt; if identical for
-   * stabilityMs consecutive milliseconds, return true. Otherwise reset
+   * Pattern: capture -&gt; compare to previous capture -&gt; if (almost) identical
+   * for stabilityMs consecutive milliseconds, return true. Otherwise reset
    * the stability timer and retry.
    *
-   * @param maxWaitMs   maximum time to wait in milliseconds
-   * @param stabilityMs how long the region must remain pixel-identical
-   *                    to be considered stable
+   * @param maxWaitMs      maximum time to wait in milliseconds
+   * @param stabilityMs    how long the region must remain (almost) pixel-identical
+   *                       to be considered stable
+   * @param pixelTolerance fraction of pixels allowed to differ between two
+   *                       captures and still be considered "stable" (0.0 = exact
+   *                       match required, 0.02 = up to 2% pixels can differ).
+   *                       Useful for pages with permanent micro-animations
+   *                       (blinking cursor, sparkline, carousel autoplay) where
+   *                       exact pixel equality would never be reached.
    * @return true if region stabilized within timeout, false otherwise
    */
-  public boolean waitForStable(long maxWaitMs, long stabilityMs) {
+  public boolean waitForStable(long maxWaitMs, long stabilityMs, double pixelTolerance) {
     long startTime = System.currentTimeMillis();
     long lastChangeTime = startTime;
     BufferedImage previousImage = null;
@@ -318,9 +324,10 @@ public class Region extends Element {
         continue;
       }
 
-      if (previousImage != null && imagesEqual(previousImage, currentImage)) {
+      if (previousImage != null && imageDistance(previousImage, currentImage) <= pixelTolerance) {
         if (System.currentTimeMillis() - lastChangeTime >= stabilityMs) {
-          Debug.log(3, "Region: stable after %d ms", System.currentTimeMillis() - startTime);
+          Debug.log(3, "Region: stable after %d ms (tolerance=%.3f)",
+              System.currentTimeMillis() - startTime, pixelTolerance);
           return true;
         }
       } else {
@@ -329,17 +336,76 @@ public class Region extends Element {
       previousImage = currentImage;
       try { Thread.sleep(100); } catch (InterruptedException ignored) {}
     }
-    Debug.log(3, "Region: did not stabilize within %d ms", maxWaitMs);
+    Debug.log(3, "Region: did not stabilize within %d ms (tolerance=%.3f)",
+        maxWaitMs, pixelTolerance);
     return false;
   }
 
   /**
-   * Wait for stability with default thresholds: 5000ms max wait, 500ms stable.
+   * Wait for stability requiring exact pixel match (no tolerance).
+   * Equivalent to {@link #waitForStable(long, long, double)} with tolerance 0.
+   *
+   * @param maxWaitMs   maximum time to wait in milliseconds
+   * @param stabilityMs how long the region must remain pixel-identical
+   * @return true if region stabilized within timeout, false otherwise
+   */
+  public boolean waitForStable(long maxWaitMs, long stabilityMs) {
+    return waitForStable(maxWaitMs, stabilityMs, 0.0);
+  }
+
+  /**
+   * Wait for stability with default thresholds: 5000ms max wait, 500ms stable,
+   * 1% pixel tolerance (handles common micro-animations like blinking cursors
+   * without forcing the caller to think about it).
    *
    * @return true if region stabilized within 5s, false otherwise
    */
   public boolean waitForStable() {
-    return waitForStable(5000, 500);
+    return waitForStable(5000, 500, 0.01);
+  }
+
+  /**
+   * Compute the fraction of pixels that differ between two BufferedImages.
+   * Returns 1.0 if dimensions mismatch or either is null.
+   * Uses DataBuffer fast path (byte/int) when available, falls back to per-pixel.
+   */
+  protected static double imageDistance(BufferedImage a, BufferedImage b) {
+    if (a == null || b == null) return 1.0;
+    if (a.getWidth() != b.getWidth() || a.getHeight() != b.getHeight()) return 1.0;
+    int totalPixels = a.getWidth() * a.getHeight();
+    if (totalPixels == 0) return 0.0;
+    int diffCount = 0;
+    try {
+      DataBuffer da = a.getRaster().getDataBuffer();
+      DataBuffer db = b.getRaster().getDataBuffer();
+      if (da instanceof DataBufferInt && db instanceof DataBufferInt) {
+        int[] aa = ((DataBufferInt) da).getData();
+        int[] bb = ((DataBufferInt) db).getData();
+        int len = Math.min(aa.length, bb.length);
+        for (int i = 0; i < len; i++) {
+          if (aa[i] != bb[i]) diffCount++;
+        }
+        return (double) diffCount / Math.max(len, 1);
+      }
+      if (da instanceof DataBufferByte && db instanceof DataBufferByte) {
+        byte[] aa = ((DataBufferByte) da).getData();
+        byte[] bb = ((DataBufferByte) db).getData();
+        int len = Math.min(aa.length, bb.length);
+        int bpp = Math.max(1, len / Math.max(totalPixels, 1));
+        for (int i = 0; i + bpp <= len; i += bpp) {
+          for (int j = 0; j < bpp; j++) {
+            if (aa[i + j] != bb[i + j]) { diffCount++; break; }
+          }
+        }
+        return (double) diffCount / Math.max(totalPixels, 1);
+      }
+    } catch (Throwable ignored) {}
+    for (int y = 0; y < a.getHeight(); y++) {
+      for (int x = 0; x < a.getWidth(); x++) {
+        if (a.getRGB(x, y) != b.getRGB(x, y)) diffCount++;
+      }
+    }
+    return (double) diffCount / Math.max(totalPixels, 1);
   }
 
   protected static boolean imagesEqual(BufferedImage a, BufferedImage b) {

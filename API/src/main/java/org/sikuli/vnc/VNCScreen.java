@@ -230,15 +230,19 @@ public class VNCScreen extends Region implements IScreen, EventObserver {
 
   /**
    * Wait for the VNC screen to stabilize by comparing successive captures.
-   * Overrides {@link Region#waitForStable(long, long)} to force a framebuffer
-   * refresh before each capture (otherwise the VNC client may serve cached pixels).
+   * Overrides {@link Region#waitForStable(long, long, double)} to force a
+   * framebuffer refresh before each capture (otherwise the VNC client may
+   * serve cached pixels).
    *
-   * @param maxWaitMs maximum time to wait in milliseconds
-   * @param stabilityMs how long the screen must remain unchanged to be considered stable
+   * @param maxWaitMs      maximum time to wait in milliseconds
+   * @param stabilityMs    how long the screen must remain (almost) unchanged
+   * @param pixelTolerance fraction of pixels allowed to differ (0.0 = exact,
+   *                       0.02 = up to 2% can differ; useful for permanent
+   *                       micro-animations)
    * @return true if screen stabilized within the timeout, false otherwise
    */
   @Override
-  public boolean waitForStable(long maxWaitMs, long stabilityMs) {
+  public boolean waitForStable(long maxWaitMs, long stabilityMs, double pixelTolerance) {
     if (!isRunning()) {
       return false;
     }
@@ -252,9 +256,10 @@ public class VNCScreen extends Region implements IScreen, EventObserver {
       Rectangle bounds = getBounds();
       BufferedImage currentImage = client.getFrameBuffer(bounds.x, bounds.y, bounds.width, bounds.height);
 
-      if (previousImage != null && imagesEqual(previousImage, currentImage)) {
+      if (previousImage != null && imageDistance(previousImage, currentImage) <= pixelTolerance) {
         if (System.currentTimeMillis() - lastChangeTime >= stabilityMs) {
-          Debug.log(3, "VNCScreen: stable after %d ms", System.currentTimeMillis() - startTime);
+          Debug.log(3, "VNCScreen: stable after %d ms (tolerance=%.3f)",
+              System.currentTimeMillis() - startTime, pixelTolerance);
           return true;
         }
       } else {
@@ -263,7 +268,8 @@ public class VNCScreen extends Region implements IScreen, EventObserver {
       previousImage = currentImage;
       try { Thread.sleep(100); } catch (InterruptedException ignored) {}
     }
-    Debug.log(3, "VNCScreen: did not stabilize within %d ms", maxWaitMs);
+    Debug.log(3, "VNCScreen: did not stabilize within %d ms (tolerance=%.3f)",
+        maxWaitMs, pixelTolerance);
     return false;
   }
 

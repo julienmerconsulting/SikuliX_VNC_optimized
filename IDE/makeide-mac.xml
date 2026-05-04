@@ -18,10 +18,6 @@
       <unpackOptions>
         <excludes>
           <exclude>**/win32-x86/**</exclude>
-          <!-- Do NOT exclude **/tessdata/** — Legerix bundles its
-               .traineddata files (eng/fra/spa/chi_sim/hin) in /tessdata/ at
-               the jar root and reads them during loadNatives(). Stripping
-               that folder breaks the native loader entirely. -->
           <exclude>/nu/pattern/opencv/linux/**</exclude>
           <exclude>/nu/pattern/opencv/windows/**</exclude>
         </excludes>
@@ -29,7 +25,21 @@
       <excludes>
         <exclude>org.jruby:jruby-complete</exclude>
         <exclude>org.apache.pdfbox:*</exclude>
+        <exclude>io.github.oculix-org:legerix</exclude>
       </excludes>
+      <scope>runtime</scope>
+    </dependencySet>
+    <!-- Legerix unpacked LAST so its /tessdata/{eng,fra,spa,chi_sim,hin}.traineddata
+         and /darwin*/* natives win over Tess4J's bundled tessdata
+         (which only ships eng + osd and would otherwise overwrite Legerix's
+         multilingual set during unpack). -->
+    <dependencySet>
+      <outputDirectory>/</outputDirectory>
+      <useProjectArtifact>false</useProjectArtifact>
+      <unpack>true</unpack>
+      <includes>
+        <include>io.github.oculix-org:legerix</include>
+      </includes>
       <scope>runtime</scope>
     </dependencySet>
   </dependencySets>

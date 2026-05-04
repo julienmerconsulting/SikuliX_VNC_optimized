@@ -7,7 +7,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.oculix-org</groupId>
   <artifactId>oculix</artifactId>
-  <version>3.0.3-rc3</version>
+  <version>3.0.3-rc4</version>
   <name>OculiX</name>
   <description>Visual automation - if you can see it, you can automate it</description>
   <url>https://github.com/oculix-org/Oculix</url>

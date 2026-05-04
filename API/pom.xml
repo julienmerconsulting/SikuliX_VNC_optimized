@@ -121,15 +121,6 @@
       <version>${versiontess4j}</version>
     </dependency>
     <dependency>
-      <groupId>io.github.oculix-org</groupId>
-      <artifactId>legerix</artifactId>
-      <version>5.5.0-4</version>
-      <!-- Bundled Tesseract/Leptonica natives + tessdata (eng, fra, spa,
-           chi_sim, hin) for all supported platforms. Legerix.loadNatives()
-           extracts the right binaries to a cache dir and loads them via JNA,
-           so users no longer need a system-installed tesseract. -->
-    </dependency>
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-nop</artifactId>
       <version>2.0.17</version>
@@ -168,6 +159,18 @@
       <artifactId>junit-jupiter</artifactId>
       <version>6.0.3</version>
       <scope>test</scope>
+    </dependency>
+    <!-- Legerix declared LAST so Maven Assembly unpacks it last in the fat-jar,
+         letting its /tessdata/{eng,fra,spa,chi_sim,hin}.traineddata and
+         /<platform>/* native libs (libtesseract + libleptonica + all their
+         vcpkg-bundled runtime deps) win over Tess4J's bundled tessdata
+         (which only ships eng + osd). Combined with the dedicated final
+         dependencySet in makeapi-*.xml / makeide-*.xml as a belt-and-
+         suspenders. Do NOT move this dependency back up. -->
+    <dependency>
+      <groupId>io.github.oculix-org</groupId>
+      <artifactId>legerix</artifactId>
+      <version>5.5.0-4</version>
     </dependency>
   </dependencies>
 

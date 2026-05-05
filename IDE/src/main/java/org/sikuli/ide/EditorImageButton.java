@@ -402,9 +402,25 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
 
   public static void renameImage(String name, Map<String, Object> options) {
     if (name == null || name.trim().isEmpty()) return;
-    File oldFile = (File) options.get("image");
+    // Bug fix: the options map uses IButton.FILE as the key (everywhere else
+    // in this class — see lines 64, 72, 82, 129, 162, 171, 208, 211, 388,
+    // 396). The previous lookup `options.get("image")` was checking for the
+    // string literal "image" which is never set as a key, so oldFile was
+    // always null → "no source file in options" → silent return → rename
+    // never happened on disk OR in the script text.
+    File oldFile = (File) options.get(IButton.FILE);
     if (oldFile == null) {
-      Commons.error("renameImage: no source file in options");
+      // Legacy fallback in case some external caller still uses the string
+      // literal — avoids a regression for any custom flow we haven't seen.
+      oldFile = (File) options.get("image");
+    }
+    if (oldFile == null) {
+      Commons.error("renameImage: no source file in options (keys=%s)",
+          options.keySet());
+      return;
+    }
+    if (!oldFile.exists()) {
+      Commons.error("renameImage: source file does not exist on disk: %s", oldFile);
       return;
     }
     String newBaseName = name.trim();
@@ -414,7 +430,11 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
       newBaseName += "." + FilenameUtils.getExtension(oldFile.getName()).toLowerCase();
     }
     File newFile = new File(oldFile.getParentFile(), newBaseName);
-    boolean overwritten = newFile.exists() && !newFile.equals(oldFile);
+    if (newFile.equals(oldFile)) {
+      // Same name — nothing to do, no error.
+      return;
+    }
+    boolean overwritten = newFile.exists();
     try {
       java.nio.file.Files.move(oldFile.toPath(), newFile.toPath(),
           java.nio.file.StandardCopyOption.REPLACE_EXISTING);
@@ -423,6 +443,8 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
           oldFile, newFile, e.getMessage());
       return;
     }
+    // Update both keys so subsequent lookups via either path work.
+    options.put(IButton.FILE, newFile);
     options.put("image", newFile);
     SikulixIDE.get().reparseOnRenameImage(oldFile.getAbsolutePath(),
         newFile.getAbsolutePath(), overwritten);

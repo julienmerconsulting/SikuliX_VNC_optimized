@@ -1533,12 +1533,55 @@ public class SikulixIDE extends JFrame {
 
     private void copyContent(PaneContext currentContext, PaneContext newContext, boolean asBundle) throws
             IOException {
+      // Save-As bug fix: previously this method assumed FileUtils.copyDirectory
+      // would silently DTRT, but in practice it could leave the destination
+      // empty without throwing (e.g. when the destination folder pre-exists
+      // from setFile() but the source folder is itself empty due to ordering
+      // races). Now we copy the .py explicitly first, then enumerate every
+      // sibling file (.png images, fixtures, anything else in the bundle)
+      // and copy each one individually with REPLACE_EXISTING. Logs each step
+      // so a missing image is instantly diagnosable in the message panel.
       if (asBundle) {
-        FileUtils.copyDirectory(currentContext.folder, newContext.folder);
+        File srcFolder = currentContext.folder;
+        File dstFolder = newContext.folder;
+        if (!dstFolder.exists()) {
+          dstFolder.mkdirs();
+        }
+        // 1. Copy the script file, renamed in-place to the new base name.
         final String oldName = currentContext.file.getName();
         final String newName = FilenameUtils.getBaseName(newContext.file.getName());
         final String ext = "." + FilenameUtils.getExtension(oldName);
-        new File(newContext.folder, oldName).renameTo(new File(newContext.folder, newName + ext));
+        File srcScript = new File(srcFolder, oldName);
+        File dstScript = new File(dstFolder, newName + ext);
+        if (srcScript.isFile()) {
+          FileUtils.copyFile(srcScript, dstScript);
+        } else {
+          // Fallback: source script is open in memory only; flush the active
+          // pane's text directly into the destination.
+          currentContext.getPane().write(new BufferedWriter(
+              new OutputStreamWriter(new FileOutputStream(dstScript), "UTF8")));
+        }
+        // 2. Copy every other file in the source bundle (images, .json,
+        // workspace metadata, anything the user dropped there).
+        File[] siblings = srcFolder.listFiles();
+        int copied = 0;
+        if (siblings != null) {
+          for (File sibling : siblings) {
+            if (sibling.equals(srcScript)) continue;       // already handled above
+            if (!sibling.isFile()) continue;               // skip subdirs for now
+            File dst = new File(dstFolder, sibling.getName());
+            try {
+              java.nio.file.Files.copy(sibling.toPath(), dst.toPath(),
+                  java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+              copied++;
+            } catch (IOException ioex) {
+              log("PaneContext: copyContent: skipped %s (%s)",
+                  sibling.getName(), ioex.getMessage());
+            }
+          }
+        }
+        log("PaneContext: copyContent: %s -> %s (%d sibling file(s) copied)",
+            srcFolder, dstFolder, copied);
       } else {
         FileUtils.copyFile(currentContext.file, newContext.file);
       }

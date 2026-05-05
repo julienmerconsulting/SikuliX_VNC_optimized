@@ -90,32 +90,48 @@ public class EditorConsolePane extends JPanel implements Runnable {
     textArea.setTransferHandler(new JTextPaneHTMLTransferHandler());
     textArea.setEditable(false);
 
-    // Theme-independent console: fixed white background regardless of the
-    // OculiX Dark / Light theme. Logs read identically in both modes — terminal
-    // muscle memory, stable stdout/stderr coloring, no jarring inversion.
-    textArea.setBackground(Color.WHITE);
-    textArea.setForeground(new Color(0x0B, 0x15, 0x38));         // paper-800 (deep navy text)
-    textArea.setCaretColor(new Color(0x0F, 0x8D, 0xDB));         // OX_CYAN_500 (light variant)
+    // Theme-aware console: paper-light (#F8FAFD) in OculiX Light, ink-deep
+    // (#05081A) in OculiX Dark. The bg comes from the same paper100 / ink900
+    // tokens as the sidebar — visual cohesion across the IDE: one continuous
+    // navy in dark, one continuous bluish-white in light.
+    boolean dark = isDarkLaf();
+    Color bg = dark ? new Color(0x05, 0x08, 0x1A) : new Color(0xF8, 0xFA, 0xFD);
+    Color fg = dark ? new Color(0xE6, 0xEA, 0xFB) : new Color(0x0B, 0x15, 0x38);
+    Color caret = dark ? new Color(0x1E, 0xA5, 0xFF) : new Color(0x0F, 0x8D, 0xDB);
+
+    textArea.setBackground(bg);
+    textArea.setForeground(fg);
+    textArea.setCaretColor(caret);
     textArea.setFont(new Font("JetBrains Mono", Font.PLAIN, 12));
     textArea.setMargin(new Insets(8, 12, 8, 12));
 
-    // Default body color in the HTML stylesheet, plus brand-colored marker
-    // classes that line wrappers can use later (info / ok / err / match).
-    // All colors picked for AA contrast on a white background.
+    // CSS marker classes (info / ok / err / match / ts / tag / dim) — picked
+    // per-theme for AA contrast against the active bg. Future log-line wrappers
+    // will inject these classes onto incoming lines.
+    String defaultColor = dark ? "#E6EAFB" : "#0B1538";
+    String tsColor      = dark ? "#4456A0" : "#8794B7";
+    String tagColor     = dark ? "#7D8BC9" : "#5A6993";
+    String infoColor    = dark ? "#B9C2E8" : "#2F3D6E";
+    String okColor      = dark ? "#7DE356" : "#2EA417";
+    String errColor     = dark ? "#E53935" : "#C92A26";
+    String matchColor   = dark ? "#7CCBFF" : "#0F8DDB";
+    String dimColor     = dark ? "#4456A0" : "#8794B7";
+
     javax.swing.text.html.StyleSheet css = ((HTMLEditorKit) textArea.getEditorKit()).getStyleSheet();
-    css.addRule("body { color: #0B1538; font-family: 'JetBrains Mono', monospace; font-size: 12px; }");
-    css.addRule(".ts   { color: #8794B7; }");                    // timestamp gutter, dim
-    css.addRule(".tag  { color: #5A6993; }");                    // [startup] [ocr] tags
-    css.addRule(".info { color: #2F3D6E; }");                    // default info text
-    css.addRule(".ok   { color: #2EA417; }");                    // lime, darkened for white bg
-    css.addRule(".err  { color: #C92A26; }");                    // red, darkened for white bg
-    css.addRule(".match{ color: #0F8DDB; }");                    // cyan, darkened for white bg
-    css.addRule(".dim  { color: #8794B7; }");
+    css.addRule("body { color: " + defaultColor + "; font-family: 'JetBrains Mono', monospace; font-size: 12px; }");
+    css.addRule(".ts   { color: " + tsColor + "; }");
+    css.addRule(".tag  { color: " + tagColor + "; }");
+    css.addRule(".info { color: " + infoColor + "; }");
+    css.addRule(".ok   { color: " + okColor + "; }");
+    css.addRule(".err  { color: " + errColor + "; }");
+    css.addRule(".match{ color: " + matchColor + "; }");
+    css.addRule(".dim  { color: " + dimColor + "; }");
 
     setLayout(new BorderLayout());
+    setBackground(bg);
     JScrollPane sp = new JScrollPane(textArea);
     sp.setBorder(BorderFactory.createEmptyBorder());
-    sp.getViewport().setBackground(Color.WHITE);
+    sp.getViewport().setBackground(bg);
     add(sp, BorderLayout.CENTER);
 
     //Create the popup menu.
@@ -132,6 +148,12 @@ public class EditorConsolePane extends JPanel implements Runnable {
     //Add listener to components that can bring up popup menus.
     MouseListener popupListener = new PopupListener(popup);
     textArea.addMouseListener(popupListener);
+  }
+
+  /** True when the active LaF is the OculiX Dark theme. */
+  private static boolean isDarkLaf() {
+    String name = UIManager.getLookAndFeel().getName();
+    return name != null && name.toLowerCase(java.util.Locale.ROOT).contains("dark");
   }
 
   private HTMLEditorKit editorKitWithLineWrap() {

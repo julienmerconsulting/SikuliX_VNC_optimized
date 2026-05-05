@@ -44,6 +44,8 @@ public class WelcomeTab extends JPanel {
   private final ActionListener onOpenWorkspace;
 
   private java.awt.image.BufferedImage hazeCache;
+  private java.awt.image.BufferedImage geckoCache;
+  private static java.awt.image.BufferedImage geckoSource;
 
   public WelcomeTab(ActionListener onNew, ActionListener onOpen,
                     ActionListener onNewWorkspace, ActionListener onOpenWorkspace) {
@@ -53,7 +55,10 @@ public class WelcomeTab extends JPanel {
     this.onOpenWorkspace = onOpenWorkspace;
     setLayout(new MigLayout("fill, wrap 1", "[center]", "push[]push"));
     setOpaque(true);
-    setBackground(UIManager.getColor("Panel.background"));
+    // Welcome is the brand surface: always navy + cyan/violet haze, even when
+    // the user picks the OculiX Light theme elsewhere. The home page is the
+    // brand statement — it doesn't follow the chrome theme.
+    setBackground(OculixColors.OX_INK_900);
     buildUI();
   }
 
@@ -172,8 +177,48 @@ public class WelcomeTab extends JPanel {
     if (w <= 0 || h <= 0) return;
     if (hazeCache == null || hazeCache.getWidth() != w || hazeCache.getHeight() != h) {
       hazeCache = renderHaze(w, h);
+      geckoCache = renderGecko(w, h);
     }
     g.drawImage(hazeCache, 0, 0, null);
+    if (geckoCache != null) {
+      g.drawImage(geckoCache, 0, 0, null);
+    }
+  }
+
+  /**
+   * Loads the gecko mascot once per JVM, then composes it on the right edge
+   * of the panel at 28% alpha — fills the empty space without competing
+   * with the hero text. Cached at panel size, regenerated only on resize.
+   */
+  private java.awt.image.BufferedImage renderGecko(int w, int h) {
+    if (geckoSource == null) {
+      try {
+        java.net.URL url = WelcomeTab.class.getResource("/icons/gecko_cyclope.png");
+        if (url != null) geckoSource = javax.imageio.ImageIO.read(url);
+      } catch (Exception ignored) {
+        return null;
+      }
+    }
+    if (geckoSource == null) return null;
+
+    java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(
+        w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+    Graphics2D g2 = out.createGraphics();
+    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+    // Target ~62% of panel height, capped at 580px so it doesn't scream on
+    // big screens. Anchored on the right edge with a comfortable margin.
+    int targetH = Math.min((int) (h * 0.62), 580);
+    double scale = (double) targetH / geckoSource.getHeight();
+    int targetW = (int) (geckoSource.getWidth() * scale);
+    int x = w - targetW + targetW / 6;       // bleed slightly off the right edge
+    int y = (h - targetH) / 2;
+
+    g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.28f));
+    g2.drawImage(geckoSource, x, y, targetW, targetH, null);
+    g2.dispose();
+    return out;
   }
 
   private static java.awt.image.BufferedImage renderHaze(int w, int h) {

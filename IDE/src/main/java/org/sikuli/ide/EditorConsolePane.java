@@ -89,8 +89,24 @@ public class EditorConsolePane extends JPanel implements Runnable {
     textArea.setEditorKit(kit);
     textArea.setTransferHandler(new JTextPaneHTMLTransferHandler());
     textArea.setEditable(false);
+
+    // Theme-aware surface — only setBackground / setCaretColor on the
+    // JComponent, NOT touching the HTMLEditorKit stylesheet (a previous
+    // attempt added @addRule("body { font-family: 'JetBrains Mono', 12px... }")
+    // which made Swing's limited CSS parser collide with the htmlize()
+    // inline <pre style="..."> output and broke log rendering completely).
+    boolean dark = isDarkLaf();
+    Color bg = dark ? new Color(0x05, 0x08, 0x1A) : new Color(0xF8, 0xFA, 0xFD);
+    Color caret = dark ? new Color(0x1E, 0xA5, 0xFF) : new Color(0x0F, 0x8D, 0xDB);
+    textArea.setBackground(bg);
+    textArea.setCaretColor(caret);
+
     setLayout(new BorderLayout());
-    add(new JScrollPane(textArea), BorderLayout.CENTER);
+    setBackground(bg);
+    JScrollPane sp = new JScrollPane(textArea);
+    sp.setBorder(BorderFactory.createEmptyBorder());
+    sp.getViewport().setBackground(bg);
+    add(sp, BorderLayout.CENTER);
 
     //Create the popup menu.
     popup = new JPopupMenu();
@@ -106,6 +122,12 @@ public class EditorConsolePane extends JPanel implements Runnable {
     //Add listener to components that can bring up popup menus.
     MouseListener popupListener = new PopupListener(popup);
     textArea.addMouseListener(popupListener);
+  }
+
+  /** True when the active LaF is the OculiX Dark theme. */
+  private static boolean isDarkLaf() {
+    String name = UIManager.getLookAndFeel().getName();
+    return name != null && name.toLowerCase(java.util.Locale.ROOT).contains("dark");
   }
 
   private HTMLEditorKit editorKitWithLineWrap() {
@@ -255,16 +277,27 @@ public class EditorConsolePane extends JPanel implements Runnable {
         .replace("<", "&lt;")
         .replace(">", "&gt;");
 
-    String color = "color: #BBBBBB;";
+    // Picked per-theme so the existing [debug] / [info] / [log] / [error]
+    // tag detection still drives the color, but the actual hex is chosen
+    // for AA contrast against the active console bg (paper-100 in light,
+    // ink-900 in dark).
+    boolean dark = isDarkLaf();
+    String normal = dark ? "#BBBBBB" : "#2F3D6E";
+    String error  = dark ? "#FF6B6B" : "#C92A26";
+    String debug  = dark ? "#C0A000" : "#8B6500";
+    String log    = dark ? "#3DDBA4" : "#2EA417";
+    String info   = dark ? "#6CB6FF" : "#0F8DDB";
+
+    String color = "color: " + normal + ";";
 
     for (String line : msg.split(lineSep)) {
       Matcher m = patMsgCat.matcher(line);
       if (m.matches()) {
         String logType = m.group(1).toLowerCase();
-        if (logType.contains("error")) color = "color: #FF6B6B;";
-        else if (logType.contains("debug")) color = "color: #C0A000;";
-        else if (logType.contains("log")) color = "color: #3DDBA4;";
-        else if (logType.contains("info")) color = "color: #6CB6FF;";
+        if (logType.contains("error")) color = "color: " + error + ";";
+        else if (logType.contains("debug")) color = "color: " + debug + ";";
+        else if (logType.contains("log")) color = "color: " + log + ";";
+        else if (logType.contains("info")) color = "color: " + info + ";";
       }
       String font = "font-family:monospace; font-size: medium;";
       int margin = 0;

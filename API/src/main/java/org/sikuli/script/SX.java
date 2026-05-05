@@ -329,24 +329,21 @@ public class SX {
       }
     }
     Object returnValue = popRun.getReturnValue();
-    // Bug fix: ScheduledFuture.isDone() is true after BOTH a normal completion
-    // AND a cancel() (per Javadoc). The previous code did:
-    //   if (timeoutJob.isDone()) { returnValue = null; } else { cancel(false); }
-    // — which read as "if the timeout fired, treat the result as null".
-    // But by the time we get here, popRun.run() has finished synchronously
-    // and the cancel below makes isDone() == true unconditionally — so the
-    // condition was ALWAYS true and we always nuked returnValue back to null.
-    // Effect: every SX.input call returned null even when the user typed text
-    // and clicked OK. Reproduced in the ImageButton inline rename flow.
+    // Bug fix v2: timeoutJob.cancel(false) is already called in the finally
+    // block above (lines 317 and 327). Calling cancel() AGAIN here returns
+    // false because the task was already cancelled — Future.cancel returns
+    // false 'if the task could not be cancelled, typically because it has
+    // already completed normally OR has been cancelled previously'. The v1
+    // fix used `cancel()`'s return value as the discriminator and read this
+    // false as 'timeout fired' — same null-bug as before.
     //
-    // Correct discriminator: isCancelled(). If we successfully cancel BEFORE
-    // the scheduled dispose ran, isCancelled() is true and the popup
-    // completed normally → keep returnValue. If we couldn't cancel (the
-    // timeout already fired), isCancelled() is false and isDone() is true
-    // because of normal task termination → returnValue is null because the
-    // forced dispose() bypassed the user's OK.
-    boolean cancelled = timeoutJob.cancel(false);
-    if (!cancelled && timeoutJob.isDone()) {
+    // Correct check: isCancelled() reflects the cancellation status
+    // regardless of how many times cancel was called. If the task was
+    // successfully cancelled at any point, isCancelled() is true → popup
+    // completed normally → keep returnValue. If the task ran to completion
+    // (timeout fired and dispose() forced the dialog closed), isCancelled()
+    // is false, isDone() is true → returnValue is bogus → null.
+    if (timeoutJob.isDone() && !timeoutJob.isCancelled()) {
       returnValue = null;     // dispose() ran first, user input was lost
     }
     // Do NOT shutdown the singleton TIMEOUT_EXECUTOR here: it is reused by

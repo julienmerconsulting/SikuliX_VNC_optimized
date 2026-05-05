@@ -45,6 +45,10 @@ public enum CommandArgsEnum {
 	 */
 	LOAD("load", "l", "one or more foobar.sikuli", "preload scripts in IDE", true),
 	/**
+	 * Auto-runs the preloaded script (requires a single -l file)
+	 */
+	EXECUTE("execute", "e", null, "auto-run the preloaded script (requires a single -l file)"),
+	/**
 	 * run as server
 	 */
 	SERVER("server", "s", "ip : port or spec file", "run as server", true),

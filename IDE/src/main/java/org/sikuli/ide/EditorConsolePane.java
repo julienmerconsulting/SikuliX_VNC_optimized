@@ -37,6 +37,7 @@ import org.sikuli.basics.Debug;
 // RJHM van den Bergh , rvdb@comweb.nl
 import org.sikuli.basics.PreferencesUser;
 import org.sikuli.support.Commons;
+import org.sikuli.support.ide.SikuliIDEI18N;
 import org.sikuli.util.CommandArgsEnum;
 
 public class EditorConsolePane extends JPanel implements Runnable {
@@ -94,7 +95,7 @@ public class EditorConsolePane extends JPanel implements Runnable {
 
     //Create the popup menu.
     popup = new JPopupMenu();
-    JMenuItem menuItem = new JMenuItem("Clear messages");
+    JMenuItem menuItem = new JMenuItem(SikuliIDEI18N._I("editorConsoleClear"));
     // Add ActionListener that clears the textArea
     menuItem.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {

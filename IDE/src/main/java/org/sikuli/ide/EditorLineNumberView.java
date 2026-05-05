@@ -12,6 +12,7 @@ import javax.swing.event.*;
 import javax.swing.text.*;
 
 import org.sikuli.basics.Debug;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 public class EditorLineNumberView extends JComponent implements MouseListener {
 
@@ -68,7 +69,7 @@ public class EditorLineNumberView extends JComponent implements MouseListener {
 
   private void init() {
     addMouseListener(this);
-    setToolTipText("RightClick for options - left to jump to - double to select");
+    setToolTipText(SikuliIDEI18N._I("editorLineNumberTip"));
     popMenuLineNumber = new SikuliIDEPopUpMenu("POP_LINE", this);
     if (!popMenuLineNumber.isValidMenu()) {
       popMenuLineNumber = null;

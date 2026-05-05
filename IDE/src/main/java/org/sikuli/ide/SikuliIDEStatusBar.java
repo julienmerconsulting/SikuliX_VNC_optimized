@@ -8,6 +8,7 @@ import javax.swing.*;
 
 import net.miginfocom.swing.MigLayout;
 import org.sikuli.support.Commons;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 import java.util.Date;
 
@@ -16,7 +17,7 @@ class SikuliIDEStatusBar extends JPanel {
   private JLabel _lblMsg;
   private JLabel _lblCaretPos;
   private JLabel _lblOcrStatus;
-  private String currentContentType = "???";
+  private String currentContentType = SikuliIDEI18N._I("statusbar.contentTypeUnknown");
   private int currentRow;
   private int currentCol;
   private long starting;
@@ -50,7 +51,7 @@ class SikuliIDEStatusBar extends JPanel {
     }
     currentContentType = contentType.replaceFirst(".*?\\/", "");
     if (currentContentType.equals("null")) {
-      currentContentType = "text";
+      currentContentType = SikuliIDEI18N._I("statusbar.contentTypeText");
     }
     setCaretPosition(-1, 0);
   }
@@ -60,7 +61,7 @@ class SikuliIDEStatusBar extends JPanel {
       currentRow = row;
       currentCol = col;
     }
-    _lblCaretPos.setText(String.format("[%s]  R: %d  C: %d", currentContentType, currentRow, currentCol));
+    _lblCaretPos.setText(SikuliIDEI18N._I("statusbar.caretFormat", currentContentType, currentRow, currentCol));
     if (starting > 0 && new Date().getTime() - starting > 3000) {
       resetMessage();
     }

@@ -5,6 +5,7 @@ package org.sikuli.ide.ui;
 
 import net.miginfocom.swing.MigLayout;
 import org.sikuli.support.Commons;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 import javax.swing.*;
 import java.awt.*;
@@ -55,7 +56,7 @@ public class WelcomeTab extends JPanel {
     title.setFont(UIManager.getFont("h1.font"));
     headerPanel.add(title);
 
-    JLabel subtitle = new JLabel("Visual Automation — Powered by SikuliX");
+    JLabel subtitle = new JLabel(SikuliIDEI18N._I("welcome.subtitle"));
     subtitle.setFont(UIManager.getFont("h4.font"));
     subtitle.setForeground(UIManager.getColor("Label.disabledForeground"));
     headerPanel.add(subtitle);
@@ -69,15 +70,15 @@ public class WelcomeTab extends JPanel {
         BorderFactory.createLineBorder(UIManager.getColor("Separator.foreground"), 1),
         BorderFactory.createEmptyBorder(16, 16, 16, 16)));
 
-    JLabel quickStartLabel = new JLabel("Quick Start");
+    JLabel quickStartLabel = new JLabel(SikuliIDEI18N._I("welcome.quickStart"));
     quickStartLabel.setFont(UIManager.getFont("h3.font"));
     quickStartPanel.add(quickStartLabel, "gapbottom 8");
 
-    quickStartPanel.add(createActionLink("\uD83D\uDCC4  New Script", "Ctrl+N", onNew));
-    quickStartPanel.add(createActionLink("\uD83D\uDCC2  Open Script", "Ctrl+O", onOpen));
+    quickStartPanel.add(createActionLink(SikuliIDEI18N._I("welcome.newScript"), "Ctrl+N", onNew));
+    quickStartPanel.add(createActionLink(SikuliIDEI18N._I("welcome.openScript"), "Ctrl+O", onOpen));
     quickStartPanel.add(new JSeparator(), "growx, gaptop 8, gapbottom 8");
-    quickStartPanel.add(createActionLink("\uD83D\uDCC1  New Workspace", "", onNewWorkspace));
-    quickStartPanel.add(createActionLink("\uD83D\uDCC2  Open Workspace", "", onOpenWorkspace));
+    quickStartPanel.add(createActionLink(SikuliIDEI18N._I("welcome.newWorkspace"), "", onNewWorkspace));
+    quickStartPanel.add(createActionLink(SikuliIDEI18N._I("welcome.openWorkspace"), "", onOpenWorkspace));
 
     add(quickStartPanel);
 

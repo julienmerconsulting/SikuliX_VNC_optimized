@@ -583,7 +583,7 @@ public class SikulixIDE extends JFrame {
         KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_R, InputEvent.ALT_DOWN_MASK | scMask),
         e -> btnRunSlow.runCurrentScript()));
     sub.addSeparator();
-    scriptDependentItems.add(sub.addItem("\u25B6  Run selection",
+    scriptDependentItems.add(sub.addItem("\u25B6  " + _I("menuRunRunSelection"),
         KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK | scMask),
         e -> getCurrentCodePane().runSelection()));
     return sub;
@@ -781,7 +781,7 @@ public class SikulixIDE extends JFrame {
         );
         welcomeTab.putClientProperty("isClosable", false);
       }
-      tabs.addTab("Welcome", welcomeTab);
+      tabs.addTab(_I("welcome.tabTitle"), welcomeTab);
       welcomeShowing = true;
       updateScriptDependentItems();
       if (sidebar != null) {
@@ -2815,7 +2815,7 @@ public class SikulixIDE extends JFrame {
             KeyStroke.getKeyStroke(KeyEvent.VK_R,
                     InputEvent.ALT_DOWN_MASK | scMask),
             new RunAction(RunAction.RUN_SHOW_ACTIONS)));
-    _runMenu.add(createMenuItem("Run selection",
+    _runMenu.add(createMenuItem(_I("menuRunRunSelection"),
             KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_R,
                     InputEvent.SHIFT_DOWN_MASK | scMask),
             new RunAction(RunAction.RUN_SELECTION)));
@@ -3778,7 +3778,7 @@ public class SikulixIDE extends JFrame {
   private void initMessageArea() {
     messages.init(SHOULD_WRAP_LINE);
     messageArea = new JTabbedPane();
-    messageArea.addTab(_I("paneMessage"), null, messages, "DoubleClick to hide/unhide");
+    messageArea.addTab(_I("paneMessage"), null, messages, _I("paneMessageTip"));
     if (Settings.isWindows() || Settings.isLinux()) {
       messageArea.setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));
     }

@@ -4,6 +4,7 @@
 package org.sikuli.ide.ui;
 
 import net.miginfocom.swing.MigLayout;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 import javax.swing.*;
 import java.awt.*;
@@ -26,7 +27,7 @@ public class WorkspaceDialog extends JDialog {
   private File workspaceDir;
 
   public WorkspaceDialog(Frame parent) {
-    super(parent, "New Workspace", true);
+    super(parent, SikuliIDEI18N._I("workspace.title"), true);
     setSize(420, 300);
     setLocationRelativeTo(parent);
     setResizable(false);
@@ -38,40 +39,40 @@ public class WorkspaceDialog extends JDialog {
     content.setBackground(UIManager.getColor("Panel.background"));
 
     // Title
-    JLabel title = new JLabel("Create Workspace");
+    JLabel title = new JLabel(SikuliIDEI18N._I("workspace.header"));
     title.setFont(UIManager.getFont("h2.font"));
     content.add(title, "span 2, align center, gapbottom 12");
 
     // Name
-    content.add(new JLabel("Name *"));
+    content.add(new JLabel(SikuliIDEI18N._I("workspace.lblName")));
     nameField = new JTextField();
-    nameField.setToolTipText("Workspace name (required)");
+    nameField.setToolTipText(SikuliIDEI18N._I("workspace.tipName"));
     content.add(nameField);
 
     // Description
-    content.add(new JLabel("Description"));
+    content.add(new JLabel(SikuliIDEI18N._I("workspace.lblDesc")));
     descriptionField = new JTextField();
-    descriptionField.setToolTipText("Short description (optional)");
+    descriptionField.setToolTipText(SikuliIDEI18N._I("workspace.tipDesc"));
     content.add(descriptionField);
 
     // Author
-    content.add(new JLabel("Author"));
+    content.add(new JLabel(SikuliIDEI18N._I("workspace.lblAuthor")));
     authorField = new JTextField(System.getProperty("user.name"));
-    authorField.setToolTipText("Author name (optional)");
+    authorField.setToolTipText(SikuliIDEI18N._I("workspace.tipAuthor"));
     content.add(authorField);
 
     // Buttons
     JPanel buttons = new JPanel(new MigLayout("insets 0", "push[]8[]", ""));
     buttons.setOpaque(false);
 
-    JButton cancelBtn = new JButton("Cancel");
+    JButton cancelBtn = new JButton(SikuliIDEI18N._I("workspace.btnCancel"));
     cancelBtn.addActionListener(e -> {
       confirmed = false;
       dispose();
     });
     buttons.add(cancelBtn);
 
-    JButton okBtn = new JButton("Create");
+    JButton okBtn = new JButton(SikuliIDEI18N._I("workspace.btnCreate"));
     okBtn.addActionListener(e -> onCreateClicked());
     okBtn.putClientProperty("JButton.buttonType", "default");
     buttons.add(okBtn);
@@ -94,7 +95,7 @@ public class WorkspaceDialog extends JDialog {
 
     // Choose directory
     JFileChooser chooser = new JFileChooser();
-    chooser.setDialogTitle("Choose workspace directory");
+    chooser.setDialogTitle(SikuliIDEI18N._I("workspace.chooseDir"));
     chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
     chooser.setAcceptAllFileFilterUsed(false);
 
@@ -116,8 +117,8 @@ public class WorkspaceDialog extends JDialog {
       dispose();
     } catch (Exception ex) {
       JOptionPane.showMessageDialog(this,
-          "Error creating workspace: " + ex.getMessage(),
-          "Error", JOptionPane.ERROR_MESSAGE);
+          SikuliIDEI18N._I("workspace.errorMsg", ex.getMessage()),
+          SikuliIDEI18N._I("workspace.errorTitle"), JOptionPane.ERROR_MESSAGE);
     }
   }
 

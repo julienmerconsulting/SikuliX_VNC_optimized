@@ -434,7 +434,7 @@ public class PreferencesWin extends JFrame {
     _tabPane.setTitleAt(1, SikuliIDEI18N._I("PreferencesWin.paneTextEditing.tab.title"));
     chkAutoUpdate.setText(SikuliIDEI18N._I("prefGeneralAutoCheck"));
 //    _lblUpdates.setText(SikuliIDEI18N._I("PreferencesWin.lblUpdates.text"));
-    _lblUpdates.setText("Check for Updates (ignored - not implemented)");
+    _lblUpdates.setText(SikuliIDEI18N._I("prefWin.lblUpdatesUnimpl"));
     _lblLanguage.setText(SikuliIDEI18N._I("PreferencesWin.lblLanguage.text"));
     _tabPane.setTitleAt(2, SikuliIDEI18N._I("prefTabGeneralSettings"));
     _btnMore.setText(SikuliIDEI18N._I("more"));

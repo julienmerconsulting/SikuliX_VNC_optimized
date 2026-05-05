@@ -105,7 +105,7 @@ public class OculixSidebar extends JPanel {
 
     // ── Project Info Panel ──
     JPanel projectPanel = createInfoPanel();
-    projectName = new JLabel("\u2014 No script open");
+    projectName = new JLabel(_I("sidebar.noScriptOpen"));
     projectName.setFont(UIManager.getFont("defaultFont").deriveFont(Font.BOLD, 12f));
     projectPanel.add(projectName, "span 2");
     projectPath = new JLabel("");
@@ -119,7 +119,7 @@ public class OculixSidebar extends JPanel {
     mainPanel.add(projectPanel, "gaptop 4, gapbottom 6");
 
     // ── SCRIPT section ──
-    addSectionHeader("SCRIPT");
+    addSectionHeader(_I("sidebar.section.script"));
     navFile = new SidebarItem("\uD83D\uDCC1  " + _I("menuFile") + "  \u25B8", null);
     navFile.setMnemonic(java.awt.event.KeyEvent.VK_F);
     mainPanel.add(navFile);
@@ -131,13 +131,13 @@ public class OculixSidebar extends JPanel {
     mainPanel.add(navRun);
 
     // ── TOOLS section ──
-    addSectionHeader("TOOLS");
+    addSectionHeader(_I("sidebar.section.tools"));
     navTools = new SidebarItem("\uD83D\uDD27  " + _I("menuTool") + "  \u25B8", null);
     navTools.setMnemonic(java.awt.event.KeyEvent.VK_T);
     mainPanel.add(navTools);
 
     // ── STATUS section ──
-    addSectionHeader("STATUS");
+    addSectionHeader(_I("sidebar.section.status"));
     JPanel statusPanel = createInfoPanel();
     ocrPaddleStatus = createStatusLabel("\u2B24 PaddleOCR", statusPanel);
     ocrTesseractStatus = createStatusLabel("\u2B24 Tesseract", statusPanel);
@@ -145,9 +145,9 @@ public class OculixSidebar extends JPanel {
     mainPanel.add(statusPanel, "gapbottom 6");
 
     // ── LAST RUN section ──
-    addSectionHeader("LAST RUN");
+    addSectionHeader(_I("sidebar.section.lastRun"));
     JPanel lastRunPanel = createInfoPanel();
-    lastRunResult = new JLabel("\u2014 Not run yet");
+    lastRunResult = new JLabel(_I("sidebar.notRunYet"));
     lastRunResult.setFont(UIManager.getFont("defaultFont").deriveFont(Font.BOLD, 11f));
     lastRunPanel.add(lastRunResult, "span 2");
     lastRunDuration = new JLabel("");
@@ -161,7 +161,7 @@ public class OculixSidebar extends JPanel {
     mainPanel.add(lastRunPanel, "gapbottom 6");
 
     // ── HELP section ──
-    addSectionHeader("HELP");
+    addSectionHeader(_I("sidebar.section.help"));
     navHelp = new SidebarItem("\u2753  " + _I("menuHelp") + "  \u25B8", null);
     navHelp.setMnemonic(java.awt.event.KeyEvent.VK_H);
     mainPanel.add(navHelp);
@@ -202,7 +202,7 @@ public class OculixSidebar extends JPanel {
    */
   public void updateProjectInfo(String name, File scriptDir) {
     if (name == null || name.isEmpty()) {
-      projectName.setText("\u2014 No script open");
+      projectName.setText(_I("sidebar.noScriptOpen"));
       projectPath.setText("");
       projectImages.setText("");
       return;
@@ -217,7 +217,7 @@ public class OculixSidebar extends JPanel {
       File[] pngs = scriptDir.listFiles((dir, fn) -> fn.endsWith(".png"));
       if (pngs != null) imgCount = pngs.length;
     }
-    projectImages.setText("\uD83D\uDDBC " + imgCount + " image" + (imgCount != 1 ? "s" : ""));
+    projectImages.setText("\uD83D\uDDBC " + _I(imgCount == 1 ? "sidebar.imageCount" : "sidebar.imagesCount", imgCount));
   }
 
   /**
@@ -225,10 +225,10 @@ public class OculixSidebar extends JPanel {
    */
   public void updateLastRun(int exitCode, long durationMs) {
     if (exitCode == 0) {
-      lastRunResult.setText("\u2705 Passed");
+      lastRunResult.setText(_I("sidebar.runPassed"));
       lastRunResult.setForeground(new Color(0x3D, 0xDB, 0xA4));
     } else {
-      lastRunResult.setText("\u274C Failed (code " + exitCode + ")");
+      lastRunResult.setText(_I("sidebar.runFailed", exitCode));
       lastRunResult.setForeground(new Color(0xFF, 0x6B, 0x6B));
     }
     lastRunDuration.setText("\u23F1 " + String.format("%.1fs", durationMs / 1000.0));
@@ -246,11 +246,11 @@ public class OculixSidebar extends JPanel {
       Object engine = engineClass.getDeclaredConstructor().newInstance();
       paddleOk = (boolean) engineClass.getMethod("isAvailable").invoke(engine);
     } catch (Exception ignored) {}
-    ocrPaddleStatus.setText("\u2B24 PaddleOCR" + (paddleOk ? "  OK" : ""));
+    ocrPaddleStatus.setText(_I(paddleOk ? "sidebar.paddleOk" : "sidebar.paddleOff"));
     ocrPaddleStatus.setForeground(paddleOk ? new Color(0x3D, 0xDB, 0xA4) : new Color(0xFF, 0x6B, 0x6B));
 
     // Tesseract (always bundled)
-    ocrTesseractStatus.setText("\u2B24 Tesseract  built-in");
+    ocrTesseractStatus.setText(_I("sidebar.tesseractBuiltIn"));
     ocrTesseractStatus.setForeground(new Color(0x3D, 0xDB, 0xA4));
 
     // Java info
@@ -291,7 +291,7 @@ public class OculixSidebar extends JPanel {
 
   public void initFooter(String version, ActionListener themeAction) {
     footerPanel.add(new JSeparator(), "growx, gapbottom 4");
-    btnTheme = new SidebarItem("\u263C  Dark / Light", null, e -> {
+    btnTheme = new SidebarItem("\u263C  " + _I("sidebarThemeToggle"), null, e -> {
       toggleTheme();
       if (themeAction != null) themeAction.actionPerformed(e);
     });

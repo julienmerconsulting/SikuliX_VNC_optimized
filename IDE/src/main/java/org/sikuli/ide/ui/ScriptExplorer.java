@@ -5,6 +5,7 @@ package org.sikuli.ide.ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import net.miginfocom.swing.MigLayout;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 import javax.swing.*;
 import java.awt.*;
@@ -41,7 +42,7 @@ public class ScriptExplorer extends JPanel {
     // Header
     JPanel header = new JPanel(new MigLayout("insets 6 10 6 10, fill", "[grow]", "[]"));
     header.setOpaque(false);
-    titleLabel = new JLabel("Workspace");
+    titleLabel = new JLabel(SikuliIDEI18N._I("workspace.defaultName"));
     titleLabel.setFont(UIManager.getFont("defaultFont").deriveFont(Font.BOLD, 12f));
     header.add(titleLabel);
     add(header, BorderLayout.NORTH);
@@ -71,7 +72,7 @@ public class ScriptExplorer extends JPanel {
   }
 
   public void setWorkspaceName(String name) {
-    titleLabel.setText(name != null ? name : "Workspace");
+    titleLabel.setText(name != null ? name : SikuliIDEI18N._I("workspace.defaultName"));
   }
 
   public void setOnCardRenamed(ActionListener listener) {
@@ -179,11 +180,11 @@ public class ScriptExplorer extends JPanel {
 
       // Right-click context menu
       JPopupMenu popup = new JPopupMenu();
-      JMenuItem renameItem = new JMenuItem("Rename");
+      JMenuItem renameItem = new JMenuItem(SikuliIDEI18N._I("explorer.rename"));
       renameItem.addActionListener(ev -> {
         if (onCardRenamed != null) {
           String newName = JOptionPane.showInputDialog(ScriptExplorer.this,
-              "New name:", info.name);
+              SikuliIDEI18N._I("explorer.newName"), info.name);
           if (newName != null && !newName.trim().isEmpty()) {
             onCardRenamed.actionPerformed(
                 new java.awt.event.ActionEvent(ScriptCard.this, index, newName.trim()));
@@ -224,11 +225,11 @@ public class ScriptExplorer extends JPanel {
       if (info.saved) {
         statusLabel.setText("\u2713");
         statusLabel.setForeground(new Color(0x3D, 0xDB, 0xA4));
-        statusLabel.setToolTipText("Saved");
+        statusLabel.setToolTipText(SikuliIDEI18N._I("explorer.tipSaved"));
       } else {
         statusLabel.setText("*");
         statusLabel.setForeground(new Color(0xFF, 0xAA, 0x33));
-        statusLabel.setToolTipText("Not saved");
+        statusLabel.setToolTipText(SikuliIDEI18N._I("explorer.tipNotSaved"));
       }
 
       String imgText = info.imageCount + " image" + (info.imageCount != 1 ? "s" : "");

@@ -68,7 +68,7 @@ public class ExtensionManagerFrame extends JFrame {
   }
 
   private void init() {
-    setTitle("Sikuli Extensions");
+    setTitle(SikuliIDEI18N._I("extFrame.title"));
     setResizable(false);
     createComponents();
 
@@ -108,7 +108,7 @@ public class ExtensionManagerFrame extends JFrame {
     JPanel bottomBar = new JPanel();
     bottomBar.setLayout(new BorderLayout());
     bottomBar.setMinimumSize(new Dimension(400, 20));
-    JButton closeBtn = new JButton("Close");
+    JButton closeBtn = new JButton(SikuliIDEI18N._I("extFrame.btnClose"));
 
     closeBtn.addActionListener(new ActionListener() {
 //TODO: clean extensions: old versions?

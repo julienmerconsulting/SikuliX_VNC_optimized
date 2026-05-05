@@ -762,13 +762,15 @@ public class SikulixIDE extends JFrame {
 
   /**
    * Re-opens or collapses the workspace explorer pane based on whether any
-   * scripts are open. Called after every refreshWorkspace() — the explorer
-   * is purely contextual: empty IDE = collapsed, scripts open = visible.
+   * scripts are open OR a workspace is loaded. Called after every
+   * refreshWorkspace() — the explorer is purely contextual: empty IDE = no
+   * workspace and no scripts = collapsed; otherwise visible.
    */
   private void refreshExplorerVisibility() {
     if (editorSplit == null) return;
     boolean hasScripts = !contexts.isEmpty();
-    int target = hasScripts ? EXPLORER_OPEN_WIDTH : 0;
+    boolean hasWorkspace = currentWorkspaceDir != null;
+    int target = (hasScripts || hasWorkspace) ? EXPLORER_OPEN_WIDTH : 0;
     if (editorSplit.getDividerLocation() != target) {
       editorSplit.setDividerLocation(target);
     }

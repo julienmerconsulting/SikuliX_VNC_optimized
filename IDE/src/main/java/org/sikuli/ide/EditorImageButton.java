@@ -401,24 +401,26 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
   }
 
   public static void renameImage(String name, Map<String, Object> options) {
-    if (name == null || name.trim().isEmpty()) return;
-    // Bug fix: the options map uses IButton.FILE as the key (everywhere else
-    // in this class — see lines 64, 72, 82, 129, 162, 171, 208, 211, 388,
-    // 396). The previous lookup `options.get("image")` was checking for the
-    // string literal "image" which is never set as a key, so oldFile was
-    // always null → "no source file in options" → silent return → rename
-    // never happened on disk OR in the script text.
-    File oldFile = (File) options.get(IButton.FILE);
+    Commons.startLog(3, "renameImage: called name=%s keys=%s", name, options.keySet());
+    if (name == null || name.trim().isEmpty()) {
+      Commons.startLog(3, "renameImage: empty name, skip");
+      return;
+    }
+    // The dialog (SXDialogPaneImage) builds its own options map using the
+    // string "image" as key (see SXDialog.setOptions + the call site at
+    // EditorImageButton:171 which passes new String[]{"image"} as the key
+    // array). EditorImageButton internally uses IButton.FILE = "FILE".
+    // Try both so we work regardless of which caller invoked us.
+    File oldFile = (File) options.get("image");
     if (oldFile == null) {
-      // Legacy fallback in case some external caller still uses the string
-      // literal — avoids a regression for any custom flow we haven't seen.
-      oldFile = (File) options.get("image");
+      oldFile = (File) options.get(IButton.FILE);
     }
     if (oldFile == null) {
       Commons.error("renameImage: no source file in options (keys=%s)",
           options.keySet());
       return;
     }
+    Commons.startLog(3, "renameImage: oldFile=%s exists=%s", oldFile, oldFile.exists());
     if (!oldFile.exists()) {
       Commons.error("renameImage: source file does not exist on disk: %s", oldFile);
       return;
@@ -430,24 +432,48 @@ public class EditorImageButton extends JButton implements ActionListener, Serial
       newBaseName += "." + FilenameUtils.getExtension(oldFile.getName()).toLowerCase();
     }
     File newFile = new File(oldFile.getParentFile(), newBaseName);
+    Commons.startLog(3, "renameImage: %s -> %s", oldFile.getName(), newFile.getName());
     if (newFile.equals(oldFile)) {
-      // Same name — nothing to do, no error.
+      Commons.startLog(3, "renameImage: same name, skip");
       return;
     }
     boolean overwritten = newFile.exists();
     try {
       java.nio.file.Files.move(oldFile.toPath(), newFile.toPath(),
           java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      Commons.startLog(3, "renameImage: move OK, newFile exists=%s", newFile.exists());
     } catch (IOException e) {
       Commons.error("renameImage: cannot move %s -> %s: %s",
           oldFile, newFile, e.getMessage());
       return;
     }
-    // Update both keys so subsequent lookups via either path work.
+    // Update the dialog's own map (caller may inspect it after this returns).
     options.put(IButton.FILE, newFile);
     options.put("image", newFile);
+    // The dialog stashed the originating EditorImageButton instance in its
+    // options under "parm1" (cf. SXDialogPaneImage construction at line 171
+    // and SXDialog.setOptions filling unnamed parms as "parmN"). The button's
+    // own internal `options` map is a SEPARATE Map from the dialog's — without
+    // mirroring the rename onto it, the next save would still serialize the
+    // old filename and the tooltip would still show the old name.
+    Object btnObj = options.get("parm1");
+    if (btnObj instanceof EditorImageButton) {
+      EditorImageButton btn = (EditorImageButton) btnObj;
+      btn.options.put(IButton.FILE, newFile);
+      // IButton.TEXT carries the textual form ("filename.png" with quotes)
+      // that the button serializes back to the script when the document is
+      // saved. Without this update the next File ▸ Save writes the OLD name
+      // even though the .png on disk is now the NEW name.
+      btn.options.put(IButton.TEXT, "\"" + newFile.getName() + "\"");
+      btn.setButtonText();
+      btn.repaint();
+      Commons.startLog(3, "renameImage: button instance updated (tooltip + serialization)");
+    } else {
+      Commons.startLog(3, "renameImage: no button instance in options.parm1 (kept dialog-only update)");
+    }
     SikulixIDE.get().reparseOnRenameImage(oldFile.getAbsolutePath(),
         newFile.getAbsolutePath(), overwritten);
+    Commons.startLog(3, "renameImage: reparseOnRenameImage called");
   }
 
   //imgBtn.setImage(filename);

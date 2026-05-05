@@ -407,6 +407,10 @@ public class SikulixIDE extends JFrame {
     if (!sikulixIDE.contexts.isEmpty()) {
       sikulixIDE.getActiveContext().focus();
     }
+    if (shouldExecuteOnStart) {
+      Debug.log(3, "-e: auto-running preloaded script");
+      sikulixIDE.btnRun.runCurrentScript();
+    }
   }
 
   //TODO initShortcutKey
@@ -1976,7 +1980,7 @@ public class SikulixIDE extends JFrame {
     return true;
   }
 
-  static final String[] loadScripts = new String[0];
+  private static boolean shouldExecuteOnStart = false;
 
   private List<File> restoreSession() {
     String session_str = prefs.getIdeSession();
@@ -1997,21 +2001,38 @@ public class SikulixIDE extends JFrame {
         }
       }
     }
-    //TODO implement load scripts (preload)
-    if (loadScripts.length > 0) {
-      log("Preload given scripts");
+    String[] loadScripts = Commons.getArgs(CommandArgsEnum.LOAD.shortname());
+    int preloadedFromCli = 0;
+    if (loadScripts != null && loadScripts.length > 0) {
+      log("Preload given scripts (-l)");
       for (String loadScript : loadScripts) {
-        if (loadScript.isEmpty()) {
+        if (loadScript == null || loadScript.isEmpty()) {
           continue;
         }
         File f = new File(loadScript);
-        if (f.exists() && !filesToLoad.contains(f)) {
-          if (f.getName().endsWith(".py")) {
-            Debug.info("Python script: %s", f.getName());
-          } else {
-            log("Sikuli script: %s", f);
-          }
+        if (!f.exists()) {
+          log("Preload: file does not exist: %s", loadScript);
+          continue;
         }
+        if (filesToLoad.contains(f)) {
+          continue;
+        }
+        if (f.getName().endsWith(".py")) {
+          Debug.info("Python script: %s", f.getName());
+        } else {
+          log("Sikuli script: %s", f);
+        }
+        filesToLoad.add(f);
+        preloadedFromCli++;
+      }
+    }
+    if (Commons.hasArg(CommandArgsEnum.EXECUTE.shortname())) {
+      if (preloadedFromCli == 1) {
+        shouldExecuteOnStart = true;
+      } else if (preloadedFromCli == 0) {
+        log("-e (--execute) has no effect without a valid -l file; ignoring");
+      } else {
+        log("-e (--execute) requires exactly one -l file but got %d; ignoring -e", preloadedFromCli);
       }
     }
     if (filesToLoad.size() > 0) {

@@ -96,5 +96,4 @@ public class IDEDesktopSupport implements AboutHandler, PreferencesHandler, Quit
       response.performQuit();
     }
   }
-
 }

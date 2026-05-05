@@ -6,8 +6,16 @@ package org.sikuli.ide;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.sikuli.basics.*;
+import org.sikuli.idesupport.IDEDesktopSupport;
+import org.sikuli.idesupport.IDETaskbarSupport;
 import org.sikuli.support.FileManager;
-import org.sikuli.support.ide.*;
+import org.sikuli.support.ide.ExtensionManager;
+import org.sikuli.support.ide.IButton;
+import org.sikuli.support.ide.IDESupport;
+import org.sikuli.support.ide.IIDESupport;
+import org.sikuli.support.ide.JythonSupport;
+import org.sikuli.support.ide.Runner;
+import org.sikuli.support.ide.SikuliIDEI18N;
 import org.sikuli.support.ide.syntaxhighlight.ResolutionException;
 import org.sikuli.support.ide.syntaxhighlight.grammar.Lexer;
 import org.sikuli.support.ide.syntaxhighlight.grammar.Token;
@@ -16,7 +24,6 @@ import org.sikuli.script.Image;
 import org.sikuli.script.Sikulix;
 import org.sikuli.script.*;
 import org.sikuli.support.runner.IRunner;
-import org.sikuli.support.ide.Runner;
 import org.sikuli.support.runner.InvalidRunner;
 import org.sikuli.support.runner.JythonRunner;
 import org.sikuli.support.runner.TextRunner;
@@ -193,7 +200,8 @@ public class SikulixIDE extends JFrame {
 
     ideWindowRect = getWindowRect();
 
-    IDEDesktopSupport.init();
+    IDEDesktopSupport.init(sikulixIDE);
+    IDETaskbarSupport.setTaskbarIcon(getIconResource("/icons/gecko_cyclope.png").getImage());
     IDESupport.initIDESupport();
     if (!Commons.hasOption(CommandArgsEnum.CONSOLE)) {
       get().messages = new EditorConsolePane();
@@ -1982,11 +1990,12 @@ public class SikulixIDE extends JFrame {
   private List<File> restoreSession() {
     String session_str = prefs.getIdeSession();
     List<File> filesToLoad = new ArrayList<>();
-    if (IDEDesktopSupport.filesToOpen != null && IDEDesktopSupport.filesToOpen.size() > 0) {
-      for (File f : IDEDesktopSupport.filesToOpen) {
-        filesToLoad.add(f);
-      }
-    }
+//TODO IDEDesktopSupport.filesToOpen
+//    if (IDEDesktopSupport.filesToOpen != null && IDEDesktopSupport.filesToOpen.size() > 0) {
+//      for (File f : IDEDesktopSupport.filesToOpen) {
+//        filesToLoad.add(f);
+//      }
+//    }
     if (session_str != null && !session_str.isEmpty()) {
       String[] filenames = session_str.split(";");
       if (filenames.length > 0) {

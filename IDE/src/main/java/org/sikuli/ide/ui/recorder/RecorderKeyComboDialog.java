@@ -4,6 +4,7 @@
 package org.sikuli.ide.ui.recorder;
 
 import net.miginfocom.swing.MigLayout;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 import javax.swing.*;
 import java.awt.*;
@@ -32,7 +33,7 @@ public class RecorderKeyComboDialog extends JDialog {
   private String result = null;
 
   public RecorderKeyComboDialog(Dialog parent) {
-    super(parent, "Key Combo", true);
+    super(parent, SikuliIDEI18N._I("recorder.keyCombo.title"), true);
     setSize(400, 320);
     setLocationRelativeTo(parent);
     setResizable(false);
@@ -45,7 +46,7 @@ public class RecorderKeyComboDialog extends JDialog {
     content.setBackground(UIManager.getColor("Panel.background"));
 
     // Modifiers
-    JLabel lblMod = new JLabel("Modifiers");
+    JLabel lblMod = new JLabel(SikuliIDEI18N._I("recorder.keyCombo.lblModifiers"));
     lblMod.setFont(UIManager.getFont("small.font"));
     lblMod.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblMod);
@@ -69,14 +70,14 @@ public class RecorderKeyComboDialog extends JDialog {
     content.add(new JSeparator(), "growx, gaptop 4");
 
     // Key selector
-    JLabel lblKey = new JLabel("Key");
+    JLabel lblKey = new JLabel(SikuliIDEI18N._I("recorder.keyCombo.lblKey"));
     lblKey.setFont(UIManager.getFont("small.font"));
     lblKey.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblKey, "gaptop 4");
 
-    rbSpecial = new JRadioButton("Special key");
+    rbSpecial = new JRadioButton(SikuliIDEI18N._I("recorder.keyCombo.rbSpecial"));
     rbSpecial.setSelected(true);
-    rbChar = new JRadioButton("Character");
+    rbChar = new JRadioButton(SikuliIDEI18N._I("recorder.keyCombo.rbChar"));
     ButtonGroup group = new ButtonGroup();
     group.add(rbSpecial);
     group.add(rbChar);
@@ -108,7 +109,7 @@ public class RecorderKeyComboDialog extends JDialog {
     content.add(new JSeparator(), "growx, gaptop 4");
 
     // Preview
-    JLabel lblPreview = new JLabel("Generated code");
+    JLabel lblPreview = new JLabel(SikuliIDEI18N._I("recorder.keyCombo.lblPreview"));
     lblPreview.setFont(UIManager.getFont("small.font"));
     lblPreview.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblPreview, "gaptop 4");
@@ -124,9 +125,9 @@ public class RecorderKeyComboDialog extends JDialog {
     // Buttons
     JPanel buttons = new JPanel(new MigLayout("insets 0, gap 8", "push[][]", ""));
     buttons.setOpaque(false);
-    cancelBtn = new JButton("Cancel");
+    cancelBtn = new JButton(SikuliIDEI18N._I("recorder.keyCombo.btnCancel"));
     cancelBtn.addActionListener(e -> { result = null; dispose(); });
-    okBtn = new JButton("OK");
+    okBtn = new JButton(SikuliIDEI18N._I("recorder.keyCombo.btnOk"));
     okBtn.putClientProperty("JButton.buttonType", "default");
     okBtn.addActionListener(e -> { result = buildCode(); dispose(); });
     buttons.add(cancelBtn);

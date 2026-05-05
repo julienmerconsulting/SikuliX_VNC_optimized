@@ -7,6 +7,7 @@ import net.miginfocom.swing.MigLayout;
 import org.sikuli.script.App;
 import org.sikuli.support.AppLauncher;
 import org.sikuli.support.RemotePreflightCheck;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 import javax.swing.*;
 import java.util.List;
@@ -45,9 +46,8 @@ class RecorderAppScope {
   boolean warnIfNoApp(JDialog parent) {
     if (!firstActionDone && currentApp == null) {
       int answer = JOptionPane.showConfirmDialog(parent,
-          "No application launched. Launch your app first?\n\n"
-          + "Recording without Launch App will act on the full screen.",
-          "Launch App first?",
+          SikuliIDEI18N._I("recorder.scope.warnNoAppMsg"),
+          SikuliIDEI18N._I("recorder.scope.warnNoAppTitle"),
           JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
       if (answer == JOptionPane.YES_OPTION) {
         handleLaunchApp(parent);
@@ -59,10 +59,13 @@ class RecorderAppScope {
   }
 
   void handleLaunchApp(JDialog parent) {
-    String[] modes = {"Local application", "Remote (VNC via SSH)"};
+    String[] modes = {
+        SikuliIDEI18N._I("recorder.scope.modeLocal"),
+        SikuliIDEI18N._I("recorder.scope.modeRemote")
+    };
     int mode = JOptionPane.showOptionDialog(parent,
-        "Choose launch mode:",
-        "Launch App",
+        SikuliIDEI18N._I("recorder.scope.chooseModeMsg"),
+        SikuliIDEI18N._I("recorder.scope.chooseModeTitle"),
         JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
         null, modes, modes[0]);
 
@@ -77,23 +80,25 @@ class RecorderAppScope {
 
   private void launchLocal(JDialog parent) {
     String appPath = JOptionPane.showInputDialog(parent,
-        "Application path or command:", "Launch Local App", JOptionPane.PLAIN_MESSAGE);
+        SikuliIDEI18N._I("recorder.scope.localPathPrompt"),
+        SikuliIDEI18N._I("recorder.scope.localPathTitle"),
+        JOptionPane.PLAIN_MESSAGE);
     if (appPath == null || appPath.trim().isEmpty()) return;
     appPath = appPath.trim();
 
     try {
       currentApp = App.open(appPath);
       if (currentApp == null) {
-        RecorderNotifications.error("Failed to launch: " + appPath);
+        RecorderNotifications.error(SikuliIDEI18N._I("recorder.scope.failedToLaunch", appPath));
         return;
       }
 
       remoteMode = false;
       onAppLaunched(appPath);
       codeGen.generateLaunchApp(appPath, appVarName, chkScopeToApp.isSelected());
-      RecorderNotifications.success("Launched: " + appPath);
+      RecorderNotifications.success(SikuliIDEI18N._I("recorder.scope.launched", appPath));
     } catch (Exception ex) {
-      RecorderNotifications.error("Launch failed: " + ex.getMessage());
+      RecorderNotifications.error(SikuliIDEI18N._I("recorder.scope.launchFailed", ex.getMessage()));
     }
   }
 
@@ -104,17 +109,18 @@ class RecorderAppScope {
     JPasswordField tfPass = new JPasswordField(20);
     JTextField tfPort = new JTextField("5900", 8);
 
-    panel.add(new JLabel("Host / IP:"));
+    panel.add(new JLabel(SikuliIDEI18N._I("recorder.scope.lblHost")));
     panel.add(tfHost);
-    panel.add(new JLabel("SSH User:"));
+    panel.add(new JLabel(SikuliIDEI18N._I("recorder.scope.lblSshUser")));
     panel.add(tfUser);
-    panel.add(new JLabel("SSH Password:"));
+    panel.add(new JLabel(SikuliIDEI18N._I("recorder.scope.lblSshPass")));
     panel.add(tfPass);
-    panel.add(new JLabel("VNC Port:"));
+    panel.add(new JLabel(SikuliIDEI18N._I("recorder.scope.lblVncPort")));
     panel.add(tfPort);
 
     int result = JOptionPane.showConfirmDialog(parent, panel,
-        "Remote VNC Connection", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        SikuliIDEI18N._I("recorder.scope.vncDialogTitle"),
+        JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
     if (result != JOptionPane.OK_OPTION) return;
 
@@ -124,18 +130,18 @@ class RecorderAppScope {
     String port = tfPort.getText().trim();
 
     if (host.isEmpty() || user.isEmpty()) {
-      RecorderNotifications.error("Host and user are required.");
+      RecorderNotifications.error(SikuliIDEI18N._I("recorder.scope.hostUserRequired"));
       return;
     }
 
     System.err.println("[VNC-DEBUG] Host=" + host + " User=" + user + " Port=" + port);
     System.err.println("[VNC-DEBUG] Creating wait dialog...");
 
-    JDialog waitDialog = new JDialog(parent, "Pre-flight", false);
+    JDialog waitDialog = new JDialog(parent, SikuliIDEI18N._I("recorder.scope.preflightTitle"), false);
     waitDialog.setSize(280, 80);
     waitDialog.setLocationRelativeTo(parent);
     waitDialog.setLayout(new java.awt.BorderLayout());
-    JLabel waitLabel = new JLabel("  \u23F3 Starting WSL environment...", SwingConstants.CENTER);
+    JLabel waitLabel = new JLabel("  \u23F3 " + SikuliIDEI18N._I("recorder.scope.preflightStartingWsl"), SwingConstants.CENTER);
     waitLabel.setForeground(javax.swing.UIManager.getColor("Label.foreground"));
     waitLabel.setFont(javax.swing.UIManager.getFont("defaultFont"));
     waitDialog.add(waitLabel, java.awt.BorderLayout.CENTER);
@@ -152,19 +158,19 @@ class RecorderAppScope {
       protected List<RemotePreflightCheck.CheckResult> doInBackground() {
         java.util.List<RemotePreflightCheck.CheckResult> results = new java.util.ArrayList<>();
         System.err.println("[VNC-DEBUG] Worker started - checking sshpass...");
-        publish("Starting WSL environment...");
+        publish(SikuliIDEI18N._I("recorder.scope.preflightStartingWsl"));
         results.add(RemotePreflightCheck.checkSshpass());
         System.err.println("[VNC-DEBUG] sshpass: " + results.get(results.size()-1).message);
-        publish("Checking X Server...");
+        publish(SikuliIDEI18N._I("recorder.scope.preflightCheckXServer"));
         results.add(RemotePreflightCheck.checkXServer());
         System.err.println("[VNC-DEBUG] xserver: " + results.get(results.size()-1).message);
-        publish("Checking VNC viewer...");
+        publish(SikuliIDEI18N._I("recorder.scope.preflightCheckVncViewer"));
         results.add(RemotePreflightCheck.checkVncViewer());
         System.err.println("[VNC-DEBUG] vncviewer: " + results.get(results.size()-1).message);
-        publish("Checking SSH fingerprint for " + fHost + "...");
+        publish(SikuliIDEI18N._I("recorder.scope.preflightCheckFingerprint", fHost));
         results.add(RemotePreflightCheck.checkFingerprint(fHost));
         System.err.println("[VNC-DEBUG] fingerprint: " + results.get(results.size()-1).message);
-        publish("Pre-flight complete.");
+        publish(SikuliIDEI18N._I("recorder.scope.preflightComplete"));
         System.err.println("[VNC-DEBUG] All checks done.");
         return results;
       }
@@ -182,16 +188,20 @@ class RecorderAppScope {
 
           boolean allPassed = RemotePreflightCheck.allPassed(checks);
           if (!allPassed) {
-            StringBuilder msg = new StringBuilder("Pre-flight checks:\n\n");
+            StringBuilder msg = new StringBuilder(SikuliIDEI18N._I("recorder.scope.preflightHeader"));
             for (RemotePreflightCheck.CheckResult check : checks) {
               msg.append(check.passed ? "  \u2713  " : "  \u2717  ");
               msg.append(check.name).append(": ").append(check.message).append("\n");
             }
-            msg.append("\nFix issues and retry, or continue anyway?");
+            msg.append(SikuliIDEI18N._I("recorder.scope.preflightFooter"));
 
-            String[] options = {"Fix all", "Continue anyway", "Cancel"};
+            String[] options = {
+                SikuliIDEI18N._I("recorder.scope.optFixAll"),
+                SikuliIDEI18N._I("recorder.scope.optContinueAnyway"),
+                SikuliIDEI18N._I("recorder.scope.optCancel")
+            };
             int choice = JOptionPane.showOptionDialog(parent, msg.toString(),
-                "Pre-flight Results",
+                SikuliIDEI18N._I("recorder.scope.preflightResultsTitle"),
                 JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
                 null, options, options[0]);
 
@@ -201,13 +211,13 @@ class RecorderAppScope {
                   check.autoFix.run();
                 }
               }
-              RecorderNotifications.success("Auto-fix applied. Try launching again.");
+              RecorderNotifications.success(SikuliIDEI18N._I("recorder.scope.autoFixApplied"));
               return;
             }
             if (choice == 2 || choice < 0) return;
           }
 
-          waitLabel.setText("  \u23F3 Launching VNC...");
+          waitLabel.setText("  \u23F3 " + SikuliIDEI18N._I("recorder.scope.launchingVnc"));
           waitDialog.setVisible(true);
 
           AppLauncher.launchRemoteVNC(fHost, fUser, fPassword, fPort);
@@ -224,14 +234,14 @@ class RecorderAppScope {
           codeGen.addLine("# VNC Remote connection to " + fHost);
           codeGen.addLine("vncSession = VNCScreen.start(\"" + fHost + "\", " + fPort
               + ", \"<SSH_PASSWORD>\", 1920, 1080)");
-          RecorderNotifications.success("VNC connected to " + fHost);
+          RecorderNotifications.success(SikuliIDEI18N._I("recorder.scope.vncConnected", fHost));
 
         } catch (java.util.concurrent.TimeoutException ex) {
           waitDialog.dispose();
-          RecorderNotifications.error("Pre-flight timed out after 60 seconds. Is WSL installed?");
+          RecorderNotifications.error(SikuliIDEI18N._I("recorder.scope.preflightTimedOut"));
         } catch (Exception ex) {
           waitDialog.dispose();
-          RecorderNotifications.error("Remote launch failed: " + ex.getMessage());
+          RecorderNotifications.error(SikuliIDEI18N._I("recorder.scope.remoteFailed", ex.getMessage()));
           ex.printStackTrace();
         }
       }
@@ -255,9 +265,9 @@ class RecorderAppScope {
       try {
         currentApp.close();
         codeGen.generateCloseApp(appVarName);
-        RecorderNotifications.success("App closed");
+        RecorderNotifications.success(SikuliIDEI18N._I("recorder.scope.appClosed"));
       } catch (Exception ex) {
-        RecorderNotifications.error("Close failed: " + ex.getMessage());
+        RecorderNotifications.error(SikuliIDEI18N._I("recorder.scope.closeFailed", ex.getMessage()));
       }
     }
     currentApp = null;

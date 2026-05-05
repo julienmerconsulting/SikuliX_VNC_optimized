@@ -5,6 +5,7 @@ package org.sikuli.ide.ui.recorder;
 
 import org.sikuli.script.Screen;
 import org.sikuli.script.ScreenImage;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 import javax.swing.*;
 import java.io.File;
@@ -23,15 +24,19 @@ class RecorderImagePicker {
   }
 
   String pickImage(String purpose) {
+    String optCapture = SikuliIDEI18N._I("recorder.picker.optCaptureScreen");
+    String optBrowse = SikuliIDEI18N._I("recorder.picker.optBrowseFile");
+    String optExisting = SikuliIDEI18N._I("recorder.picker.optExisting");
+
     java.util.List<String> options = new java.util.ArrayList<>();
-    options.add("Capture screen");
-    options.add("Browse file...");
+    options.add(optCapture);
+    options.add(optBrowse);
     if (!capturedImages.isEmpty()) {
-      options.add("Use existing image");
+      options.add(optExisting);
     }
 
     int choice = JOptionPane.showOptionDialog(parent,
-        "Choose image source for: " + purpose,
+        SikuliIDEI18N._I("recorder.picker.chooseSource", purpose),
         purpose,
         JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
         null, options.toArray(), options.get(0));
@@ -39,7 +44,7 @@ class RecorderImagePicker {
     if (choice < 0) return null;
     String selected = (String) options.get(choice);
 
-    if ("Capture screen".equals(selected)) {
+    if (optCapture.equals(selected)) {
       parent.setAlwaysOnTop(false);
       try {
         return captureImage(purpose);
@@ -47,10 +52,10 @@ class RecorderImagePicker {
         parent.setAlwaysOnTop(true);
       }
     }
-    if ("Browse file...".equals(selected)) {
+    if (optBrowse.equals(selected)) {
       return browseImage();
     }
-    if ("Use existing image".equals(selected)) {
+    if (optExisting.equals(selected)) {
       return pickFromLibrary();
     }
     return null;
@@ -61,7 +66,7 @@ class RecorderImagePicker {
     parent.getOwner().setVisible(false);
     final ScreenImage[] captured = new ScreenImage[1];
     try {
-      captured[0] = new Screen().userCapture("Select region for " + purpose);
+      captured[0] = new Screen().userCapture(SikuliIDEI18N._I("recorder.picker.regionForPurpose", purpose));
     } finally {
       parent.getOwner().setVisible(true);
       parent.setVisible(true);
@@ -70,7 +75,8 @@ class RecorderImagePicker {
 
     try {
       String defaultName = purpose.replaceAll("\\s+", "_").toLowerCase() + "_" + System.currentTimeMillis();
-      String imageName = JOptionPane.showInputDialog(parent, "Name this image:", defaultName);
+      String imageName = JOptionPane.showInputDialog(parent,
+          SikuliIDEI18N._I("recorder.picker.namePrompt"), defaultName);
       if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
       imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
       if (!imageName.endsWith(".png")) imageName += ".png";
@@ -79,16 +85,16 @@ class RecorderImagePicker {
       if (path != null) capturedImages.add(path);
       return path;
     } catch (Exception ex) {
-      RecorderNotifications.error("Failed to save: " + ex.getMessage());
+      RecorderNotifications.error(SikuliIDEI18N._I("recorder.picker.failedToSave", ex.getMessage()));
       return null;
     }
   }
 
   String browseImage() {
     JFileChooser chooser = new JFileChooser();
-    chooser.setDialogTitle("Select image file");
+    chooser.setDialogTitle(SikuliIDEI18N._I("recorder.picker.fileChooserTitle"));
     chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
-        "Image files (*.png, *.jpg, *.jpeg, *.gif)", "png", "jpg", "jpeg", "gif"));
+        SikuliIDEI18N._I("recorder.picker.fileFilterDesc"), "png", "jpg", "jpeg", "gif"));
     if (chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION) {
       File f = chooser.getSelectedFile();
       try {
@@ -99,7 +105,7 @@ class RecorderImagePicker {
         capturedImages.add(path);
         return path;
       } catch (Exception ex) {
-        RecorderNotifications.error("Failed to import: " + ex.getMessage());
+        RecorderNotifications.error(SikuliIDEI18N._I("recorder.picker.failedToImport", ex.getMessage()));
         return null;
       }
     }
@@ -112,7 +118,8 @@ class RecorderImagePicker {
         .map(p -> new File(p).getName())
         .toArray(String[]::new);
     String chosen = (String) JOptionPane.showInputDialog(parent,
-        "Choose image:", "Image Library",
+        SikuliIDEI18N._I("recorder.picker.libraryPrompt"),
+        SikuliIDEI18N._I("recorder.picker.libraryTitle"),
         JOptionPane.PLAIN_MESSAGE, null, names, names[names.length - 1]);
     if (chosen == null) return null;
     return capturedImages.stream()

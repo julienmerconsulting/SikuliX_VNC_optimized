@@ -4,6 +4,7 @@
 package org.sikuli.ide.ui.recorder;
 
 import org.sikuli.script.*;
+import org.sikuli.support.ide.SikuliIDEI18N;
 import org.sikuli.support.recorder.PatternValidator;
 
 import javax.swing.*;
@@ -37,15 +38,19 @@ class RecorderActions {
     if (!workflow.startCapture(actionType)) return;
     if (appScope.warnIfNoApp(assistant)) { workflow.reset(); return; }
 
+    String optCapture = SikuliIDEI18N._I("recorder.picker.optCaptureScreen");
+    String optBrowse = SikuliIDEI18N._I("recorder.picker.optBrowseFile");
+    String optExisting = SikuliIDEI18N._I("recorder.picker.optExisting");
+
     java.util.List<String> options = new java.util.ArrayList<>();
-    options.add("Capture screen");
-    options.add("Browse file...");
+    options.add(optCapture);
+    options.add(optBrowse);
     if (!capturedImages.isEmpty()) {
-      options.add("Use existing image");
+      options.add(optExisting);
     }
 
     int choice = JOptionPane.showOptionDialog(assistant,
-        "Choose image source for: " + actionType,
+        SikuliIDEI18N._I("recorder.picker.chooseSource", actionType),
         actionType,
         JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
         null, options.toArray(), options.get(0));
@@ -56,13 +61,13 @@ class RecorderActions {
     }
     String selected = (String) options.get(choice);
 
-    if ("Browse file...".equals(selected)) {
+    if (optBrowse.equals(selected)) {
       String imagePath = imagePicker.browseImage();
       if (imagePath == null) { workflow.reset(); return; }
       finishImageCapture(actionType, imagePath);
       return;
     }
-    if ("Use existing image".equals(selected)) {
+    if (optExisting.equals(selected)) {
       String imagePath = imagePicker.pickFromLibrary();
       if (imagePath == null) { workflow.reset(); return; }
       finishImageCapture(actionType, imagePath);
@@ -72,7 +77,8 @@ class RecorderActions {
     assistant.hideForCapture();
 
     new Thread(() -> {
-      ScreenImage capture = new Screen().userCapture("Select region for " + actionType);
+      ScreenImage capture = new Screen().userCapture(
+          SikuliIDEI18N._I("recorder.picker.regionForPurpose", actionType));
 
       SwingUtilities.invokeLater(() -> {
         assistant.showAfterCapture();
@@ -85,7 +91,7 @@ class RecorderActions {
         try {
           String defaultName = actionType + "_" + System.currentTimeMillis();
           String imageName = JOptionPane.showInputDialog(assistant,
-              "Name this image:", defaultName);
+              SikuliIDEI18N._I("recorder.picker.namePrompt"), defaultName);
           if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
           imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
           if (!imageName.endsWith(".png")) imageName += ".png";
@@ -93,7 +99,7 @@ class RecorderActions {
           String imagePath = capture.save(screenshotDir.getAbsolutePath(), imageName);
           if (imagePath == null) {
             workflow.reset();
-            RecorderNotifications.error("Failed to save captured image");
+            RecorderNotifications.error(SikuliIDEI18N._I("recorder.actions.failedToSaveCapture"));
             return;
           }
           capturedImages.add(imagePath);
@@ -102,7 +108,7 @@ class RecorderActions {
 
         } catch (Exception ex) {
           workflow.reset();
-          RecorderNotifications.error("Action failed: " + ex.getMessage());
+          RecorderNotifications.error(SikuliIDEI18N._I("recorder.actions.actionFailed", ex.getMessage()));
         }
       });
     }).start();
@@ -130,14 +136,17 @@ class RecorderActions {
       if (result != null) {
         if (result.warning == PatternValidator.Warning.AMBIGUOUS) {
           pattern = pattern.similar((float) result.suggestedSimilarity);
-          RecorderNotifications.warning(
-              "Pattern matches " + result.matchCount + " locations. Similarity raised to " + result.suggestedSimilarity);
+          RecorderNotifications.warning(SikuliIDEI18N._I(
+              "recorder.actions.patternAmbiguous",
+              result.matchCount, result.suggestedSimilarity));
         } else if (result.warning == PatternValidator.Warning.COLOR_DEPENDENT) {
-          RecorderNotifications.warning("Pattern depends on colors. May break with theme changes.");
+          RecorderNotifications.warning(SikuliIDEI18N._I("recorder.actions.patternColor"));
         } else if (result.warning == PatternValidator.Warning.TOO_SMALL) {
-          RecorderNotifications.warning("Pattern too small. Consider capturing a larger area.");
+          RecorderNotifications.warning(SikuliIDEI18N._I("recorder.actions.patternTooSmall"));
         } else if (result.matchCount > 0) {
-          RecorderNotifications.success("Pattern validated (score: " + String.format("%.2f", result.bestScore) + ")");
+          RecorderNotifications.success(SikuliIDEI18N._I(
+              "recorder.actions.patternValidated",
+              String.format("%.2f", result.bestScore)));
         }
       }
 
@@ -152,7 +161,7 @@ class RecorderActions {
 
     } catch (Exception ex) {
       workflow.reset();
-      RecorderNotifications.error("Action failed: " + ex.getMessage());
+      RecorderNotifications.error(SikuliIDEI18N._I("recorder.actions.actionFailed", ex.getMessage()));
     }
   }
 
@@ -160,11 +169,11 @@ class RecorderActions {
     if (appScope.warnIfNoApp(assistant)) return;
     if (!workflow.startDragDrop()) return;
 
-    pickImageAsync("Drag SOURCE", sourcePath -> {
+    pickImageAsync(SikuliIDEI18N._I("recorder.actions.dragSource"), sourcePath -> {
       if (sourcePath == null) { workflow.reset(); return; }
       workflow.advanceDragDrop();
 
-      pickImageAsync("Drop DESTINATION", destPath -> {
+      pickImageAsync(SikuliIDEI18N._I("recorder.actions.dropDest"), destPath -> {
         if (destPath == null) { workflow.reset(); return; }
         try {
           Pattern sourcePattern = new Pattern(sourcePath);
@@ -172,10 +181,10 @@ class RecorderActions {
           String code = codeGen.getGenerator().dragDrop(sourcePattern, destPattern);
           codeGen.addActionCode(code, appScope.isAppScoped(), appScope.getAppVarName());
           workflow.onActionComplete();
-          RecorderNotifications.success("Drag & Drop recorded");
+          RecorderNotifications.success(SikuliIDEI18N._I("recorder.actions.dragDropRecorded"));
         } catch (Exception ex) {
           workflow.reset();
-          RecorderNotifications.error("Drag & Drop failed: " + ex.getMessage());
+          RecorderNotifications.error(SikuliIDEI18N._I("recorder.actions.dragDropFailed", ex.getMessage()));
         }
       });
     });
@@ -196,32 +205,37 @@ class RecorderActions {
    * capture overlay from receiving drag events.
    */
   private void pickImageAsync(String purpose, java.util.function.Consumer<String> callback) {
+    String optCapture = SikuliIDEI18N._I("recorder.picker.optCaptureScreen");
+    String optBrowse = SikuliIDEI18N._I("recorder.picker.optBrowseFile");
+    String optExisting = SikuliIDEI18N._I("recorder.picker.optExisting");
+
     java.util.List<String> options = new java.util.ArrayList<>();
-    options.add("Capture screen");
-    options.add("Browse file...");
+    options.add(optCapture);
+    options.add(optBrowse);
     if (!capturedImages.isEmpty()) {
-      options.add("Use existing image");
+      options.add(optExisting);
     }
     int choice = JOptionPane.showOptionDialog(assistant,
-        "Choose image source for: " + purpose,
+        SikuliIDEI18N._I("recorder.picker.chooseSource", purpose),
         purpose,
         JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
         null, options.toArray(), options.get(0));
     if (choice < 0) { callback.accept(null); return; }
     String selected = (String) options.get(choice);
 
-    if ("Browse file...".equals(selected)) {
+    if (optBrowse.equals(selected)) {
       callback.accept(imagePicker.browseImage());
       return;
     }
-    if ("Use existing image".equals(selected)) {
+    if (optExisting.equals(selected)) {
       callback.accept(imagePicker.pickFromLibrary());
       return;
     }
 
     assistant.hideForCapture();
     new Thread(() -> {
-      ScreenImage capture = new Screen().userCapture("Select region for " + purpose);
+      ScreenImage capture = new Screen().userCapture(
+          SikuliIDEI18N._I("recorder.picker.regionForPurpose", purpose));
       SwingUtilities.invokeLater(() -> {
         assistant.showAfterCapture();
         if (capture == null) { callback.accept(null); return; }
@@ -229,21 +243,21 @@ class RecorderActions {
           String defaultName = purpose.replaceAll("\\s+", "_").toLowerCase()
               + "_" + System.currentTimeMillis();
           String imageName = JOptionPane.showInputDialog(assistant,
-              "Name this image:", defaultName);
+              SikuliIDEI18N._I("recorder.picker.namePrompt"), defaultName);
           if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
           imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
           if (!imageName.endsWith(".png")) imageName += ".png";
           String imagePath = capture.save(screenshotDir.getAbsolutePath(), imageName);
           if (imagePath == null) {
             callback.accept(null);
-            RecorderNotifications.error("Failed to save captured image");
+            RecorderNotifications.error(SikuliIDEI18N._I("recorder.actions.failedToSaveCapture"));
             return;
           }
           capturedImages.add(imagePath);
           callback.accept(imagePath);
         } catch (Exception ex) {
           callback.accept(null);
-          RecorderNotifications.error("Action failed: " + ex.getMessage());
+          RecorderNotifications.error(SikuliIDEI18N._I("recorder.actions.actionFailed", ex.getMessage()));
         }
       });
     }, "RecorderDragDrop-" + purpose).start();
@@ -256,7 +270,8 @@ class RecorderActions {
     assistant.hideForCapture();
 
     new Thread(() -> {
-      ScreenImage capture = new Screen().userCapture("Select region for swipe");
+      ScreenImage capture = new Screen().userCapture(
+          SikuliIDEI18N._I("recorder.picker.regionForSwipe"));
 
       SwingUtilities.invokeLater(() -> {
         assistant.showAfterCapture();
@@ -269,7 +284,7 @@ class RecorderActions {
         try {
           String defaultName = "swipe_zone_" + System.currentTimeMillis();
           String imageName = JOptionPane.showInputDialog(assistant,
-              "Name this zone:", defaultName);
+              SikuliIDEI18N._I("recorder.picker.zoneNamePrompt"), defaultName);
           if (imageName == null || imageName.trim().isEmpty()) imageName = defaultName;
           imageName = imageName.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
           if (!imageName.endsWith(".png")) imageName += ".png";
@@ -286,12 +301,12 @@ class RecorderActions {
             boolean scoped = appScope.isAppScoped();
             String varName = appScope.getAppVarName();
             for (String line : lines) codeGen.addActionCode(line, scoped, varName);
-            RecorderNotifications.success("Swipe recorded");
+            RecorderNotifications.success(SikuliIDEI18N._I("recorder.actions.swipeRecorded"));
           }
           workflow.onActionComplete();
         } catch (Exception ex) {
           workflow.reset();
-          RecorderNotifications.error("Swipe failed: " + ex.getMessage());
+          RecorderNotifications.error(SikuliIDEI18N._I("recorder.actions.swipeFailed", ex.getMessage()));
         }
       });
     }, "RecorderSwipe").start();
@@ -304,7 +319,8 @@ class RecorderActions {
     assistant.hideForCapture();
 
     new Thread(() -> {
-      ScreenImage capture = new Screen().userCapture("Select region for wheel action");
+      ScreenImage capture = new Screen().userCapture(
+          SikuliIDEI18N._I("recorder.picker.regionForWheel"));
 
       SwingUtilities.invokeLater(() -> {
         assistant.showAfterCapture();
@@ -329,7 +345,7 @@ class RecorderActions {
           workflow.onActionComplete();
         } catch (Exception ex) {
           workflow.reset();
-          RecorderNotifications.error("Wheel failed: " + ex.getMessage());
+          RecorderNotifications.error(SikuliIDEI18N._I("recorder.actions.wheelFailed", ex.getMessage()));
         }
       });
     }, "RecorderWheel").start();
@@ -341,13 +357,14 @@ class RecorderActions {
 
     String label;
     switch (actionType) {
-      case "textClick":  label = "Text to click on:"; break;
-      case "textWait":   label = "Text to wait for:"; break;
-      case "textExists": label = "Text to check:"; break;
-      default:           label = "Text:"; break;
+      case "textClick":  label = SikuliIDEI18N._I("recorder.actions.textClickPrompt"); break;
+      case "textWait":   label = SikuliIDEI18N._I("recorder.actions.textWaitPrompt"); break;
+      case "textExists": label = SikuliIDEI18N._I("recorder.actions.textExistsPrompt"); break;
+      default:           label = SikuliIDEI18N._I("recorder.actions.textPrompt"); break;
     }
 
-    String text = JOptionPane.showInputDialog(assistant, label, "Text Action",
+    String text = JOptionPane.showInputDialog(assistant, label,
+        SikuliIDEI18N._I("recorder.actions.textTitle"),
         JOptionPane.PLAIN_MESSAGE);
     if (text != null && !text.trim().isEmpty()) {
       codeGen.addActionCode(codeGen.generateTextCode(actionType, text.trim()),
@@ -360,7 +377,9 @@ class RecorderActions {
     if (appScope.warnIfNoApp(assistant)) return;
     if (!workflow.startTextInput()) return;
 
-    String text = JOptionPane.showInputDialog(assistant, "Text to type:", "Type Text",
+    String text = JOptionPane.showInputDialog(assistant,
+        SikuliIDEI18N._I("recorder.actions.typePrompt"),
+        SikuliIDEI18N._I("recorder.actions.typeTitle"),
         JOptionPane.PLAIN_MESSAGE);
     if (text != null && !text.isEmpty()) {
       String code = codeGen.getGenerator().typeText(text, new String[0]);
@@ -385,15 +404,17 @@ class RecorderActions {
   void handlePause() {
     if (!workflow.startPauseInput()) return;
 
-    String seconds = JOptionPane.showInputDialog(assistant, "Pause duration (seconds):",
-        "Pause", JOptionPane.PLAIN_MESSAGE);
+    String seconds = JOptionPane.showInputDialog(assistant,
+        SikuliIDEI18N._I("recorder.actions.pausePrompt"),
+        SikuliIDEI18N._I("recorder.actions.pauseTitle"),
+        JOptionPane.PLAIN_MESSAGE);
     if (seconds != null && !seconds.isEmpty()) {
       try {
         int s = Integer.parseInt(seconds.trim());
         codePreview.addLine("sleep(" + s + ")");
-        RecorderNotifications.warning("Fixed delays are fragile. Prefer Wait Image when possible.");
+        RecorderNotifications.warning(SikuliIDEI18N._I("recorder.actions.pauseFragile"));
       } catch (NumberFormatException ex) {
-        RecorderNotifications.error("Invalid number: " + seconds);
+        RecorderNotifications.error(SikuliIDEI18N._I("recorder.actions.invalidNumber", seconds));
       }
     }
     workflow.onActionComplete();

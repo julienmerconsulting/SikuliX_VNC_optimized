@@ -4,6 +4,7 @@
 package org.sikuli.ide.ui.recorder;
 
 import net.miginfocom.swing.MigLayout;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
@@ -37,7 +38,7 @@ public class RecorderWheelDialog extends JDialog {
   private String result = null;
 
   public RecorderWheelDialog(Dialog parent, BufferedImage capture, String imagePath) {
-    super(parent, "Wheel Configuration", true);
+    super(parent, SikuliIDEI18N._I("recorder.wheel.title"), true);
     this.capture = capture;
     this.imageName = new File(imagePath).getName();
     setResizable(false);
@@ -52,7 +53,7 @@ public class RecorderWheelDialog extends JDialog {
     content.setBackground(UIManager.getColor("Panel.background"));
 
     // Image preview with crosshair
-    JLabel lblImg = new JLabel("Captured region (click to set offset from center)");
+    JLabel lblImg = new JLabel(SikuliIDEI18N._I("recorder.wheel.lblImg"));
     lblImg.setFont(UIManager.getFont("small.font"));
     lblImg.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblImg);
@@ -82,7 +83,7 @@ public class RecorderWheelDialog extends JDialog {
     imagePanel.setBorder(BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1));
     content.add(imagePanel, "align center");
 
-    offsetLabel = new JLabel("Offset: (0, 0) — centered on pattern");
+    offsetLabel = new JLabel(SikuliIDEI18N._I("recorder.wheel.offsetCentered"));
     offsetLabel.setFont(UIManager.getFont("small.font"));
     offsetLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(offsetLabel);
@@ -92,7 +93,7 @@ public class RecorderWheelDialog extends JDialog {
     // Direction
     JPanel dirPanel = new JPanel(new MigLayout("insets 0, gap 12", "[][]"));
     dirPanel.setOpaque(false);
-    JLabel lblDir = new JLabel("Direction:");
+    JLabel lblDir = new JLabel(SikuliIDEI18N._I("recorder.wheel.lblDir"));
     lblDir.setFont(UIManager.getFont("defaultFont"));
     dirPanel.add(lblDir);
     rbDown = new JRadioButton("Down", true);
@@ -112,7 +113,7 @@ public class RecorderWheelDialog extends JDialog {
     // Steps
     JPanel stepsPanel = new JPanel(new MigLayout("insets 0, gap 12", "[][60]"));
     stepsPanel.setOpaque(false);
-    JLabel lblSteps = new JLabel("Steps:");
+    JLabel lblSteps = new JLabel(SikuliIDEI18N._I("recorder.wheel.lblSteps"));
     stepsPanel.add(lblSteps);
     spinnerSteps = new JSpinner(new SpinnerNumberModel(3, 1, 50, 1));
     spinnerSteps.addChangeListener(e -> updatePreview());
@@ -122,7 +123,7 @@ public class RecorderWheelDialog extends JDialog {
     content.add(new JSeparator(), "growx, gaptop 4");
 
     // Code preview
-    JLabel lblPrev = new JLabel("Generated code");
+    JLabel lblPrev = new JLabel(SikuliIDEI18N._I("recorder.wheel.lblPreview"));
     lblPrev.setFont(UIManager.getFont("small.font"));
     lblPrev.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblPrev);
@@ -138,9 +139,9 @@ public class RecorderWheelDialog extends JDialog {
     // Buttons
     JPanel buttons = new JPanel(new MigLayout("insets 0, gap 8", "push[][]", ""));
     buttons.setOpaque(false);
-    cancelBtn = new JButton("Cancel");
+    cancelBtn = new JButton(SikuliIDEI18N._I("recorder.wheel.btnCancel"));
     cancelBtn.addActionListener(e -> { result = null; dispose(); });
-    okBtn = new JButton("OK");
+    okBtn = new JButton(SikuliIDEI18N._I("recorder.wheel.btnOk"));
     okBtn.putClientProperty("JButton.buttonType", "default");
     okBtn.addActionListener(e -> { result = buildCode(); dispose(); });
     buttons.add(cancelBtn);
@@ -167,8 +168,11 @@ public class RecorderWheelDialog extends JDialog {
 
   private void updatePreview() {
     previewLabel.setText(buildCode());
-    offsetLabel.setText("Offset: (" + offsetX + ", " + offsetY + ")"
-        + (offsetX == 0 && offsetY == 0 ? " — centered on pattern" : ""));
+    if (offsetX == 0 && offsetY == 0) {
+      offsetLabel.setText(SikuliIDEI18N._I("recorder.wheel.offsetCustomCentered", offsetX, offsetY));
+    } else {
+      offsetLabel.setText(SikuliIDEI18N._I("recorder.wheel.offsetCustom", offsetX, offsetY));
+    }
   }
 
   public String getResult() {

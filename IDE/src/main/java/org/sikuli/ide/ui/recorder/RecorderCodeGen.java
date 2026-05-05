@@ -4,6 +4,7 @@
 package org.sikuli.ide.ui.recorder;
 
 import org.sikuli.script.*;
+import org.sikuli.support.ide.SikuliIDEI18N;
 import org.sikuli.support.recorder.generators.ICodeGenerator;
 import org.sikuli.support.recorder.generators.JavaCodeGenerator;
 import org.sikuli.support.recorder.generators.RobotFrameworkCodeGenerator;
@@ -88,8 +89,9 @@ class RecorderCodeGen {
   }
 
   void generateVanish(JDialog parent, Pattern pattern, boolean appScoped, String appVarName) {
-    JCheckBox chkVanish = new JCheckBox("Assert UI change after this action (waitVanish)");
-    JOptionPane.showMessageDialog(parent, chkVanish, "Post-action assertion",
+    JCheckBox chkVanish = new JCheckBox(SikuliIDEI18N._I("recorder.codegen.vanishCheckbox"));
+    JOptionPane.showMessageDialog(parent, chkVanish,
+        SikuliIDEI18N._I("recorder.codegen.vanishTitle"),
         JOptionPane.PLAIN_MESSAGE);
     if (chkVanish.isSelected()) {
       String patStr = codeGenerator.pattern(pattern);

@@ -4,6 +4,7 @@
 package org.sikuli.ide.ui.recorder;
 
 import net.miginfocom.swing.MigLayout;
+import org.sikuli.support.ide.SikuliIDEI18N;
 
 import javax.swing.*;
 import java.awt.*;
@@ -35,7 +36,7 @@ public class RecorderSwipeDialog extends JDialog {
   private JLabel startLabel;
 
   public RecorderSwipeDialog(Dialog parent, BufferedImage capture, String imagePath) {
-    super(parent, "Swipe Configuration", true);
+    super(parent, SikuliIDEI18N._I("recorder.swipe.title"), true);
     this.capture = capture;
     this.imageName = new File(imagePath).getName();
     setResizable(false);
@@ -50,7 +51,7 @@ public class RecorderSwipeDialog extends JDialog {
     content.setBackground(UIManager.getColor("Panel.background"));
 
     // Image preview with swipe arrow overlay
-    JLabel lblImg = new JLabel("Swipe zone (click to set start position, default is center)");
+    JLabel lblImg = new JLabel(SikuliIDEI18N._I("recorder.swipe.lblImg"));
     lblImg.setFont(UIManager.getFont("small.font"));
     lblImg.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblImg);
@@ -74,7 +75,7 @@ public class RecorderSwipeDialog extends JDialog {
     imagePanel.setBorder(BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1));
     content.add(imagePanel, "align center");
 
-    startLabel = new JLabel("Start: center of pattern");
+    startLabel = new JLabel(SikuliIDEI18N._I("recorder.swipe.startCenter"));
     startLabel.setFont(UIManager.getFont("small.font"));
     startLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(startLabel);
@@ -82,7 +83,7 @@ public class RecorderSwipeDialog extends JDialog {
     content.add(new JSeparator(), "growx, gaptop 4");
 
     // Direction buttons
-    JLabel lblDir = new JLabel("Direction");
+    JLabel lblDir = new JLabel(SikuliIDEI18N._I("recorder.swipe.lblDir"));
     lblDir.setFont(UIManager.getFont("small.font"));
     lblDir.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblDir);
@@ -107,7 +108,7 @@ public class RecorderSwipeDialog extends JDialog {
     content.add(dirPad);
 
     // Distance slider
-    JLabel lblDist = new JLabel("Distance");
+    JLabel lblDist = new JLabel(SikuliIDEI18N._I("recorder.swipe.lblDistance"));
     lblDist.setFont(UIManager.getFont("small.font"));
     lblDist.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblDist, "gaptop 6");
@@ -131,7 +132,7 @@ public class RecorderSwipeDialog extends JDialog {
     content.add(new JSeparator(), "growx, gaptop 4");
 
     // Preview
-    JLabel lblPrev = new JLabel("Generated code");
+    JLabel lblPrev = new JLabel(SikuliIDEI18N._I("recorder.swipe.lblPreview"));
     lblPrev.setFont(UIManager.getFont("small.font"));
     lblPrev.setForeground(UIManager.getColor("Label.disabledForeground"));
     content.add(lblPrev);
@@ -147,9 +148,9 @@ public class RecorderSwipeDialog extends JDialog {
     // Buttons
     JPanel buttons = new JPanel(new MigLayout("insets 0, gap 8", "push[][]", ""));
     buttons.setOpaque(false);
-    cancelBtn = new JButton("Cancel");
+    cancelBtn = new JButton(SikuliIDEI18N._I("recorder.swipe.btnCancel"));
     cancelBtn.addActionListener(e -> { result = null; dispose(); });
-    okBtn = new JButton("OK");
+    okBtn = new JButton(SikuliIDEI18N._I("recorder.swipe.btnOk"));
     okBtn.putClientProperty("JButton.buttonType", "default");
     okBtn.addActionListener(e -> { result = buildCode(); dispose(); });
     buttons.add(cancelBtn);
@@ -204,9 +205,9 @@ public class RecorderSwipeDialog extends JDialog {
     previewLabel.setText("<html>" + buildCode().replace("\n", "<br>") + "</html>");
     distanceLabel.setText(distance + " px");
     if (startOffsetX == 0 && startOffsetY == 0) {
-      startLabel.setText("Start: center of pattern");
+      startLabel.setText(SikuliIDEI18N._I("recorder.swipe.startCenter"));
     } else {
-      startLabel.setText("Start: offset (" + startOffsetX + ", " + startOffsetY + ") from center");
+      startLabel.setText(SikuliIDEI18N._I("recorder.swipe.startOffset", startOffsetX, startOffsetY));
     }
   }
 

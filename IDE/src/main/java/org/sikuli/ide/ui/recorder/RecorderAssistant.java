@@ -5,6 +5,7 @@ package org.sikuli.ide.ui.recorder;
 
 import net.miginfocom.swing.MigLayout;
 import org.sikuli.ide.SikulixIDE;
+import org.sikuli.support.ide.SikuliIDEI18N;
 import org.sikuli.support.recorder.generators.ICodeGenerator;
 
 import javax.swing.*;
@@ -42,7 +43,7 @@ public class RecorderAssistant extends JDialog {
   private JButton btnInsert, btnClear;
 
   public RecorderAssistant(Frame parent, ICodeGenerator generator) {
-    super(parent, "OculiX Modern Recorder (beta)", false);
+    super(parent, SikuliIDEI18N._I("recorder.assistant.title"), false);
     setSize(400, 680);
     setLocationRelativeTo(parent);
     setAlwaysOnTop(true);
@@ -95,24 +96,24 @@ public class RecorderAssistant extends JDialog {
         "wrap 1, insets 10, gap 6", "[grow, fill]", ""));
     content.setBackground(UIManager.getColor("Panel.background"));
 
-    statusLabel = new JLabel("\u2B24 Ready");
+    statusLabel = new JLabel(SikuliIDEI18N._I("recorder.assistant.statusReady"));
     statusLabel.setFont(UIManager.getFont("defaultFont").deriveFont(11f));
     statusLabel.setForeground(new Color(0x3D, 0xDB, 0xA4));
     content.add(statusLabel);
 
     content.add(new JSeparator(), "growx");
 
-    content.add(createSectionLabel("APPLICATION"));
+    content.add(createSectionLabel(SikuliIDEI18N._I("recorder.assistant.sectionApp")));
     JPanel appRow = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow]"));
     appRow.setOpaque(false);
-    btnLaunchApp = createActionButton("Launch App");
-    btnCloseApp = createActionButton("Close App");
+    btnLaunchApp = createActionButton(SikuliIDEI18N._I("recorder.assistant.btnLaunchApp"));
+    btnCloseApp = createActionButton(SikuliIDEI18N._I("recorder.assistant.btnCloseApp"));
     btnCloseApp.setEnabled(false);
     appRow.add(btnLaunchApp, "grow");
     appRow.add(btnCloseApp, "grow");
     content.add(appRow);
 
-    chkScopeToApp = new JCheckBox("Scope actions to this app", true);
+    chkScopeToApp = new JCheckBox(SikuliIDEI18N._I("recorder.assistant.chkScopeToApp"), true);
     chkScopeToApp.setFont(UIManager.getFont("defaultFont").deriveFont(11f));
     chkScopeToApp.setOpaque(false);
     chkScopeToApp.setEnabled(false);
@@ -120,7 +121,7 @@ public class RecorderAssistant extends JDialog {
 
     content.add(new JSeparator(), "growx, gaptop 4");
 
-    content.add(createSectionLabel("IMAGE ACTIONS"));
+    content.add(createSectionLabel(SikuliIDEI18N._I("recorder.assistant.sectionImage")));
     JPanel imageRow1 = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow][grow]"));
     imageRow1.setOpaque(false);
     btnClick = createActionButton("Click");
@@ -145,7 +146,7 @@ public class RecorderAssistant extends JDialog {
 
     content.add(new JSeparator(), "growx, gaptop 4");
 
-    content.add(createSectionLabel("TEXT ACTIONS"));
+    content.add(createSectionLabel(SikuliIDEI18N._I("recorder.assistant.sectionText")));
     JPanel textRow = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow][grow]"));
     textRow.setOpaque(false);
     btnTextClick = createActionButton("T.Click");
@@ -158,7 +159,7 @@ public class RecorderAssistant extends JDialog {
 
     content.add(new JSeparator(), "growx, gaptop 4");
 
-    content.add(createSectionLabel("KEYBOARD"));
+    content.add(createSectionLabel(SikuliIDEI18N._I("recorder.assistant.sectionKeyboard")));
     JPanel kbRow = new JPanel(new MigLayout("insets 0, gap 4", "[grow][grow]"));
     kbRow.setOpaque(false);
     btnType = createActionButton("Type");
@@ -175,16 +176,16 @@ public class RecorderAssistant extends JDialog {
 
     content.add(new JSeparator(), "growx, gaptop 4");
 
-    content.add(createSectionLabel("GENERATED CODE"));
+    content.add(createSectionLabel(SikuliIDEI18N._I("recorder.assistant.sectionGenerated")));
     JScrollPane scrollPane = new JScrollPane(codePreview);
     scrollPane.setPreferredSize(new Dimension(0, 120));
     content.add(scrollPane, "grow, push");
 
     JPanel bottomRow = new JPanel(new MigLayout("insets 0, gap 6", "[grow][grow]"));
     bottomRow.setOpaque(false);
-    btnInsert = new JButton("Insert & Close");
+    btnInsert = new JButton(SikuliIDEI18N._I("recorder.assistant.btnInsert"));
     btnInsert.addActionListener(e -> insertAndClose());
-    btnClear = new JButton("Clear");
+    btnClear = new JButton(SikuliIDEI18N._I("recorder.assistant.btnClear"));
     btnClear.addActionListener(e -> codePreview.clear());
     bottomRow.add(btnInsert, "grow");
     bottomRow.add(btnClear, "grow");
@@ -283,22 +284,27 @@ public class RecorderAssistant extends JDialog {
 
     int choice;
     if (!languageMatches && paneLang != null) {
-      String[] opts = {"New Script", "Cancel"};
+      String[] opts = {
+          SikuliIDEI18N._I("recorder.assistant.optNewScript"),
+          SikuliIDEI18N._I("recorder.assistant.optCancel")
+      };
       int pick = JOptionPane.showOptionDialog(this,
-          "The current script is " + paneLang + " but the Recorder generated "
-              + recorderLang + " code.\nInserting here would produce invalid code."
-              + "\n\nCreate a new " + recorderLang + " script with the " + model.size()
-              + " generated line(s)?",
-          "Language mismatch",
+          SikuliIDEI18N._I("recorder.assistant.langMismatchMsg",
+              paneLang, recorderLang, model.size()),
+          SikuliIDEI18N._I("recorder.assistant.langMismatchTitle"),
           JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
           null, opts, opts[0]);
       if (pick != 0) return;
       choice = 1; // force New Script path below
     } else {
-      String[] options = {"Current Script", "New Script", "Cancel"};
+      String[] options = {
+          SikuliIDEI18N._I("recorder.assistant.optCurrentScript"),
+          SikuliIDEI18N._I("recorder.assistant.optNewScript"),
+          SikuliIDEI18N._I("recorder.assistant.optCancel")
+      };
       choice = JOptionPane.showOptionDialog(this,
-          "Insert " + model.size() + " line(s) of generated code:",
-          "Insert Code",
+          SikuliIDEI18N._I("recorder.assistant.insertMsg", model.size()),
+          SikuliIDEI18N._I("recorder.assistant.insertTitle"),
           JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
           null, options, options[0]);
       if (choice == 2 || choice < 0) return;
@@ -340,7 +346,8 @@ public class RecorderAssistant extends JDialog {
         pane.setCaretPosition(pane.getDocument().getLength());
         pane.insertString(codeStr);
         ctx.reparse();
-        RecorderNotifications.success(model.size() + " line(s) inserted.");
+        RecorderNotifications.success(
+            SikuliIDEI18N._I("recorder.assistant.linesInserted", model.size()));
         ide.refreshWorkspace();
       }
       cleanupTempDir();
@@ -362,32 +369,32 @@ public class RecorderAssistant extends JDialog {
   private void updateStatus(RecorderWorkflow.RecorderState newState) {
     switch (newState) {
       case IDLE:
-        statusLabel.setText("\u2B24 Ready");
+        statusLabel.setText(SikuliIDEI18N._I("recorder.assistant.statusReady"));
         statusLabel.setForeground(new Color(0x3D, 0xDB, 0xA4));
         setActionButtonsEnabled(true);
         break;
       case CAPTURING_REGION:
-        statusLabel.setText("\u2B24 Capturing region...");
+        statusLabel.setText(SikuliIDEI18N._I("recorder.assistant.statusCapturing"));
         statusLabel.setForeground(new Color(0xFF, 0xA5, 0x00));
         setActionButtonsEnabled(false);
         break;
       case WAITING_OCR:
-        statusLabel.setText("\u2B24 Recognizing text...");
+        statusLabel.setText(SikuliIDEI18N._I("recorder.assistant.statusOcr"));
         statusLabel.setForeground(new Color(0xFF, 0xA5, 0x00));
         setActionButtonsEnabled(false);
         break;
       case WAITING_KEY_COMBO:
-        statusLabel.setText("\u2B24 Press key combo...");
+        statusLabel.setText(SikuliIDEI18N._I("recorder.assistant.statusKeyCombo"));
         statusLabel.setForeground(new Color(0xFF, 0xA5, 0x00));
         setActionButtonsEnabled(false);
         break;
       case WAITING_PATTERN_VALIDATION:
-        statusLabel.setText("\u2B24 Validating pattern...");
+        statusLabel.setText(SikuliIDEI18N._I("recorder.assistant.statusValidating"));
         statusLabel.setForeground(new Color(0xFF, 0xA5, 0x00));
         setActionButtonsEnabled(false);
         break;
       case WAITING_USER_INPUT:
-        statusLabel.setText("\u2B24 Waiting for input...");
+        statusLabel.setText(SikuliIDEI18N._I("recorder.assistant.statusWaitingInput"));
         statusLabel.setForeground(new Color(0x64, 0xB5, 0xF6));
         setActionButtonsEnabled(false);
         break;

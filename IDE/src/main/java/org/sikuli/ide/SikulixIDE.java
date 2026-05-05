@@ -302,9 +302,15 @@ public class SikulixIDE extends JFrame {
       }
     });
 
-    // Explorer + Editor in a horizontal split
-    JSplitPane editorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, explorer, codePane);
-    editorSplit.setDividerLocation(180);
+    // Explorer + Editor in a horizontal split.
+    // The explorer (workspace pane) is hidden by default: when the IDE boots
+    // there's no script open, so a half-empty Workspace column on the left
+    // just steals 180px of editor real-estate and visually duplicates the
+    // sidebar. The split divider sits at 0 → explorer collapsed. As soon as
+    // a script is created or a workspace is loaded, refreshExplorerVisibility()
+    // (called from refreshWorkspace) re-opens the divider to its working width.
+    editorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, explorer, codePane);
+    editorSplit.setDividerLocation(0);
     editorSplit.setResizeWeight(0.0); // editor gets all extra space
     editorSplit.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, UIManager.getColor("Separator.foreground")));
     editorSplit.setOneTouchExpandable(true);
@@ -734,6 +740,22 @@ public class SikulixIDE extends JFrame {
   private ScriptExplorer explorer;
 
   private JSplitPane mainPane;
+  private JSplitPane editorSplit;
+  private static final int EXPLORER_OPEN_WIDTH = 200;
+
+  /**
+   * Re-opens or collapses the workspace explorer pane based on whether any
+   * scripts are open. Called after every refreshWorkspace() — the explorer
+   * is purely contextual: empty IDE = collapsed, scripts open = visible.
+   */
+  private void refreshExplorerVisibility() {
+    if (editorSplit == null) return;
+    boolean hasScripts = !contexts.isEmpty();
+    int target = hasScripts ? EXPLORER_OPEN_WIDTH : 0;
+    if (editorSplit.getDividerLocation() != target) {
+      editorSplit.setDividerLocation(target);
+    }
+  }
 
   private void initTabs() {
     tabs = new CloseableTabbedPane();
@@ -894,6 +916,7 @@ public class SikulixIDE extends JFrame {
       selected = -1;
     }
     explorer.updateScripts(scripts, selected);
+    refreshExplorerVisibility();
   }
 
   public void createEmptyScriptContext() {

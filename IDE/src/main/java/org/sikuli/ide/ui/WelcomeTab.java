@@ -53,71 +53,84 @@ public class WelcomeTab extends JPanel {
     this.onOpen = onOpen;
     this.onNewWorkspace = onNewWorkspace;
     this.onOpenWorkspace = onOpenWorkspace;
-    setLayout(new MigLayout("fill, wrap 1", "[center]", "push[]push"));
+    setLayout(new MigLayout("fill, wrap 1", "[left]", "push[]push"));
     setOpaque(true);
-    // Welcome is the brand surface: always navy + cyan/violet haze, even when
-    // the user picks the OculiX Light theme elsewhere. The home page is the
-    // brand statement — it doesn't follow the chrome theme.
-    setBackground(OculixColors.OX_INK_900);
+    // Welcome is the brand surface in both modes — always navy with cyan /
+    // violet haze + white text, but a touch lighter in OculiX Light so the
+    // Welcome reads as "the IDE's hero, brand-tinted" rather than "stuck in
+    // dark mode". Dark mode → ink-900 (deepest). Light mode → ink-700
+    // (lighter navy, still dark enough for white hero text).
+    setBackground(welcomeBg());
     buildUI();
+  }
+
+  /** Pick the Welcome bg based on the active LaF — see comment in ctor. */
+  private static Color welcomeBg() {
+    String name = UIManager.getLookAndFeel().getName();
+    boolean dark = name != null && name.toLowerCase(java.util.Locale.ROOT).contains("dark");
+    return dark ? OculixColors.OX_INK_900 : OculixColors.OX_INK_700;
   }
 
   private void buildUI() {
     // Centered column of content with a max width for readability
     JPanel column = new JPanel(new MigLayout(
-        "wrap 1, insets 32 48 32 48, gap 0", "[grow, fill, 600!]", ""));
+        "wrap 1, insets 28 36 20 36, gap 0", "[grow, fill, 580!]", ""));
     column.setOpaque(false);
 
     // ── Eyebrow ──
     JLabel eyebrow = new JLabel(("VISUAL AUTOMATION · v" + Commons.getSXVersionShort()).toUpperCase());
     eyebrow.setFont(applyTracking(OculixFonts.mono(11), 0.20f).deriveFont(Font.BOLD));
     eyebrow.setForeground(OculixColors.OX_CYAN_500);
-    column.add(eyebrow, "gapbottom 18");
+    column.add(eyebrow, "gapbottom 14");
 
     // ── Hero quote (RaiMan's words from the SikuliX1 README) ──
-    String hero = "<html><div style='line-height:1.15'>"
+    // Sans-serif bold, "Raiman style 2010" — utilitarian, no flourish.
+    String hero = "<html><div style='line-height:1.05'>"
         + "SikuliX automates anything you<br>"
         + "see on the screen."
         + "</div></html>";
     JLabel heroLabel = new JLabel(hero);
-    heroLabel.setFont(OculixFonts.display(40));
-    heroLabel.setForeground(UIManager.getColor("Label.foreground"));
-    column.add(heroLabel, "gapbottom 12");
+    heroLabel.setFont(OculixFonts.uiBold(36));
+    // Hardcoded brand color — Welcome is brand-locked, so the hero stays light
+    // even when the user picks the OculiX Light theme (otherwise the Light
+    // theme's UIManager.Label.foreground = dark navy = invisible on our navy bg).
+    heroLabel.setForeground(OculixColors.OX_INK_100);
+    column.add(heroLabel, "gapbottom 10");
 
-    String body = "<html><div style='width:560px; line-height:1.5'>"
+    String body = "<html><div style='width:540px; line-height:1.5'>"
         + "It uses image recognition powered by OpenCV to identify GUI components, "
         + "and acts on them with mouse and keyboard. Handy when there is no easy "
         + "access to a GUI's internals or to the source code."
         + "</div></html>";
     JLabel bodyLabel = new JLabel(body);
-    bodyLabel.setFont(OculixFonts.ui(14));
+    bodyLabel.setFont(OculixFonts.ui(13));
     bodyLabel.setForeground(OculixColors.OX_INK_200);
-    column.add(bodyLabel, "gapbottom 6");
+    column.add(bodyLabel, "gapbottom 4");
 
     JLabel attribution = new JLabel("— RaiMan, SikuliX1");
-    attribution.setFont(OculixFonts.ui(12).deriveFont(Font.ITALIC));
+    attribution.setFont(OculixFonts.ui(11).deriveFont(Font.ITALIC));
     attribution.setForeground(OculixColors.OX_INK_400);
-    column.add(attribution, "gapbottom 24");
+    column.add(attribution, "gapbottom 18");
 
     // ── OculiX-adds box ──
-    column.add(new OculixAddsBox(), "growx, gapbottom 28");
+    column.add(new OculixAddsBox(), "growx, gapbottom 18");
 
     // ── Primary CTAs ──
-    JPanel primaryCtas = new JPanel(new MigLayout("insets 0, gap 12", "[]12[]push"));
+    JPanel primaryCtas = new JPanel(new MigLayout("insets 0, gap 10", "[]10[]push"));
     primaryCtas.setOpaque(false);
     primaryCtas.add(new HeroButton("+  New script", "Ctrl+N", true, onNew));
     primaryCtas.add(new HeroButton("↗  Open script", "Ctrl+O", false, onOpen));
-    column.add(primaryCtas, "gapbottom 18");
+    column.add(primaryCtas, "gapbottom 10");
 
     // ── Secondary grid ──
-    JPanel secondary = new JPanel(new MigLayout("insets 0, wrap 2, gap 6 24", "[grow, fill][grow, fill]", ""));
+    JPanel secondary = new JPanel(new MigLayout("insets 0, wrap 2, gap 4 18", "[grow, fill][grow, fill]", ""));
     secondary.setOpaque(false);
     secondary.add(new SecondaryRow("⊞  New workspace", "Ctrl+Shift+N", onNewWorkspace));
     secondary.add(new SecondaryRow("↓  Open workspace", "Ctrl+Shift+O", onOpenWorkspace));
-    column.add(secondary, "gapbottom 32");
+    column.add(secondary, "gapbottom 18");
 
     // ── Footer ──
-    JPanel footer = new JPanel(new MigLayout("insets 0, gap 14", "[]14[]14[]push[]14[]14[]"));
+    JPanel footer = new JPanel(new MigLayout("insets 0, gap 12", "[]12[]12[]push[]12[]12[]"));
     footer.setOpaque(false);
     footer.add(footerText("v" + Commons.getSXVersionShort()));
     footer.add(footerSep());

@@ -99,23 +99,21 @@ public class OculixSidebar extends JPanel {
    */
   public void initNavItems() {
     // ── Wordmark ──
-    // "OculiX" in Fraunces italic black + "IDE" small mono cyan, baseline-aligned
-    // on the same horizontal line. No box, no border — typography carries the
-    // brand on its own.
-    JPanel wordmarkRow = new JPanel(new MigLayout("insets 14 0 14 0, gap 4", "push[][]push", "[]"));
-    wordmarkRow.setOpaque(false);
-
+    // Sans-serif bold (RaiMan-style 2010), wrapped in a soft rounded card so
+    // the brand block reads as a unit even in OculiX Light where the cyan
+    // accents lose contrast against the paper bg.
+    JPanel wordmarkCard = new WordmarkCard();
     JLabel logoLine1 = new JLabel("OculiX");
-    logoLine1.setFont(OculixFonts.display(30));
+    logoLine1.setFont(OculixFonts.uiBold(26));
     logoLine1.setForeground(UIManager.getColor("Label.foreground"));
-    wordmarkRow.add(logoLine1, "aligny baseline");
+    wordmarkCard.add(logoLine1, "aligny baseline");
 
     JLabel logoLine2 = new JLabel("IDE");
     logoLine2.setFont(applyTracking(OculixFonts.mono(11), 0.18f).deriveFont(Font.BOLD));
     logoLine2.setForeground(OculixColors.OX_CYAN_500);
-    wordmarkRow.add(logoLine2, "aligny baseline, gapleft 2");
+    wordmarkCard.add(logoLine2, "aligny baseline, gapleft 4");
 
-    mainPanel.add(wordmarkRow, "growx, gapbottom 8");
+    mainPanel.add(wordmarkCard, "growx, gapbottom 8");
 
     // ── Hero script card ──
     // Soft cyan-tinted card with a glowing border. When no script is open
@@ -417,6 +415,43 @@ public class OculixSidebar extends JPanel {
   }
 
   // ── Inner components ───────────────────────────────────────────
+
+  /**
+   * Wordmark card: soft rounded container around "OculiX IDE". Subtle ink-700
+   * fill in dark mode, paper-200 fill in light, both with a 1px ink-500 /
+   * paper-400 border. Gives the brand block presence without screaming.
+   */
+  static class WordmarkCard extends JPanel {
+    WordmarkCard() {
+      super(new MigLayout("insets 10 14 10 14, gap 4", "push[][]push", "[]"));
+      setOpaque(false);
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+      Graphics2D g2 = (Graphics2D) g.create();
+      g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+      int w = getWidth();
+      int h = getHeight();
+      int arc = 12;
+      boolean dark = isDarkLaf();
+      g2.setColor(dark
+          ? OculixColors.withAlpha(OculixColors.OX_INK_700, 180)
+          : new Color(0xEE, 0xF2, 0xFA));    // paper-200
+      g2.fillRoundRect(0, 0, w - 1, h - 1, arc, arc);
+      g2.setColor(dark ? OculixColors.OX_INK_500 : new Color(0xBC, 0xC7, 0xE2)); // paper-400
+      g2.setStroke(new BasicStroke(1f));
+      g2.drawRoundRect(0, 0, w - 1, h - 1, arc, arc);
+      g2.dispose();
+      super.paintComponent(g);
+    }
+  }
+
+  /** True when the active LaF is the OculiX Dark theme. */
+  private static boolean isDarkLaf() {
+    String name = UIManager.getLookAndFeel().getName();
+    return name != null && name.toLowerCase(java.util.Locale.ROOT).contains("dark");
+  }
 
   /**
    * Hero card showing the active script. Soft cyan-tinted background with a

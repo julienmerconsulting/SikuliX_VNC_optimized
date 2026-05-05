@@ -37,6 +37,13 @@ public class ScriptExplorer extends JPanel {
     setLayout(new BorderLayout());
     setMinimumSize(new Dimension(160, 0));
     setPreferredSize(new Dimension(200, 0));
+    // Match the sidebar's surface — paper-100 in OculiX Light, ink-800 in
+    // OculiX Dark — so the workspace explorer reads as one continuous brand
+    // surface with the sidebar instead of a stark white pane.
+    setOpaque(true);
+    setBackground(isDarkTheme()
+        ? new Color(0x0A, 0x10, 0x28)         // OX_INK_800
+        : new Color(0xF8, 0xFA, 0xFD));       // paper-100
 
     // Header
     JPanel header = new JPanel(new MigLayout("insets 6 10 6 10, fill", "[grow]", "[]"));
@@ -273,5 +280,10 @@ public class ScriptExplorer extends JPanel {
       }
       return new ScriptInfo(name, path, imgCount, !isTemp);
     }
+  }
+
+  private static boolean isDarkTheme() {
+    String name = UIManager.getLookAndFeel().getName();
+    return name != null && name.toLowerCase(java.util.Locale.ROOT).contains("dark");
   }
 }

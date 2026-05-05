@@ -319,11 +319,28 @@ public class SikulixIDE extends JFrame {
     JPanel editPane = new JPanel(new BorderLayout(0, 0));
     mainPane = null;
     if (messageArea != null) {
-      // Console always at the bottom (Eclipse-style)
+      // Console always at the bottom (Eclipse-style). The split divider gets
+      // a visible 1px ink-500 line so the editor / log boundary reads clearly
+      // in both themes — without that border, the surfaces blur into each
+      // other (sidebar paper-100 ≈ workspace paper-100 ≈ editor white in light).
       mainPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, editorSplit, messageArea);
       mainPane.setResizeWeight(0.75);
       mainPane.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
       mainPane.setOneTouchExpandable(true);
+      mainPane.setDividerSize(4);
+      mainPane.setUI(new javax.swing.plaf.basic.BasicSplitPaneUI() {
+        @Override
+        public javax.swing.plaf.basic.BasicSplitPaneDivider createDefaultDivider() {
+          return new javax.swing.plaf.basic.BasicSplitPaneDivider(this) {
+            @Override
+            public void paint(Graphics g) {
+              boolean dark = UIManager.getLookAndFeel().getName().toLowerCase(java.util.Locale.ROOT).contains("dark");
+              g.setColor(dark ? new Color(0x2B, 0x3A, 0x72) : new Color(0xBC, 0xC7, 0xE2));
+              g.fillRect(0, 0, getSize().width, getSize().height);
+            }
+          };
+        }
+      });
       editPane.add(mainPane, BorderLayout.CENTER);
     } else {
       editPane.add(editorSplit, BorderLayout.CENTER);
@@ -3780,6 +3797,12 @@ public class SikulixIDE extends JFrame {
   private void initMessageArea() {
     messages.init(SHOULD_WRAP_LINE);
     messageArea = new JTabbedPane();
+    // Match the sidebar surface so the message area's chrome (tab bar +
+    // padding around the actual log) stays in the brand palette instead of
+    // bleeding the default Swing white in OculiX Light.
+    boolean darkLaf = UIManager.getLookAndFeel().getName().toLowerCase(java.util.Locale.ROOT).contains("dark");
+    messageArea.setBackground(darkLaf ? new Color(0x0A, 0x10, 0x28) : new Color(0xF8, 0xFA, 0xFD));
+    messageArea.setOpaque(true);
     messageArea.addTab(_I("paneMessage"), null, messages, "DoubleClick to hide/unhide");
     if (Settings.isWindows() || Settings.isLinux()) {
       messageArea.setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));

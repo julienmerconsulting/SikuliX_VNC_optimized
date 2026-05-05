@@ -2197,23 +2197,38 @@ public class SikulixIDE extends JFrame {
       explorer.setWorkspaceName(currentWorkspaceName);
     }
 
-    // Load any .sikuli scripts in the workspace directory
-    File[] sikuliDirs = dir.listFiles(f -> f.isDirectory() && f.getName().endsWith(".sikuli"));
-    if (sikuliDirs != null) {
-      for (File script : sikuliDirs) {
+    // Discover scripts in the workspace directory. Three layouts supported:
+    //   1. dir/foo.sikuli/foo.py        — classic SikuliX bundle
+    //   2. dir/foo/foo.py               — plain folder bundle (modern OculiX
+    //      convention since the recorder writes there)
+    //   3. dir/foo.py                   — single script at the root (the
+    //      user opened a single-script bundle as a "workspace", common
+    //      mistake but still useful UX-wise)
+    int loaded = 0;
+    File[] children = dir.listFiles();
+    if (children != null) {
+      for (File child : children) {
         try {
-          // Check that the .sikuli bundle contains at least one .py file
-          File[] pyFiles = script.listFiles((d, name) -> name.endsWith(".py"));
-          if (pyFiles != null && pyFiles.length > 0) {
-            createFileContext(script);
-          } else {
-            log("Workspace: skipping %s (no .py file found)", script.getName());
+          if (child.isDirectory()) {
+            // Either a .sikuli bundle or a plain folder with a .py inside.
+            File[] pyFiles = child.listFiles((d, name) -> name.endsWith(".py"));
+            if (pyFiles != null && pyFiles.length > 0) {
+              createFileContext(child);
+              loaded++;
+            } else {
+              log("Workspace: skipping folder %s (no .py)", child.getName());
+            }
+          } else if (child.getName().endsWith(".py")) {
+            // Single-script case (3): open the .py directly.
+            createFileContext(child);
+            loaded++;
           }
         } catch (Exception e) {
-          log("Workspace: error loading %s: %s", script.getName(), e.getMessage());
+          log("Workspace: error loading %s: %s", child.getName(), e.getMessage());
         }
       }
     }
+    log("Workspace: %d script(s) loaded from %s", loaded, dir.getAbsolutePath());
 
     refreshWorkspace();
 

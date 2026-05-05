@@ -329,10 +329,25 @@ public class SX {
       }
     }
     Object returnValue = popRun.getReturnValue();
-    if (timeoutJob.isDone()) {
-      returnValue = null;
-    } else {
-      timeoutJob.cancel(false);
+    // Bug fix: ScheduledFuture.isDone() is true after BOTH a normal completion
+    // AND a cancel() (per Javadoc). The previous code did:
+    //   if (timeoutJob.isDone()) { returnValue = null; } else { cancel(false); }
+    // — which read as "if the timeout fired, treat the result as null".
+    // But by the time we get here, popRun.run() has finished synchronously
+    // and the cancel below makes isDone() == true unconditionally — so the
+    // condition was ALWAYS true and we always nuked returnValue back to null.
+    // Effect: every SX.input call returned null even when the user typed text
+    // and clicked OK. Reproduced in the ImageButton inline rename flow.
+    //
+    // Correct discriminator: isCancelled(). If we successfully cancel BEFORE
+    // the scheduled dispose ran, isCancelled() is true and the popup
+    // completed normally → keep returnValue. If we couldn't cancel (the
+    // timeout already fired), isCancelled() is false and isDone() is true
+    // because of normal task termination → returnValue is null because the
+    // forced dispose() bypassed the user's OK.
+    boolean cancelled = timeoutJob.cancel(false);
+    if (!cancelled && timeoutJob.isDone()) {
+      returnValue = null;     // dispose() ran first, user input was lost
     }
     // Do NOT shutdown the singleton TIMEOUT_EXECUTOR here: it is reused by
     // every subsequent popup, so shutting it down on the first call causes

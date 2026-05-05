@@ -3,10 +3,11 @@ package org.sikuli.support.gui;
 import org.apache.commons.io.FilenameUtils;
 import org.sikuli.ide.EditorImageButton;
 import org.sikuli.ide.SikulixIDE;
+import org.sikuli.script.Region;
+import org.sikuli.script.SX;
 import org.sikuli.support.RunTime;
 import org.sikuli.support.devices.ScreenDevice;
 
-import javax.swing.JOptionPane;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -40,19 +41,8 @@ public class SXDialogPaneImage extends SXDialogIDE {
   public void rename() {
     closeCancel();
     final String image = FilenameUtils.getBaseName(((File) getOptions().get("image")).getAbsolutePath());
-    // Switched from SX.input(msg, title, region) to a direct
-    // JOptionPane.showInputDialog. SX.input's third arg slot expects a String
-    // preset (cf. SX.getPopParameters parameterClass = "s,s,s,b,i,e,o") but
-    // SXDialogPaneImage was passing a Region. Parameter parsing silently
-    // returned null even when the user typed text and clicked OK — so the
-    // entire ImageButton rename action was a no-op for everyone, regardless
-    // of input. The direct JOptionPane call also gives us the current image
-    // name as a sane preset so a one-character correction is one keystroke
-    // away.
-    final String name = JOptionPane.showInputDialog(
-        SikulixIDE.get(),
-        "New name for image " + image,
-        image);
+    final Region showAt = new Region(getLocation().x, getLocation().y, 1, 1);
+    final String name = SX.input("New name for image " + image, "ImageButton :: rename", showAt);
     EditorImageButton.renameImage(name, getOptions());
   }
 

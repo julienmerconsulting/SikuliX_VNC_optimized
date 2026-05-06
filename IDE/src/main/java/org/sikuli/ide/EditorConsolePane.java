@@ -321,15 +321,14 @@ public class EditorConsolePane extends JPanel implements Runnable, ThemeAware {
     // for AA contrast against the active console bg (paper-100 in light,
     // ink-900 in dark).
     boolean dark = isDarkLaf();
+    // Dark palette unchanged — only light mode hexes were tweaked for AA
+    // contrast on near-white bg (the previous values washed out at common
+    // monitor gamma / brightness on Windows).
     String normal = dark ? "#BBBBBB" : "#2F3D6E";
-    String error  = dark ? "#FF6B6B" : "#C92A26";
-    // Debug in light mode dropped from yellow (#8B6500 = mustard) to a
-    // muted slate-blue: yellow on near-white is unreadable, slate-blue
-    // semantically reads as "secondary / low-priority detail" which fits
-    // debug messages and stays legible on paper-100.
-    String debug  = dark ? "#C0A000" : "#5A6993";
-    String log    = dark ? "#3DDBA4" : "#2EA417";
-    String info   = dark ? "#6CB6FF" : "#0F8DDB";
+    String error  = dark ? "#FF6B6B" : "#B91C1C";   // light: deeper red, more punchy on white
+    String debug  = dark ? "#C0A000" : "#9A4A06";   // light: dark orange (Jython startup, debug detail)
+    String log    = dark ? "#3DDBA4" : "#1B5E20";   // light: forest / wood green (success actions like CLICK)
+    String info   = dark ? "#6CB6FF" : "#0B5394";   // light: deeper blue (was washed-out medium blue)
 
     String color = "color: " + normal + ";";
 

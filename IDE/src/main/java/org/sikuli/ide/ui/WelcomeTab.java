@@ -206,7 +206,7 @@ public class WelcomeTab extends JPanel {
   private java.awt.image.BufferedImage renderGecko(int w, int h) {
     if (geckoSource == null) {
       try {
-        java.net.URL url = WelcomeTab.class.getResource("/icons/gecko_cyclope.png");
+        java.net.URL url = WelcomeTab.class.getResource("/icons/gecko_cyclope_hero.png");
         if (url != null) geckoSource = javax.imageio.ImageIO.read(url);
       } catch (Exception ignored) {
         return null;

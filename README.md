@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="gecko_cyclope.png" width="300" alt="OculiX"/>
+<img src="IDE/src/main/resources/icons/gecko_cyclope_hero.png" width="300" alt="OculiX"/>
 
 # OculiX
 

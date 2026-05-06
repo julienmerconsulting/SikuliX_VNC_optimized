@@ -700,6 +700,9 @@ public class SikulixIDE extends JFrame {
         }
       }
     }
+    if (messages instanceof ThemeAware) {
+      list.add((ThemeAware) messages);
+    }
     if (sidebar != null) {
       // Sidebar is not a ThemeAware by itself, but its cached submenus need
       // updateUI() replayed since JPopupMenu lives outside the window tree.

@@ -20,7 +20,7 @@ import java.util.List;
  * Each card represents a script (.sikuli bundle or temp script).
  * Clicking a card activates the corresponding editor tab.
  */
-public class ScriptExplorer extends JPanel {
+public class ScriptExplorer extends JPanel implements org.sikuli.ide.ThemeAware {
 
   private JPanel cardContainer;
   private JLabel titleLabel;
@@ -147,9 +147,9 @@ public class ScriptExplorer extends JPanel {
     private JLabel infoLabel;
     private JLabel statusLabel;
     private boolean active = false;
-    private final Color hoverBg;
-    private final Color activeBg;
-    private final Color normalBg;
+    private Color hoverBg;
+    private Color activeBg;
+    private Color normalBg;
 
     ScriptCard(ScriptInfo info, int index) {
       this.index = index;
@@ -253,6 +253,23 @@ public class ScriptExplorer extends JPanel {
         infoLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
       }
     }
+
+    void refreshTheme() {
+      normalBg = UIManager.getColor("Panel.background");
+      hoverBg = UIManager.getColor("List.selectionInactiveBackground");
+      activeBg = UIManager.getColor("List.selectionBackground");
+      setBackground(active ? activeBg : normalBg);
+      setBorder(BorderFactory.createCompoundBorder(
+          BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1),
+          BorderFactory.createEmptyBorder(0, 0, 0, 0)));
+      if (active) {
+        nameLabel.setForeground(UIManager.getColor("List.selectionForeground"));
+        infoLabel.setForeground(UIManager.getColor("List.selectionForeground"));
+      } else {
+        nameLabel.setForeground(UIManager.getColor("Label.foreground"));
+        infoLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
+      }
+    }
   }
 
   // ── ScriptInfo (data class) ──
@@ -283,7 +300,22 @@ public class ScriptExplorer extends JPanel {
   }
 
   private static boolean isDarkTheme() {
-    String name = UIManager.getLookAndFeel().getName();
-    return name != null && name.toLowerCase(java.util.Locale.ROOT).contains("dark");
+    String theme = org.sikuli.basics.PreferencesUser.get().getIdeTheme();
+    return !org.sikuli.basics.PreferencesUser.THEME_LIGHT.equals(theme);
+  }
+
+  @Override
+  public void beforeThemeChange() { }
+
+  @Override
+  public void afterThemeChange() {
+    setBackground(isDarkTheme()
+        ? new Color(0x0A, 0x10, 0x28)
+        : new Color(0xF8, 0xFA, 0xFD));
+    for (ScriptCard card : cards) {
+      card.refreshTheme();
+    }
+    revalidate();
+    repaint();
   }
 }

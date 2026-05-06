@@ -202,6 +202,7 @@ public class SikulixIDE extends JFrame {
 
     IDEDesktopSupport.init(sikulixIDE);
     IDETaskbarSupport.setTaskbarIcon(getIconResource("/icons/gecko_cyclope.png").getImage());
+    sikulixIDE.setIconImage(getIconResource("/icons/gecko_cyclope.png").getImage());
     IDESupport.initIDESupport();
     if (!Commons.hasOption(CommandArgsEnum.CONSOLE)) {
       get().messages = new EditorConsolePane();

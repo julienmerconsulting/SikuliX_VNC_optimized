@@ -39,14 +39,13 @@ import org.sikuli.basics.PreferencesUser;
 import org.sikuli.support.Commons;
 import org.sikuli.util.CommandArgsEnum;
 
-public class EditorConsolePane extends JPanel implements Runnable, ThemeAware {
+public class EditorConsolePane extends JPanel implements Runnable {
 
   private static final String me = "EditorConsolePane: ";
   //static boolean ENABLE_IO_REDIRECT = true;
 
   private int NUM_PIPES;
   private JTextPane textArea;
-  private JScrollPane scrollPane;
   private Thread[] reader;
   private boolean quit;
   private PipedInputStream[] pin;
@@ -91,11 +90,23 @@ public class EditorConsolePane extends JPanel implements Runnable, ThemeAware {
     textArea.setTransferHandler(new JTextPaneHTMLTransferHandler());
     textArea.setEditable(false);
 
+    // Theme-aware surface — only setBackground / setCaretColor on the
+    // JComponent, NOT touching the HTMLEditorKit stylesheet (a previous
+    // attempt added @addRule("body { font-family: 'JetBrains Mono', 12px... }")
+    // which made Swing's limited CSS parser collide with the htmlize()
+    // inline <pre style="..."> output and broke log rendering completely).
+    boolean dark = isDarkLaf();
+    Color bg = dark ? new Color(0x05, 0x08, 0x1A) : new Color(0xF8, 0xFA, 0xFD);
+    Color caret = dark ? new Color(0x1E, 0xA5, 0xFF) : new Color(0x0F, 0x8D, 0xDB);
+    textArea.setBackground(bg);
+    textArea.setCaretColor(caret);
+
     setLayout(new BorderLayout());
-    scrollPane = new JScrollPane(textArea);
-    scrollPane.setBorder(BorderFactory.createEmptyBorder());
-    add(scrollPane, BorderLayout.CENTER);
-    applyThemeColors();
+    setBackground(bg);
+    JScrollPane sp = new JScrollPane(textArea);
+    sp.setBorder(BorderFactory.createEmptyBorder());
+    sp.getViewport().setBackground(bg);
+    add(sp, BorderLayout.CENTER);
 
     //Create the popup menu.
     popup = new JPopupMenu();
@@ -128,45 +139,6 @@ public class EditorConsolePane extends JPanel implements Runnable, ThemeAware {
   private static boolean isDarkLaf() {
     String theme = org.sikuli.basics.PreferencesUser.get().getIdeTheme();
     return !org.sikuli.basics.PreferencesUser.THEME_LIGHT.equals(theme);
-  }
-
-  /**
-   * Re-applies the theme-dependent background / caret colors on the textArea,
-   * the panel itself and the scroll pane viewport. Called once from init() and
-   * again from {@link #afterThemeChange()} when the user toggles the IDE
-   * theme so the console surface tracks the new palette without requiring a
-   * restart.
-   *
-   * <p>The {@code htmlize()} call site reads {@link #isDarkLaf()} on every
-   * log message, so future logs already pick up the new palette automatically;
-   * existing log content keeps the colors it was rendered with (intentional —
-   * re-flowing the entire scrollback through htmlize on every toggle would be
-   * expensive and visually noisy).
-   */
-  private void applyThemeColors() {
-    boolean dark = isDarkLaf();
-    Color bg = dark ? new Color(0x05, 0x08, 0x1A) : new Color(0xF8, 0xFA, 0xFD);
-    Color caret = dark ? new Color(0x1E, 0xA5, 0xFF) : new Color(0x0F, 0x8D, 0xDB);
-    if (textArea != null) {
-      textArea.setBackground(bg);
-      textArea.setCaretColor(caret);
-    }
-    setBackground(bg);
-    if (scrollPane != null) {
-      scrollPane.getViewport().setBackground(bg);
-    }
-  }
-
-  @Override
-  public void beforeThemeChange() {
-    // No state to tear down — the swap happens entirely in afterThemeChange().
-  }
-
-  @Override
-  public void afterThemeChange() {
-    applyThemeColors();
-    revalidate();
-    repaint();
   }
 
   private HTMLEditorKit editorKitWithLineWrap() {

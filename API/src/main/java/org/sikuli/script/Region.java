@@ -4631,6 +4631,7 @@ public class Region extends Element {
     log(logLevel, "observe: request to stop observer for " + this.toStringShort());
     observing = false;
     observingInBackground = false;
+    Observing.removeRunningObserver(this);
   }
 
   /**

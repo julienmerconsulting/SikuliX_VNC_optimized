@@ -197,6 +197,33 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>flatten-maven-plugin</artifactId>
       </plugin>
+      <!-- SpotBugs + Find Security Bugs — security-only static analysis across the whole reactor.
+           No <executions> binding on purpose: unlike flatten above (phase-bound, auto), this
+           NEVER runs during compile/package/release — only on explicit invocation
+           (mvn spotbugs:spotbugs | spotbugs:gui | spotbugs:check). So it costs zero on normal builds.
+           includeFilterFile uses ${session.executionRootDirectory} — the reactor root, constant
+           across inherited children (same trick as the site-staging url above); a plain relative
+           path would resolve against each child's basedir and not find the single root-level filter.
+           No <pluginManagement> needed: spotbugs is absent from the super-POM, so a direct <plugins>
+           entry is inherited by every module without an override dance. -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>4.10.3.0</version>
+        <configuration>
+          <includeFilterFile>${session.executionRootDirectory}/spotbugs-security-include.xml</includeFilterFile>
+          <effort>Max</effort>
+          <threshold>Low</threshold>
+          <failOnError>false</failOnError>
+          <plugins>
+            <plugin>
+              <groupId>com.h3xstream.findsecbugs</groupId>
+              <artifactId>findsecbugs-plugin</artifactId>
+              <version>1.14.0</version>
+            </plugin>
+          </plugins>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 

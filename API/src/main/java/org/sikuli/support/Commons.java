@@ -54,7 +54,7 @@ public class Commons {
   private static String sxBuild;
   private static String sxBuildStamp;
 
-  private static String sxversiontess4j;
+  private static String sxversionoctachorix;
   private static String sxversionapertix;
   private static String sxversionlegerix;
 
@@ -179,7 +179,7 @@ public class Commons {
     sxVersionLong = sxVersion + String.format("-%s", sxBuildStamp);
     sxVersionShort = sxVersion.replace("-SNAPSHOT", "");
 
-    sxversiontess4j = sxProps.getProperty("versiontess4j");
+    sxversionoctachorix = sxProps.getProperty("versionoctachorix");
     sxversionapertix = sxProps.getProperty("versionapertixopencv");
     sxversionlegerix = sxProps.getProperty("versionlegerix");
 
@@ -600,8 +600,8 @@ public class Commons {
     return sxBuildStamp;
   }
 
-  public static String getSXVersionTess4j() {
-    return sxversiontess4j;
+  public static String getSXVersionOctachorix() {
+    return sxversionoctachorix;
   }
 
   public static String getSXVersionLegerix() {
@@ -1500,6 +1500,12 @@ public class Commons {
   // is what we want.
   private static volatile boolean libTesseractLoaded;
   private static volatile String libTesseractDataPath;
+  // Absolute paths of the Legerix-extracted shared libraries. Octachorix
+  // binds by absolute path only (no short-name resolution), so these two are
+  // the whole contract between the native provisioner and the OCR binding.
+  private static volatile String libTesseractLibraryPath;
+  private static volatile String libLeptonicaLibraryPath;
+  private static volatile String libTesseractFailure;
 
   public static boolean isTesseractLoaded() {
     return libTesseractLoaded;
@@ -1509,36 +1515,50 @@ public class Commons {
     return libTesseractDataPath;
   }
 
+  /** Absolute path of the bundled libtesseract, or null if Legerix did not deliver. */
+  public static String getTesseractLibraryPath() {
+    return libTesseractLibraryPath;
+  }
+
+  /** Absolute path of the bundled libleptonica, or null if Legerix did not deliver. */
+  public static String getLeptonicaLibraryPath() {
+    return libLeptonicaLibraryPath;
+  }
+
+  /** Why the bundled Tesseract is unavailable, or null when it is. */
+  public static String getTesseractFailure() {
+    return libTesseractFailure;
+  }
+
   public static void loadTesseract() {
     if (libTesseractLoaded) {
       return;
     }
-    boolean nativesLoaded = false;
+    File nativesDir = null;
     String version = "?";
     try {
       Class<?> legerix = Class.forName(libLegerixClassref);
       try {
-        legerix.getMethod("loadNatives").invoke(null);
-        nativesLoaded = true;
+        // Legerix extracts the platform natives + tessdata to its cache and
+        // returns the natives directory. It also dlopen()s the pair itself,
+        // which is harmless: Octachorix re-binds the very same files by
+        // absolute path, so the loader hands back the already-mapped image.
+        Object dir = legerix.getMethod("loadNatives").invoke(null);
+        if (dir != null) {
+          nativesDir = new File(dir.toString());
+        }
       } catch (Throwable e) {
-        // Common on Windows when Legerix's bundled tesseract/leptonica DLLs
-        // depend on image/runtime libs that aren't on the system PATH (libpng,
-        // libtiff, libwebp, libcurl, libarchive, ...). The natives won't load,
-        // but we can still recover the bundled tessdata: Legerix extracts it
-        // to the cache dir before the JNA load step, AND we have the same
-        // /tessdata resources in the fat-jar to fall back on. If natives are
-        // unusable, Tess4J's own bundled DLLs (also in the fat-jar) handle the
-        // OCR runtime — we just need the .traineddata files.
         Throwable cause = e.getCause() != null ? e.getCause() : e;
-        startLog(3, "[OculiX] Legerix.loadNatives() failed: "
-            + cause.getClass().getSimpleName() + ": " + cause.getMessage());
+        libTesseractFailure = "Legerix.loadNatives() failed: "
+            + cause.getClass().getSimpleName() + ": " + cause.getMessage();
+        startLog(3, "[OculiX] " + libTesseractFailure);
       }
       try {
         Object v = legerix.getMethod("getTesseractVersion").invoke(null);
         if (v != null) version = v.toString();
       } catch (Throwable ignore) { }
-      // Try to recover the tessdata path even if loadNatives() failed —
-      // Legerix may have populated extractionDir during its setup phase.
+      // Recover the tessdata path even if loadNatives() failed — Legerix may
+      // have populated extractionDir during its setup phase.
       try {
         Object tessdataPath = legerix.getMethod("getTessdataPath").invoke(null);
         if (tessdataPath != null) {
@@ -1548,8 +1568,8 @@ public class Commons {
           }
         }
       } catch (Throwable ignore) { }
-      // Last resort: extract /tessdata/*.traineddata directly from our own
-      // classpath into a stable cache folder.
+      // Last resort for the language data: extract /tessdata/*.traineddata
+      // directly from our own classpath into a stable cache folder.
       if (libTesseractDataPath == null) {
         File extracted = extractBundledTessdata();
         if (extracted != null) {
@@ -1557,24 +1577,60 @@ public class Commons {
         }
       }
     } catch (ClassNotFoundException cnfe) {
-      startLog(3, "[OculiX] " + libLegerixClassref + " not on classpath (Legerix jar missing?) — "
-          + "OCR will fall back to system tesseract if available.");
+      libTesseractFailure = libLegerixClassref + " not on classpath (Legerix jar missing?)";
+      startLog(3, "[OculiX] " + libTesseractFailure + " — OCR unavailable.");
       return;
     }
-    if (nativesLoaded) {
-      libTesseractLoaded = true;
-      startLog(3, "[OculiX] Tesseract loaded via Legerix (Tesseract " + version
-          + ", tessdata=" + libTesseractDataPath + ")");
-    } else if (libTesseractDataPath != null) {
-      // Tess4J ships its own self-contained Tesseract DLLs/dylibs/sos and will
-      // load them lazily via JNA on first new Tesseract1(). We don't flip
-      // libTesseractLoaded — that flag tracks Legerix specifically — but the
-      // tessdata path is enough for TextRecognizer to find the language data.
-      startLog(3, "[OculiX] Legerix natives unavailable — using Tess4J bundled binaries with "
-          + "Legerix-bundled tessdata (" + libTesseractDataPath + ")");
-    } else {
-      startLog(3, "[OculiX] No Tesseract available — OCR will require a system install.");
+    if (nativesDir != null) {
+      File tesseract = findNativeLibrary(nativesDir, "tesseract");
+      File leptonica = findNativeLibrary(nativesDir, "lept");
+      if (tesseract == null || leptonica == null) {
+        libTesseractFailure = "Legerix natives dir has no tesseract/leptonica library: " + nativesDir;
+        startLog(3, "[OculiX] " + libTesseractFailure);
+      } else {
+        libTesseractLibraryPath = tesseract.getAbsolutePath();
+        libLeptonicaLibraryPath = leptonica.getAbsolutePath();
+        libTesseractLoaded = true;
+        libTesseractFailure = null;
+        startLog(3, "[OculiX] Tesseract " + version + " via Legerix, bound by Octachorix: "
+            + libTesseractLibraryPath + " (tessdata=" + libTesseractDataPath + ")");
+      }
     }
+    if (!libTesseractLoaded) {
+      startLog(3, "[OculiX] No bundled Tesseract available — OCR calls will fail: " + libTesseractFailure);
+    }
+  }
+
+  /**
+   * Picks the shared library whose base name starts with {@code stem} (with or
+   * without a {@code lib} prefix) in the Legerix natives directory: on Windows
+   * {@code tesseract55.dll} / {@code leptonica-1.87.0.dll}, on Linux
+   * {@code libtesseract.so.5} / {@code libleptonica.so.6}, on macOS
+   * {@code libtesseract.5.dylib} / {@code libleptonica.6.dylib}. A versioned
+   * name (one carrying a digit) beats an unversioned alias such as
+   * {@code libtesseract.dylib}; among equals the shortest name wins. Empty
+   * files are ignored.
+   */
+  private static File findNativeLibrary(File dir, String stem) {
+    File[] files = dir.listFiles();
+    if (files == null) return null;
+    File best = null;
+    int bestRank = Integer.MAX_VALUE;
+    for (File f : files) {
+      if (!f.isFile() || f.length() == 0) continue;
+      String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+      boolean isLib = n.endsWith(".dll") || n.contains(".so") || n.endsWith(".dylib");
+      if (!isLib) continue;
+      String base = n.startsWith("lib") ? n.substring(3) : n;
+      if (!base.startsWith(stem)) continue;
+      boolean versioned = n.chars().anyMatch(Character::isDigit);
+      int rank = (versioned ? 0 : 1_000) + n.length();
+      if (rank < bestRank) {
+        bestRank = rank;
+        best = f;
+      }
+    }
+    return best;
   }
 
   private static boolean hasAnyTraineddata(File dir) {

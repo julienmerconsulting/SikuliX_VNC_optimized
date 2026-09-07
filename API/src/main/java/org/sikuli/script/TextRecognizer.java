@@ -3,25 +3,28 @@
  */
 package org.sikuli.script;
 
-import net.sourceforge.tess4j.ITesseract;
-import net.sourceforge.tess4j.Tesseract1;
-import net.sourceforge.tess4j.TesseractException;
-import net.sourceforge.tess4j.Word;
-import net.sourceforge.tess4j.util.LoadLibs;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
+import org.oculix.octachorix.OcrEngineMode;
+import org.oculix.octachorix.OctachorixFault;
+import org.oculix.octachorix.PageLevel;
+import org.oculix.octachorix.PageSegMode;
+import org.oculix.octachorix.Reading;
+import org.oculix.octachorix.Scribe;
+import org.oculix.octachorix.TextElement;
 import org.sikuli.basics.Debug;
 import org.sikuli.basics.Settings;
-import org.sikuli.support.runner.ProcessRunner;
 import org.sikuli.support.Commons;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
@@ -30,7 +33,9 @@ import java.util.Map;
  * <p></p>
  * <b>New projects should use class OCR</b>
  * <p></p>
- * Implementation of the Tess4J/Tesseract API
+ * Implementation of the OCR API on top of Octachorix (Tesseract C API, bound by
+ * absolute path to the Legerix-provisioned natives). One Tesseract session per
+ * thread, initialised once and reused until the options change.
  */
 public class TextRecognizer {
 
@@ -80,10 +85,9 @@ public class TextRecognizer {
 
   private static String getTesseractInstallCommand() {
     // Tesseract natives are bundled via Legerix on all supported platforms
-    // (mac/linux x86_64 + aarch64, windows x86_64). If Legerix failed to load,
-    // it almost always means a packaging/extraction problem rather than a
-    // missing system binary, so we direct the user to reinstall OculiX rather
-    // than to install tesseract from a package manager.
+    // (mac/linux x86_64 + aarch64, windows x86_64) and bound by absolute path
+    // through Octachorix. There is no system fallback on purpose: a failure
+    // here is a packaging/extraction problem, never a missing system binary.
     return "  Reinstall OculiX — Tesseract binaries are bundled via Legerix.\n"
         + "  If the problem persists, please open an issue.\n\n"
         + "  More info: https://github.com/oculix-org/Oculix/wiki/OCR-Setup\n\n"
@@ -94,84 +98,130 @@ public class TextRecognizer {
     if (isValid) {
       return;
     }
-    // Fast path: Legerix has already loaded bundled libtesseract via JNA in
-    // Commons.loadTesseract(). No need to shell out to a system `tesseract`
-    // binary — the Tess4J Tesseract1() wrapper will pick up the JNA-loaded
-    // library directly.
     if (Commons.isTesseractLoaded()) {
-      String versionTess4J = Commons.getSXVersionTess4j();
       isValid = true;
-      Debug.log(lvl, "OCR: start: Tess4J %s using bundled Tesseract (Legerix)", versionTess4J);
+      Debug.log(lvl, "OCR: start: Octachorix %s using bundled Tesseract (Legerix): %s",
+          Commons.getSXVersionOctachorix(), Commons.getTesseractLibraryPath());
       return;
     }
-    // Legacy fallback: legerix not on classpath (or failed to extract). Probe
-    // for a system-installed tesseract so existing setups keep working.
-    String versionTess4J = Commons.getSXVersionTess4j();
-    String versionTesseractExpected = LoadLibs.LIB_NAME.replace("libtesseract", "");
-    String versionTesseract = "" + versionTesseractExpected;
-    if (!Commons.runningWindows()) {
-      versionTesseract = "";
-      String run = ProcessRunner.run(new String[]{"tesseract", "--version"});
-      String[] result = run.split(" ");
-      if (result.length > 1) {
-        if (result[0].contains("tesseract")) {
-          versionTesseract = result[1];
+    String msg = "\n\n"
+        + "══════════════════════════════════════════════════════════════\n"
+        + " Tesseract OCR engine not available.\n"
+        + "══════════════════════════════════════════════════════════════\n\n"
+        + " Reason: " + Commons.getTesseractFailure() + "\n\n"
+        + " Fix:\n" + getTesseractInstallCommand();
+    Debug.error(msg);
+    throw new SikuliXception("Tesseract OCR engine not available: " + Commons.getTesseractFailure());
+  }
+
+  /**
+   * Live Tesseract sessions, per thread, one per effective option set. A
+   * Scribe is not thread-safe (its native handle mutates on every read), so
+   * the cache lives in a ThreadLocal; OculiX runs one screen-operations
+   * pipeline per thread, this matches. A session is built the first time an
+   * option set (language, data path, oem, psm, variables, configs) is seen
+   * and reused for every later call with the same set: TessBaseAPIInit — and
+   * the traineddata read — happen once per option set, not on every OCR call.
+   * readWords/readWord/readLine/readChar each have their own PSM and thus
+   * their own session; alternating between them costs nothing after the
+   * first call of each. Bounded to a handful of sessions, least recently
+   * used evicted and closed.
+   */
+  private static final int MAX_SESSIONS = 6;
+
+  private static final ThreadLocal<Map<String, Scribe>> SESSIONS = ThreadLocal.withInitial(
+      () -> new java.util.LinkedHashMap<String, Scribe>(8, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Scribe> eldest) {
+          if (size() > MAX_SESSIONS) {
+            eldest.getValue().close();
+            return true;
+          }
+          return false;
         }
-        if (!versionTesseractExpected.equals(versionTesseract.replace(".", ""))) {
-          Debug.log(lvl, "OCR: start: Tesseract version mismatch: found %s != expected %s (but might work)", versionTesseract, versionTesseractExpected);
-        }
-      }
+      });
+
+  private static String sessionKey(OCR.Options options) {
+    return options.oem() + "|" + options.psm() + "|" + options.language() + "|" + options.dataPath()
+        + "|" + options.variables() + "|" + options.configs();
+  }
+
+  private Scribe getScribe() {
+    checkLib();
+    Map<String, Scribe> sessions = SESSIONS.get();
+    String key = sessionKey(options);
+    Scribe cached = sessions.get(key);
+    if (cached != null && !cached.isClosed()) {
+      return cached;
     }
-    isValid = !versionTesseract.isEmpty();
-    if (isValid) {
-      Debug.log(lvl, "OCR: start: Tess4J %s using Tesseract %s", versionTess4J, versionTesseract);
-    } else {
-      String installCmd = getTesseractInstallCommand();
+    if (cached != null) {
+      sessions.remove(key);
+    }
+    try {
+      Scribe.Builder builder = Scribe.builder()
+          .tesseractLibrary(Paths.get(Commons.getTesseractLibraryPath()))
+          .leptonicaLibrary(Paths.get(Commons.getLeptonicaLibraryPath()))
+          .datapath(Paths.get(options.dataPath()))
+          .language(options.language())
+          .ocrEngineMode(toOcrEngineMode(options.oem()));
+      // OCR.Options.resetPSM() sets -1: historical "do not touch the PSM" sentinel.
+      if (options.psm() < 0) {
+        builder.pageSegModeUnset();
+      } else {
+        builder.pageSegMode(toPageSegMode(options.psm()));
+      }
+      for (Map.Entry<String, String> entry : options.variables().entrySet()) {
+        builder.variable(entry.getKey(), entry.getValue());
+      }
+      if (!options.configs().isEmpty()) {
+        builder.configs(new ArrayList<>(options.configs()));
+      }
+      Scribe scribe = builder.build();
+      sessions.put(key, scribe);
+      Debug.log(lvl, "OCR: session %d/%d: Tesseract %s (lang=%s, oem=%d, psm=%d)",
+          sessions.size(), MAX_SESSIONS, scribe.tesseractVersion(), options.language(), options.oem(), options.psm());
+      return scribe;
+    } catch (OctachorixFault | UnsatisfiedLinkError e) {
+      // Defense-in-depth net for #107: the pre-flight above only knows that
+      // Legerix delivered files; this catch fires when binding or
+      // TessBaseAPIInit itself fails — broken DLL, arch mismatch on Apple
+      // Silicon, unreadable tessdata, unknown language.
       String msg = "\n\n"
           + "══════════════════════════════════════════════════════════════\n"
-          + " Tesseract OCR engine not found.\n"
+          + " Tesseract native library failed to initialise (Octachorix).\n"
           + "══════════════════════════════════════════════════════════════\n\n"
-          + " Fix:\n" + installCmd;
+          + " Original error: \n" + e.getMessage() + "\n"
+          + " Try:\n  " + getTesseractInstallCommand();
       Debug.error(msg);
-      throw new SikuliXception("Tesseract OCR engine not found.");
+      throw new SikuliXception("Tesseract native library failed to initialise (Octachorix).");
     }
   }
 
-  private ITesseract getTesseractAPI() {
-    checkLib();
-
-    try {
-      ITesseract tesseract = new Tesseract1();
-      tesseract.setOcrEngineMode(options.oem());
-      tesseract.setPageSegMode(options.psm());
-      tesseract.setLanguage(options.language());
-      tesseract.setDatapath(options.dataPath());
-      for (Map.Entry<String, String> entry : options.variables().entrySet()) {
-        tesseract.setVariable(entry.getKey(), entry.getValue());
+  private static OcrEngineMode toOcrEngineMode(int oem) {
+    for (OcrEngineMode mode : OcrEngineMode.values()) {
+      if (mode.value() == oem) {
+        return mode;
       }
-      if (!options.configs().isEmpty()) {
-        tesseract.setConfigs(new ArrayList<>(options.configs()));
-      }
-      return tesseract;
-    } catch (UnsatisfiedLinkError e) {
-      // Defense-in-depth net for #107. checkLib() above is the pre-flight
-      // happy-path check (fast, shell-out to `tesseract --version` on
-      // Linux/macOS, no-op on Windows). This catch fires when JNA itself
-      // fails to load the native library — a distinct failure mode the
-      // pre-flight doesn't cover: bundled DLL broken on Windows, arch
-      // mismatch on Apple Silicon, missing from java.library.path, etc.
-      String installCmd = getTesseractInstallCommand();
-      String msg = "\n\n"
-          + "══════════════════════════════════════════════════════════════\n"
-          + " Tesseract native library failed to load (JNA).\n"
-          + "══════════════════════════════════════════════════════════════\n\n"
-          + " The tesseract CLI may be present on your system, but the\n"
-          + " shared library JNA needs could not be loaded."
-          + " Original error: \n" + e.getMessage() + "\n"
-          + " Try:\n  " + installCmd;
-      Debug.error(msg);
-      throw new SikuliXception("Tesseract native library failed to load (JNA).");
     }
+    throw new IllegalArgumentException(String.format("OCR: Invalid OEM %s (0 .. 3)", oem));
+  }
+
+  private static PageSegMode toPageSegMode(int psm) {
+    for (PageSegMode mode : PageSegMode.values()) {
+      if (mode.value() == psm) {
+        return mode;
+      }
+    }
+    throw new IllegalArgumentException(String.format("OCR: Invalid PSM %s (0 .. 13)", psm));
+  }
+
+  private static PageLevel toPageLevel(int level) {
+    for (PageLevel pageLevel : PageLevel.values()) {
+      if (pageLevel.value() == level) {
+        return pageLevel;
+      }
+    }
+    throw new IllegalArgumentException(String.format("OCR: Invalid page iterator level %s (0 .. 4)", level));
   }
 
   /**
@@ -433,32 +483,39 @@ public class TextRecognizer {
   }
 
   protected <SFIRBS> String doRead(SFIRBS from) {
-    String text = "";
     BufferedImage bimg = Element.getBufferedImage(from);
     try {
-      text = getTesseractAPI().doOCR(optimize(bimg)).trim().replace("\n\n", "\n");
-    } catch (TesseractException e) {
-      Debug.error("OCR: read: Tess4J: doOCR: %s", e.getMessage());
+      // No page level requested: one Recognize pass, full text only, no iterator walk.
+      Reading reading = getScribe().read(optimize(bimg), EnumSet.noneOf(PageLevel.class));
+      return reading.text().trim().replace("\n\n", "\n");
+    } catch (OctachorixFault e) {
+      Debug.error("OCR: read: Octachorix: %s", e.getMessage());
       return "";
     }
-    return text;
   }
 
   protected <SFIRBS> List<Match> readTextItems(SFIRBS from, int level) {
     List<Match> lines = new ArrayList<>();
     BufferedImage bimg = Element.getBufferedImage(from);
     BufferedImage bimgResized = optimize(bimg);
-    List<Word> textItems = getTesseractAPI().getWords(bimgResized, level);
+    PageLevel pageLevel = toPageLevel(level);
+    List<TextElement> textItems;
+    try {
+      textItems = getScribe().read(bimgResized, EnumSet.of(pageLevel)).elements(pageLevel);
+    } catch (OctachorixFault e) {
+      Debug.error("OCR: read: Octachorix: %s", e.getMessage());
+      return lines;
+    }
     double wFactor = (double) bimg.getWidth() / bimgResized.getWidth();
     double hFactor = (double) bimg.getHeight() / bimgResized.getHeight();
-    for (Word textItem : textItems) {
-      Rectangle boundingBox = textItem.getBoundingBox();
+    for (TextElement textItem : textItems) {
+      Rectangle boundingBox = textItem.bbox();
       Rectangle realBox = new Rectangle(
           (int) (boundingBox.x * wFactor) - 1,
           (int) (boundingBox.y * hFactor) - 1,
           1 + (int) (boundingBox.width * wFactor) + 2,
           1 + (int) (boundingBox.height * hFactor) + 2);
-      lines.add(new Match(realBox, textItem.getConfidence(), textItem.getText().trim()));
+      lines.add(new Match(realBox, textItem.confidence(), textItem.text().trim()));
     }
     return lines;
   }

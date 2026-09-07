@@ -7,6 +7,7 @@ import com.sikulix.ocr.OCREngine;
 import org.sikuli.basics.Settings;
 import org.sikuli.support.devices.IScreen;
 
+import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -147,11 +148,10 @@ public class OculixKeywords {
     return MatchUtils.regionFromMatch(match);
   }
 
-// ── Android swipes + visual idle ───────────────────────────────────────
+// ── Android swipes ─────────────────────────────────────────────────────
 
-private static final int VISUAL_IDLE_STABLE_FRAMES = 2;
-private static final double VISUAL_IDLE_MAX_CHANGE_RATIO = 0.001;
-private static final int VISUAL_IDLE_TIMEOUT_MS = 2000;
+private static final int DEFAULT_ANDROID_SWIPE_DURATION_MS = 15;
+private int androidSwipeDurationMs = DEFAULT_ANDROID_SWIPE_DURATION_MS;
 
 private ADBScreen getADBScreen() {
   if (!(screen instanceof ADBScreen)) {
@@ -163,109 +163,15 @@ private ADBScreen getADBScreen() {
   return (ADBScreen) screen;
 }
 
-private boolean waitForVisualIdleAfterChange(byte[] before) {
-  long deadline = System.currentTimeMillis() + VISUAL_IDLE_TIMEOUT_MS;
-
-  byte[] previous = before;
-  boolean changed = false;
-  int stableFrames = 0;
-
-  while (System.currentTimeMillis() < deadline) {
-    byte[] current = captureRegionBytes();
-
-    double fromBefore = computeChangeRatio(before, current);
-    double fromPrevious = computeChangeRatio(previous, current);
-
-    // First wait until the swipe actually changes the screen
-    if (!changed) {
-      if (fromBefore > VISUAL_IDLE_MAX_CHANGE_RATIO) {
-        changed = true;
-      }
-    }
-
-    // Then wait until the resulting screen becomes stable
-    else {
-      if (fromPrevious <= VISUAL_IDLE_MAX_CHANGE_RATIO) {
-        stableFrames++;
-
-        if (stableFrames >= VISUAL_IDLE_STABLE_FRAMES) {
-          return true;
-        }
-      } else {
-        stableFrames = 0;
-      }
-    }
-
-    previous = current;
-  }
-
-  return false;
+public int getAndroidSwipeDurationMs() {
+  return androidSwipeDurationMs;
 }
 
-private byte[] captureRegionBytes() {
-  ScreenImage image = region.getScreen().capture(region);
-
-  if (image == null || image.getImage() == null) {
-    return null;
+public void setAndroidSwipeDurationMs(int durationMs) {
+  if (durationMs < 1) {
+    throw new IllegalArgumentException("Android swipe duration must be >= 1 ms");
   }
-
-  java.awt.image.BufferedImage source = image.getImage();
-
-  if (source.getType() == java.awt.image.BufferedImage.TYPE_3BYTE_BGR
-      && source.getRaster().getDataBuffer()
-          instanceof java.awt.image.DataBufferByte) {
-
-    return ((java.awt.image.DataBufferByte)
-        source.getRaster()
-            .getDataBuffer())
-        .getData()
-        .clone();
-  }
-
-  java.awt.image.BufferedImage normalized =
-      new java.awt.image.BufferedImage(
-          source.getWidth(),
-          source.getHeight(),
-          java.awt.image.BufferedImage.TYPE_3BYTE_BGR
-      );
-
-  java.awt.Graphics2D g = normalized.createGraphics();
-
-  try {
-    g.drawImage(source, 0, 0, null);
-  } finally {
-    g.dispose();
-  }
-
-  return ((java.awt.image.DataBufferByte)
-      normalized.getRaster()
-          .getDataBuffer())
-      .getData()
-      .clone();
-}
-
-private double computeChangeRatio(byte[] previous, byte[] current) {
-  if (previous == null || current == null) {
-    return 1.0;
-  }
-
-  if (previous.length != current.length) {
-    return 1.0;
-  }
-
-  if (previous.length == 0) {
-    return 0.0;
-  }
-
-  int changed = 0;
-
-  for (int i = 0; i < previous.length; i++) {
-    if (previous[i] != current[i]) {
-      changed++;
-    }
-  }
-
-  return (double) changed / (double) previous.length;
+  androidSwipeDurationMs = durationMs;
 }
 
 // ── Public swipe keywords ───────────────────────────────────────────────
@@ -299,16 +205,13 @@ public void swipeUp(int count) {
     int toY =
         region.getY() + (region.getH() / 5);
 
-    byte[] before = captureRegionBytes();
-
     adb.getDevice().swipe(
         x,
         fromY,
         x,
-        toY
+        toY,
+        androidSwipeDurationMs
     );
-
-    waitForVisualIdleAfterChange(before);
   }
 }
 
@@ -325,16 +228,13 @@ public void swipeDown(int count) {
     int toY =
         region.getY() + (region.getH() * 4 / 5);
 
-    byte[] before = captureRegionBytes();
-
     adb.getDevice().swipe(
         x,
         fromY,
         x,
-        toY
+        toY,
+        androidSwipeDurationMs
     );
-
-    waitForVisualIdleAfterChange(before);
   }
 }
 
@@ -351,16 +251,13 @@ public void swipeLeft(int count) {
     int toX =
         region.getX() + (region.getW() / 5);
 
-    byte[] before = captureRegionBytes();
-
     adb.getDevice().swipe(
         fromX,
         y,
         toX,
-        y
+        y,
+        androidSwipeDurationMs
     );
-
-    waitForVisualIdleAfterChange(before);
   }
 }
 
@@ -377,16 +274,13 @@ public void swipeRight(int count) {
     int toX =
         region.getX() + (region.getW() * 4 / 5);
 
-    byte[] before = captureRegionBytes();
-
     adb.getDevice().swipe(
         fromX,
         y,
         toX,
-        y
+        y,
+        androidSwipeDurationMs
     );
-
-    waitForVisualIdleAfterChange(before);
   }
 }
 

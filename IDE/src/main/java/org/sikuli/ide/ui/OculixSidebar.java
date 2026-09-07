@@ -42,6 +42,7 @@ public class OculixSidebar extends JPanel {
   private SidebarItem navFile;
   private SidebarItem navEdit;
   private SidebarItem navRun;
+  private SidebarItem navView;
   private SidebarItem navTools;
   private SidebarItem navHelp;
 
@@ -145,6 +146,13 @@ public class OculixSidebar extends JPanel {
     navRun.setIcon(new FlatSVGIcon("icons/sidebar/play.svg", 18, 18));
     navRun.setMnemonic(java.awt.event.KeyEvent.VK_R);
     mainPanel.add(navRun);
+    // View sits where the classic menu bar had it, between Run and Tools.
+    // It went missing when the menu bar was hidden behind the sidebar, and
+    // with it the only visible way to toggle the inline image thumbnails.
+    navView = new SidebarItem(_I("menuView"), null);
+    navView.setIcon(new FlatSVGIcon("icons/sidebar/eye.svg", 18, 18));
+    navView.setMnemonic(java.awt.event.KeyEvent.VK_V);
+    mainPanel.add(navView);
 
     // ── TOOLS section ──
     addSectionHeader(_I("sidebarSectionTools"));
@@ -309,19 +317,21 @@ public class OculixSidebar extends JPanel {
 
   // ── Navigation wiring ──
 
-  private SidebarSubmenu fileSub, editSub, runSub, toolsSub, helpSub;
+  private SidebarSubmenu fileSub, editSub, runSub, viewSub, toolsSub, helpSub;
 
   public void initNavigation(SidebarSubmenu fileSub, SidebarSubmenu editSub,
-                              SidebarSubmenu runSub, SidebarSubmenu toolsSub,
-                              SidebarSubmenu helpSub) {
+                              SidebarSubmenu runSub, SidebarSubmenu viewSub,
+                              SidebarSubmenu toolsSub, SidebarSubmenu helpSub) {
     this.fileSub = fileSub;
     this.editSub = editSub;
     this.runSub = runSub;
+    this.viewSub = viewSub;
     this.toolsSub = toolsSub;
     this.helpSub = helpSub;
     navFile.addActionListener(e -> fileSub.showBelow(navFile));
     navEdit.addActionListener(e -> editSub.showBelow(navEdit));
     navRun.addActionListener(e -> runSub.showBelow(navRun));
+    navView.addActionListener(e -> viewSub.showBelow(navView));
     navTools.addActionListener(e -> toolsSub.showBelow(navTools));
     navHelp.addActionListener(e -> helpSub.showBelow(navHelp));
   }
@@ -331,7 +341,7 @@ public class OculixSidebar extends JPanel {
   // each after a theme swap so the next popup render picks up the new LaF
   // instead of showing old Dark colors on a Light theme (and vice-versa).
   public void refreshSubmenuLaF() {
-    for (SidebarSubmenu sub : new SidebarSubmenu[]{fileSub, editSub, runSub, toolsSub, helpSub}) {
+    for (SidebarSubmenu sub : new SidebarSubmenu[]{fileSub, editSub, runSub, viewSub, toolsSub, helpSub}) {
       if (sub != null) SwingUtilities.updateComponentTreeUI(sub);
     }
   }

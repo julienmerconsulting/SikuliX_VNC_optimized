@@ -35,6 +35,7 @@ import javax.swing.text.Element;
 
 import org.jdesktop.layout.*;
 import org.sikuli.basics.Debug;
+import org.sikuli.idesupport.HotkeyBindingValidator;
 import org.sikuli.script.Key;
 import org.sikuli.support.ide.SikuliIDEI18N;
 
@@ -47,11 +48,18 @@ public class PreferencesWin extends JFrame {
   private boolean isInitialized = false;
   int cap_hkey, cap_mod;
   int old_cap_hkey, old_cap_mod;
+  int stop_hkey, stop_mod;
+  int old_stop_hkey, old_stop_mod;
+  boolean cap_enabled, old_cap_enabled;
+  boolean stop_enabled, old_stop_enabled;
   Font _oldFont;
   String _oldFontName;
   int _oldFontSize;
   private double _delay;
   private int _old_cap_hkey, _old_cap_mod;
+  private int _old_stop_hkey, _old_stop_mod;
+  private boolean _old_cap_enabled;
+  private boolean _old_stop_enabled;
   private int _autoNamingMethod;
   private boolean _chkAutoUpdate;
   private boolean _chkExpandTab;
@@ -95,6 +103,19 @@ public class PreferencesWin extends JFrame {
   // JFormDesigner - End of variables declaration  //GEN-END:variables
   //</editor-fold>
 
+  // Hotkeys tab (#335) — hand-added, outside the JFormDesigner-managed block.
+  // Note the .jfd form file is already stale (it predates _btnMore), and nothing
+  // regenerates this class at build time, so hand-editing is the norm here.
+  private JLabel _lblStopHotkey;
+  private JTextField _txtStopHotkey;
+  private JCheckBox _chkCaptureHotkeyEnabled;
+  private JCheckBox _chkStopHotkeyEnabled;
+  private JButton _btnResetCapture;
+  private JButton _btnResetStop;
+  private JButton _btnHotkeyResetAll;
+  private JLabel _lblHotkeyError;
+  private JLabel _lblHotkeyHint;
+
   public PreferencesWin() {
     setTitle(SikulixIDE._I("winPreferences"));
     initComponents();
@@ -116,6 +137,16 @@ public class PreferencesWin extends JFrame {
     _radTimestamp = new JRadioButton();
     _radOCR = new JRadioButton();
     _radOff = new JRadioButton();
+    JPanel paneHotkeys = new JPanel();
+    _lblStopHotkey = new JLabel();
+    _txtStopHotkey = new JTextField();
+    _chkCaptureHotkeyEnabled = new JCheckBox();
+    _chkStopHotkeyEnabled = new JCheckBox();
+    _btnResetCapture = new JButton();
+    _btnResetStop = new JButton();
+    _btnHotkeyResetAll = new JButton();
+    _lblHotkeyError = new JLabel();
+    _lblHotkeyHint = new JLabel();
     _paneTextEditing = new JPanel();
     chkExpandTab = new JCheckBox();
     _lblTabWidth = new JLabel();
@@ -149,24 +180,6 @@ public class PreferencesWin extends JFrame {
       //======== paneCapture ========
       {
 
-        //---- _txtHotkey ----
-        _txtHotkey.setHorizontalAlignment(SwingConstants.RIGHT);
-        _txtHotkey.addFocusListener(new FocusAdapter() {
-          @Override
-          public void focusGained(FocusEvent e) {
-            txtHotkeyFocusGained(e);
-          }
-        });
-        _txtHotkey.addKeyListener(new KeyAdapter() {
-          @Override
-          public void keyPressed(KeyEvent e) {
-            txtHotkeyKeyPressed(e);
-          }
-        });
-
-        //---- _lblHotkey ----
-        _lblHotkey.setLabelFor(_txtHotkey);
-
         //---- _lblDelay ----
         _lblDelay.setLabelFor(spnDelay);
 
@@ -184,7 +197,6 @@ public class PreferencesWin extends JFrame {
                     .add(26, 26, 26)
                     .add(paneCaptureLayout.createParallelGroup()
                         .add(GroupLayout.TRAILING, _lblDelay)
-                        .add(GroupLayout.TRAILING, _lblHotkey)
                         .add(GroupLayout.TRAILING, _lblNaming))
                     .addPreferredGap(LayoutStyle.RELATED)
                     .add(paneCaptureLayout.createParallelGroup()
@@ -194,17 +206,12 @@ public class PreferencesWin extends JFrame {
                         .add(paneCaptureLayout.createSequentialGroup()
                             .add(spnDelay, GroupLayout.DEFAULT_SIZE, 148, Short.MAX_VALUE)
                             .addPreferredGap(LayoutStyle.RELATED)
-                            .add(_lblDelaySecs, GroupLayout.DEFAULT_SIZE, 161, Short.MAX_VALUE))
-                        .add(_txtHotkey, GroupLayout.DEFAULT_SIZE, 315, Short.MAX_VALUE))
+                            .add(_lblDelaySecs, GroupLayout.DEFAULT_SIZE, 161, Short.MAX_VALUE)))
                     .add(69, 69, 69)));
         paneCaptureLayout.setVerticalGroup(
             paneCaptureLayout.createParallelGroup()
                 .add(paneCaptureLayout.createSequentialGroup()
                     .add(34, 34, 34)
-                    .add(paneCaptureLayout.createParallelGroup(GroupLayout.BASELINE)
-                        .add(_lblHotkey, GroupLayout.PREFERRED_SIZE, 22, GroupLayout.PREFERRED_SIZE)
-                        .add(_txtHotkey, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-                    .addPreferredGap(LayoutStyle.RELATED)
                     .add(paneCaptureLayout.createParallelGroup()
                         .add(_lblDelay, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
                         .add(spnDelay, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
@@ -224,6 +231,106 @@ public class PreferencesWin extends JFrame {
                     .add(80, 80, 80)));
       }
       _tabPane.addTab(SikuliIDEI18N._I("prefTabScreenCapturing"), paneCapture);
+
+      //======== paneHotkeys ======== (#335 — hand-built, not JFormDesigner-managed)
+      {
+        _txtHotkey.setHorizontalAlignment(SwingConstants.RIGHT);
+        _txtHotkey.addFocusListener(new FocusAdapter() {
+          @Override
+          public void focusGained(FocusEvent e) {
+            txtHotkeyFocusGained(e);
+          }
+        });
+        _txtHotkey.addKeyListener(new KeyAdapter() {
+          @Override
+          public void keyPressed(KeyEvent e) {
+            txtHotkeyKeyPressed(e);
+          }
+        });
+        _lblHotkey.setLabelFor(_txtHotkey);
+
+        _txtStopHotkey.setHorizontalAlignment(SwingConstants.RIGHT);
+        _txtStopHotkey.addFocusListener(new FocusAdapter() {
+          @Override
+          public void focusGained(FocusEvent e) {
+            _txtStopHotkey.setEditable(true);
+          }
+        });
+        _txtStopHotkey.addKeyListener(new KeyAdapter() {
+          @Override
+          public void keyPressed(KeyEvent e) {
+            txtStopHotkeyKeyPressed(e);
+          }
+        });
+        _lblStopHotkey.setLabelFor(_txtStopHotkey);
+
+        _chkCaptureHotkeyEnabled.addActionListener(e -> hotkeyEnabledChanged());
+        _chkStopHotkeyEnabled.addActionListener(e -> hotkeyEnabledChanged());
+        _btnResetCapture.addActionListener(e -> resetCaptureHotkeyToDefault());
+        _btnResetStop.addActionListener(e -> resetStopHotkeyToDefault());
+        _btnHotkeyResetAll.addActionListener(e -> resetAllHotkeysToDefaults());
+
+        _lblHotkeyError.setForeground(Color.RED);
+
+        GroupLayout paneHotkeysLayout = new GroupLayout(paneHotkeys);
+        paneHotkeys.setLayout(paneHotkeysLayout);
+        paneHotkeysLayout.setHorizontalGroup(
+            paneHotkeysLayout.createParallelGroup()
+                .add(paneHotkeysLayout.createSequentialGroup()
+                    .add(26, 26, 26)
+                    .add(paneHotkeysLayout.createParallelGroup()
+                        .add(GroupLayout.TRAILING, _lblHotkey)
+                        .add(GroupLayout.TRAILING, _lblStopHotkey))
+                    .addPreferredGap(LayoutStyle.RELATED)
+                    // Explicit min/pref/max rather than DEFAULT_SIZE for the minimum:
+                    // DEFAULT_SIZE means "never shrink below your content", so a long
+                    // validation message would drive the panel's minimum width and push
+                    // the fields past the right edge of the window. A hotkey renders as
+                    // a handful of characters ("⌘+⇧ C"), so the fields stay modest and
+                    // the messages wrap instead of stretching the layout.
+                    .add(paneHotkeysLayout.createParallelGroup()
+                        .add(paneHotkeysLayout.createSequentialGroup()
+                            .add(_txtHotkey, 90, 150, 180)
+                            .addPreferredGap(LayoutStyle.RELATED)
+                            .add(_btnResetCapture)
+                            .addPreferredGap(LayoutStyle.RELATED)
+                            .add(_chkCaptureHotkeyEnabled))
+                        .add(paneHotkeysLayout.createSequentialGroup()
+                            .add(_txtStopHotkey, 90, 150, 180)
+                            .addPreferredGap(LayoutStyle.RELATED)
+                            .add(_btnResetStop)
+                            .addPreferredGap(LayoutStyle.RELATED)
+                            .add(_chkStopHotkeyEnabled))
+                        .add(_lblHotkeyError, 90, 300, 300)
+                        .add(_lblHotkeyHint, 90, 300, 300)
+                        .add(_btnHotkeyResetAll))
+                    .add(26, 26, 26)));
+        paneHotkeysLayout.setVerticalGroup(
+            paneHotkeysLayout.createParallelGroup()
+                .add(paneHotkeysLayout.createSequentialGroup()
+                    .add(34, 34, 34)
+                    .add(paneHotkeysLayout.createParallelGroup(GroupLayout.BASELINE)
+                        .add(_lblHotkey, GroupLayout.PREFERRED_SIZE, 22, GroupLayout.PREFERRED_SIZE)
+                        .add(_txtHotkey, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .add(_btnResetCapture)
+                        .add(_chkCaptureHotkeyEnabled))
+                    .addPreferredGap(LayoutStyle.RELATED)
+                    .add(paneHotkeysLayout.createParallelGroup(GroupLayout.BASELINE)
+                        .add(_lblStopHotkey, GroupLayout.PREFERRED_SIZE, 22, GroupLayout.PREFERRED_SIZE)
+                        .add(_txtStopHotkey, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .add(_btnResetStop)
+                        .add(_chkStopHotkeyEnabled))
+                    .addPreferredGap(LayoutStyle.RELATED)
+                    // Two lines' worth: these labels are HTML so they wrap within the
+                    // column rather than widening it.
+                    .add(_lblHotkeyError, GroupLayout.PREFERRED_SIZE, 36, GroupLayout.PREFERRED_SIZE)
+                    .addPreferredGap(LayoutStyle.RELATED)
+                    .add(_lblHotkeyHint, GroupLayout.PREFERRED_SIZE, 36, GroupLayout.PREFERRED_SIZE)
+                    .addPreferredGap(LayoutStyle.UNRELATED)
+                    .add(_btnHotkeyResetAll)
+                    .add(40, 40, 40)));
+      }
+      _tabPane.addTab(SikuliIDEI18N._I("prefTabHotkeys"), paneHotkeys);
 
       //======== _paneTextEditing ========
       {
@@ -431,16 +538,27 @@ public class PreferencesWin extends JFrame {
     _lblTabWidth.setText(SikuliIDEI18N._I("PreferencesWin.lblTabWidth.text"));
     _lblFont.setText(SikuliIDEI18N._I("PreferencesWin.lblFont.text"));
     _lblFontSize.setText(SikuliIDEI18N._I("PreferencesWin.lblFontSize.text"));
-    _tabPane.setTitleAt(1, SikuliIDEI18N._I("PreferencesWin.paneTextEditing.tab.title"));
+    _tabPane.setTitleAt(2, SikuliIDEI18N._I("PreferencesWin.paneTextEditing.tab.title"));
     chkAutoUpdate.setText(SikuliIDEI18N._I("prefGeneralAutoCheck"));
     _lblUpdates.setText(SikuliIDEI18N._I("PreferencesWin.lblUpdates.text"));
     _lblLanguage.setText(SikuliIDEI18N._I("PreferencesWin.lblLanguage.text"));
-    _tabPane.setTitleAt(2, SikuliIDEI18N._I("prefTabGeneralSettings"));
+    _tabPane.setTitleAt(3, SikuliIDEI18N._I("prefTabGeneralSettings"));
     _btnMore.setText(SikuliIDEI18N._I("more"));
     _btnOk.setText(SikuliIDEI18N._I("ok"));
     _btnApply.setText(SikuliIDEI18N._I("apply"));
     _btnCancel.setText(SikuliIDEI18N._I("cancel"));
     // JFormDesigner - End of component i18n initialization  //GEN-END:initI18n
+
+    // Hotkeys tab (#335). Indices above shifted by one: the tab is inserted at 1,
+    // so Text Editing is now 2 and General 3.
+    _tabPane.setTitleAt(1, SikuliIDEI18N._I("prefTabHotkeys"));
+    _lblStopHotkey.setText(SikuliIDEI18N._I("prefStopHotkey"));
+    _chkCaptureHotkeyEnabled.setText(SikuliIDEI18N._I("prefHotkeyEnabled"));
+    _chkStopHotkeyEnabled.setText(SikuliIDEI18N._I("prefHotkeyEnabled"));
+    _btnResetCapture.setText(SikuliIDEI18N._I("prefHotkeyResetOne"));
+    _btnResetStop.setText(SikuliIDEI18N._I("prefHotkeyResetOne"));
+    _btnHotkeyResetAll.setText(SikuliIDEI18N._I("prefHotkeyResetAll"));
+    _lblHotkeyHint.setText(wrapped(SikuliIDEI18N._I("prefHotkeyHint")));
   }
 
   private void loadPrefs() {
@@ -450,6 +568,14 @@ public class PreferencesWin extends JFrame {
     _old_cap_hkey = old_cap_hkey = cap_hkey = pref.getCaptureHotkey();
     _old_cap_mod = old_cap_mod = cap_mod = pref.getCaptureHotkeyModifiers();
     setTxtHotkey(cap_hkey, cap_mod);
+    _old_stop_hkey = old_stop_hkey = stop_hkey = pref.getStopHotkey();
+    _old_stop_mod = old_stop_mod = stop_mod = pref.getStopHotkeyModifiers();
+    _old_stop_enabled = old_stop_enabled = stop_enabled = pref.getStopHotkeyEnabled();
+    _old_cap_enabled = old_cap_enabled = cap_enabled = pref.getCaptureHotkeyEnabled();
+    setTxtStopHotkey(stop_hkey, stop_mod);
+    _chkCaptureHotkeyEnabled.setSelected(cap_enabled);
+    _chkStopHotkeyEnabled.setSelected(stop_enabled);
+    hotkeyEnabledChanged();
     _autoNamingMethod = pref.getAutoNamingMethod();
     switch (_autoNamingMethod) {
       case PreferencesUser.AUTO_NAMING_TIMESTAMP:
@@ -487,15 +613,33 @@ public class PreferencesWin extends JFrame {
   private void savePrefs() {
     SikulixIDE ide = SikulixIDE.get();
     pref.setCaptureDelay((Double) spnDelay.getValue());
+    cap_enabled = _chkCaptureHotkeyEnabled.isSelected();
     pref.setCaptureHotkey(cap_hkey);
     pref.setCaptureHotkeyModifiers(cap_mod);
+    pref.setCaptureHotkeyEnabled(cap_enabled);
     pref.setAutoNamingMethod(
         _radTimestamp.isSelected() ? PreferencesUser.AUTO_NAMING_TIMESTAMP :
             (_radOCR.isSelected() ? PreferencesUser.AUTO_NAMING_OCR : PreferencesUser.AUTO_NAMING_OFF));
-    if (old_cap_hkey != cap_hkey || old_cap_mod != cap_mod) {
+    if (old_cap_hkey != cap_hkey || old_cap_mod != cap_mod || old_cap_enabled != cap_enabled) {
       ide.removeCaptureHotkey();
       ide.installCaptureHotkey();
+      old_cap_hkey = cap_hkey;
+      old_cap_mod = cap_mod;
+      old_cap_enabled = cap_enabled;
     }
+
+    stop_enabled = _chkStopHotkeyEnabled.isSelected();
+    pref.setStopHotkey(stop_hkey);
+    pref.setStopHotkeyModifiers(stop_mod);
+    pref.setStopHotkeyEnabled(stop_enabled);
+    if (old_stop_hkey != stop_hkey || old_stop_mod != stop_mod || old_stop_enabled != stop_enabled) {
+      ide.removeStopHotkey();
+      ide.installStopHotkey();
+      old_stop_hkey = stop_hkey;
+      old_stop_mod = stop_mod;
+      old_stop_enabled = stop_enabled;
+    }
+
     pref.setCheckUpdate(chkAutoUpdate.isSelected());
 
     pref.setExpandTab(chkExpandTab.isSelected());
@@ -515,10 +659,28 @@ public class PreferencesWin extends JFrame {
     pref.setCaptureDelay(_delay);
     pref.setCaptureHotkey(_old_cap_hkey);
     pref.setCaptureHotkeyModifiers(_old_cap_mod);
-    if (old_cap_hkey != _old_cap_hkey || old_cap_mod != _old_cap_mod) {
+    pref.setCaptureHotkeyEnabled(_old_cap_enabled);
+    if (old_cap_hkey != _old_cap_hkey || old_cap_mod != _old_cap_mod
+        || old_cap_enabled != _old_cap_enabled) {
       ide.removeCaptureHotkey();
       ide.installCaptureHotkey();
+      old_cap_hkey = _old_cap_hkey;
+      old_cap_mod = _old_cap_mod;
+      old_cap_enabled = _old_cap_enabled;
     }
+
+    pref.setStopHotkey(_old_stop_hkey);
+    pref.setStopHotkeyModifiers(_old_stop_mod);
+    pref.setStopHotkeyEnabled(_old_stop_enabled);
+    if (old_stop_hkey != _old_stop_hkey || old_stop_mod != _old_stop_mod
+        || old_stop_enabled != _old_stop_enabled) {
+      ide.removeStopHotkey();
+      ide.installStopHotkey();
+      old_stop_hkey = _old_stop_hkey;
+      old_stop_mod = _old_stop_mod;
+      old_stop_enabled = _old_stop_enabled;
+    }
+
     pref.setAutoNamingMethod(_autoNamingMethod);
     pref.setCheckUpdate(_chkAutoUpdate);
 
@@ -647,10 +809,122 @@ public class PreferencesWin extends JFrame {
 
   private void txtHotkeyKeyPressed(KeyEvent e) {
     int code = e.getKeyCode();
+    // Deliberately the legacy getModifiers(), not getModifiersEx(): it yields the
+    // legacy InputEvent.*_MASK convention that PreferencesUser's defaults and
+    // Key.convertKeyToText() both expect. Switching to getModifiersEx() would store
+    // extended *_DOWN_MASK values — the convention mismatch behind #449.
     int mod = e.getModifiers();
     Debug.log(2, "HotKey: " + code + " " + mod);
+    if (!validateBinding(code, mod, stop_hkey, stop_mod)) {
+      return;
+    }
     setTxtHotkey(code, mod);
     _txtHotkey.setEditable(false);
+  }
+
+  private void setTxtStopHotkey(int code, int mod) {
+    stop_hkey = code;
+    stop_mod = mod;
+    _txtStopHotkey.setText(Key.convertKeyToText(code, mod));
+  }
+
+  private void txtStopHotkeyKeyPressed(KeyEvent e) {
+    int code = e.getKeyCode();
+    int mod = e.getModifiers(); // legacy convention on purpose — see txtHotkeyKeyPressed
+    Debug.log(2, "StopHotKey: " + code + " " + mod);
+    if (!validateBinding(code, mod, cap_hkey, cap_mod)) {
+      return;
+    }
+    setTxtStopHotkey(code, mod);
+    _txtStopHotkey.setEditable(false);
+  }
+
+  /**
+   * Runs the shared binding rules and reflects the outcome in the dialog. A rejected
+   * binding is not stored, and OK/Apply stay disabled until the user picks something
+   * usable — this is what stops anyone reproducing #449 by binding a bare letter.
+   *
+   * @return true if the binding may be accepted
+   */
+  private boolean validateBinding(int code, int mod, int otherCode, int otherMod) {
+    HotkeyBindingValidator.Result result =
+        HotkeyBindingValidator.validate(code, mod, otherCode, otherMod);
+    if (result.isOk()) {
+      clearHotkeyError();
+      return true;
+    }
+    showHotkeyError(SikuliIDEI18N._I(result.getMessageKey()));
+    return false;
+  }
+
+  private void showHotkeyError(String message) {
+    // HTML so a long message wraps inside the field column instead of widening
+    // the panel and pushing the hotkey fields off the right edge of the window.
+    _lblHotkeyError.setText(wrapped(message));
+    _btnOk.setEnabled(false);
+    _btnApply.setEnabled(false);
+  }
+
+  private void clearHotkeyError() {
+    _lblHotkeyError.setText(" ");
+    _btnOk.setEnabled(true);
+    _btnApply.setEnabled(true);
+  }
+
+  private static String wrapped(String text) {
+    return "<html><p width='290'>" + text + "</p></html>";
+  }
+
+  /** Greys out a hotkey's row when that hotkey is switched off. */
+  private void hotkeyEnabledChanged() {
+    boolean capture = _chkCaptureHotkeyEnabled.isSelected();
+    _txtHotkey.setEnabled(capture);
+    _lblHotkey.setEnabled(capture);
+    _btnResetCapture.setEnabled(capture);
+
+    boolean stop = _chkStopHotkeyEnabled.isSelected();
+    _txtStopHotkey.setEnabled(stop);
+    _lblStopHotkey.setEnabled(stop);
+    _btnResetStop.setEnabled(stop);
+  }
+
+  /** Restores just the capture hotkey; leaves the stop hotkey alone. */
+  private void resetCaptureHotkeyToDefault() {
+    setTxtHotkey(PreferencesUser.DEFAULT_CAPTURE_HOTKEY, pref.getDefaultCaptureHotkeyModifiers());
+    clearHotkeyError();
+  }
+
+  /**
+   * Restores just the stop hotkey binding. Deliberately leaves the enabled checkbox
+   * as the user set it — that is a separate control, not part of the binding.
+   */
+  private void resetStopHotkeyToDefault() {
+    setTxtStopHotkey(PreferencesUser.DEFAULT_STOP_HOTKEY, pref.getDefaultStopHotkeyModifiers());
+    clearHotkeyError();
+  }
+
+  /**
+   * Restores both hotkeys, and re-enables the stop hotkey. Asks first, because this
+   * discards any customisation the user has made to either binding.
+   *
+   * <p>Deliberately does not call {@code PreferencesUser.setDefaults()}, which would
+   * rewrite every preference in the store — fonts, locale, tab width and all.
+   */
+  private void resetAllHotkeysToDefaults() {
+    int answer = JOptionPane.showConfirmDialog(this,
+        SikuliIDEI18N._I("prefHotkeyResetAllConfirm"),
+        SikuliIDEI18N._I("prefHotkeyResetAllConfirmTitle"),
+        JOptionPane.YES_NO_OPTION,
+        JOptionPane.QUESTION_MESSAGE);
+    if (answer != JOptionPane.YES_OPTION) {
+      return;
+    }
+    resetCaptureHotkeyToDefault();
+    resetStopHotkeyToDefault();
+    _chkCaptureHotkeyEnabled.setSelected(true);
+    _chkStopHotkeyEnabled.setSelected(true);
+    hotkeyEnabledChanged();
+    clearHotkeyError();
   }
 
   private void updateFontPreview() {

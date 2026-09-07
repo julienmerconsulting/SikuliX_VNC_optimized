@@ -6,6 +6,7 @@ package org.sikuli.script;
 import org.sikuli.basics.HotkeyManager;
 import org.sikuli.basics.HotkeyListener;
 
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.HashMap;
 import java.util.Map;
@@ -846,7 +847,7 @@ public class Key {
    * @return readable key text
    */
   public static String convertKeyToText(int code, int mod) {
-    String txtMod = KeyEvent.getKeyModifiersText(mod);
+    String txtMod = KeyEvent.getKeyModifiersText(toLegacyModifiers(mod));
     String txtCode = KeyEvent.getKeyText(code);
     String ret;
     if (code == KeyEvent.VK_ALT || code == KeyEvent.VK_CONTROL || code == KeyEvent.VK_SHIFT) {
@@ -855,6 +856,38 @@ public class Key {
       ret = txtMod + " " + txtCode;
     }
     return ret;
+  }
+
+  /**
+   * Normalizes a modifier mask to the legacy {@code InputEvent.*_MASK} convention.
+   *
+   * <p>{@code KeyEvent.getKeyModifiersText()} only understands the legacy bits, but a
+   * stored hotkey modifier may be in the extended {@code *_DOWN_MASK} convention —
+   * preferences migrated from SikuliX 2.0.x hold {@code 320} for Shift+Cmd, see #449.
+   * Passing that through unmapped yields an empty modifier string, so a perfectly good
+   * Shift+Cmd+C binding renders as a bare "C" and looks alarmingly like the #449 bug.
+   *
+   * <p>The two conventions occupy disjoint bits (1/2/4/8/32 vs 64/128/256/512/8192),
+   * so accepting either cannot produce a false positive.
+   */
+  private static int toLegacyModifiers(int mod) {
+    int legacy = 0;
+    if ((mod & InputEvent.SHIFT_MASK) != 0 || (mod & InputEvent.SHIFT_DOWN_MASK) != 0) {
+      legacy |= InputEvent.SHIFT_MASK;
+    }
+    if ((mod & InputEvent.CTRL_MASK) != 0 || (mod & InputEvent.CTRL_DOWN_MASK) != 0) {
+      legacy |= InputEvent.CTRL_MASK;
+    }
+    if ((mod & InputEvent.META_MASK) != 0 || (mod & InputEvent.META_DOWN_MASK) != 0) {
+      legacy |= InputEvent.META_MASK;
+    }
+    if ((mod & InputEvent.ALT_MASK) != 0 || (mod & InputEvent.ALT_DOWN_MASK) != 0) {
+      legacy |= InputEvent.ALT_MASK;
+    }
+    if ((mod & InputEvent.ALT_GRAPH_MASK) != 0 || (mod & InputEvent.ALT_GRAPH_DOWN_MASK) != 0) {
+      legacy |= InputEvent.ALT_GRAPH_MASK;
+    }
+    return legacy;
   }
 
 //  static class ShowKeyBoardSetupWindow extends Thread {

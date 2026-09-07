@@ -2373,7 +2373,15 @@ public class SikulixIDE extends JFrame {
   }
 
   String getLineTextAtCaret() {
-    return getActiveContext().getPane().getLineTextAtCaret();
+    // getActiveContext() is null whenever no script tab is selected — the Welcome
+    // tab, or all tabs closed. Callers ask this to guess a name from the current
+    // line, so "no line" is a perfectly good answer; throwing here previously left
+    // the capture path dead with the IDE hidden.
+    PaneContext context = getActiveContext();
+    if (context == null) {
+      return "";
+    }
+    return context.getPane().getLineTextAtCaret();
   }
 
   void zzzzzzz() {
@@ -4040,6 +4048,11 @@ public class SikulixIDE extends JFrame {
       setToolTipText(_I("btnRecord", stopHint));
     }
 
+    /** Re-render the tooltip after the stop hotkey has been rebound. */
+    void refreshTooltip() {
+      initTooltip();
+    }
+
     @Override
     public void actionPerformed(ActionEvent ae) {
       ideWindow.setVisible(false);
@@ -4119,6 +4132,11 @@ public class SikulixIDE extends JFrame {
               pref.getStopHotkey(), pref.getStopHotkeyModifiers());
       String stopHint = _I("btnRunStopHint", strHotkey);
       setToolTipText(_I("btnRun", stopHint));
+    }
+
+    /** Re-render the tooltip after the stop hotkey has been rebound. */
+    void refreshTooltip() {
+      initTooltip();
     }
 
     @Override
@@ -4358,24 +4376,110 @@ public class SikulixIDE extends JFrame {
     HotkeyManager.getInstance().removeHotkey("Capture");
   }
 
-  void installCaptureHotkey() {
-    HotkeyManager.getInstance().addHotkey("Capture", new HotkeyListener() {
-      @Override
-      public void hotkeyPressed(HotkeyEvent e) {
-        if (sikulixIDE.isVisible()) {
-          btnCapture.capture(0);
+  /**
+   * @return true if the OS accepted the registration
+   */
+  boolean installCaptureHotkey() {
+    PreferencesUser pref = PreferencesUser.get();
+    boolean registered = true;
+    if (pref.getCaptureHotkeyEnabled()) {
+      registered = HotkeyManager.getInstance().addHotkey("Capture", new HotkeyListener() {
+        @Override
+        public void hotkeyPressed(HotkeyEvent e) {
+          if (sikulixIDE.isVisible()) {
+            btnCapture.capture(0);
+          }
         }
+      });
+      if (!registered) {
+        warnHotkeyNotRegistered("prefCaptureHotkey",
+            pref.getCaptureHotkey(), pref.getCaptureHotkeyModifiers());
       }
-    });
+    } else {
+      Debug.log(3, "IDE: capture hotkey is disabled by preference — not registering");
+    }
+    // Null at first registration: this runs from startGUI() before the toolbar is
+    // built, and ButtonCapture reads the binding in its own constructor anyway.
+    // Only a later rebind from Preferences needs the refresh.
+    if (btnCapture != null) {
+      btnCapture.refreshTooltip();
+    }
+    return registered;
   }
 
-  void installStopHotkey() {
-    HotkeyManager.getInstance().addHotkey("Abort", new HotkeyListener() {
-      @Override
-      public void hotkeyPressed(HotkeyEvent e) {
-        onStopRunning();
+  void removeStopHotkey() {
+    HotkeyManager.getInstance().removeHotkey("Abort");
+  }
+
+  /**
+   * Registers the global stop/abort hotkey, unless the user has switched it off.
+   *
+   * @return true if the hotkey is not wanted, or if the OS accepted it; false if
+   *         registration was refused (typically another application already owns
+   *         the combination)
+   */
+  boolean installStopHotkey() {
+    PreferencesUser pref = PreferencesUser.get();
+    boolean registered = true;
+    if (pref.getStopHotkeyEnabled()) {
+      registered = HotkeyManager.getInstance().addHotkey("Abort", new HotkeyListener() {
+        @Override
+        public void hotkeyPressed(HotkeyEvent e) {
+          onStopRunning();
+        }
+      });
+      if (!registered) {
+        warnHotkeyNotRegistered("prefStopHotkey", pref.getStopHotkey(), pref.getStopHotkeyModifiers());
       }
-    });
+    } else {
+      Debug.log(3, "IDE: stop hotkey is disabled by preference — not registering");
+    }
+    refreshStopHotkeyTooltips();
+    return registered;
+  }
+
+  /**
+   * The stop hotkey is baked into the Run and Record button tooltips, so it has to
+   * be re-rendered whenever the binding changes or the IDE would keep advertising
+   * the old combination until restart.
+   */
+  void refreshStopHotkeyTooltips() {
+    if (btnRun != null) {
+      btnRun.refreshTooltip();
+    }
+    if (btnRecord != null) {
+      btnRecord.refreshTooltip();
+    }
+  }
+
+  /**
+   * Tells the user that a hotkey could not be claimed, instead of leaving a dead
+   * hotkey with nothing to explain it.
+   *
+   * <p>How much this can actually detect depends on the platform, because the
+   * failure has to survive the stack underneath:
+   * <ul>
+   * <li><b>Linux</b> — {@code LinuxHotkeyManager} catches jxgrabkey's
+   *     {@code HotkeyConflictException} and returns false, so a genuine
+   *     grab conflict reaches here.</li>
+   * <li><b>macOS / Windows</b> — keymaster's {@code Provider.register()} returns
+   *     void and discards the OS result, so a combination already owned by
+   *     another application registers "successfully" and simply never fires.
+   *     Only an unresolvable-modifier refusal (see
+   *     {@code HotkeyController.addHotkey}) reaches here.</li>
+   * </ul>
+   *
+   * <p>Reporting real conflicts on macOS/Windows would mean patching or replacing
+   * the bundled keymaster library — deliberately out of scope.
+   */
+  private void warnHotkeyNotRegistered(String labelKey, int key, int mod) {
+    String combination = Key.convertKeyToText(key, mod);
+    Debug.error("IDE: could not register hotkey %s (%s) — already in use by another application?",
+        combination, labelKey);
+    EventQueue.invokeLater(() -> JOptionPane.showMessageDialog(ideWindow,
+        _I("msgHotkeyNotRegistered", combination),
+        _I("msgHotkeyNotRegisteredTitle"),
+        JOptionPane.WARNING_MESSAGE));
   }
 
   void onStopRunning() {

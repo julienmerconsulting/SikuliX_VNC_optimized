@@ -187,6 +187,47 @@ public class PreferencesUser {
     return mod;
   }
 
+  // Platform-aware factory settings, exposed so a "reset to defaults" control can
+  // restore just the hotkeys without calling setDefaults(), which rewrites every
+  // preference in the store.
+  public static final int DEFAULT_CAPTURE_HOTKEY = 50; // '2'
+  public static final int DEFAULT_STOP_HOTKEY = 67;    // 'C'
+
+  public int getDefaultCaptureHotkeyModifiers() {
+    return defaultCaptureHotkeyModifiers();
+  }
+
+  public int getDefaultStopHotkeyModifiers() {
+    return defaultStopHotkeyModifiers();
+  }
+
+  public void setCaptureHotkeyEnabled(boolean flag) {
+    pref.putBoolean("CAPTURE_HOTKEY_ENABLED", flag);
+  }
+
+  /**
+   * Whether the global quick-capture hotkey should be registered at all.
+   * See {@link #getStopHotkeyEnabled()} — same rationale.
+   */
+  public boolean getCaptureHotkeyEnabled() {
+    return pref.getBoolean("CAPTURE_HOTKEY_ENABLED", true);
+  }
+
+  public void setStopHotkeyEnabled(boolean flag) {
+    pref.putBoolean("STOP_HOTKEY_ENABLED", flag);
+  }
+
+  /**
+   * Whether the global stop/abort hotkey should be registered at all.
+   * <p>
+   * Users whose stop-hotkey combination conflicts with another application may
+   * have no free combination available; turning it off is the escape hatch.
+   * Scripts can still be stopped from the IDE menu.
+   */
+  public boolean getStopHotkeyEnabled() {
+    return pref.getBoolean("STOP_HOTKEY_ENABLED", true);
+  }
+
   // ***** indentation support
   public void setExpandTab(boolean flag) {
     pref.putBoolean("EXPAND_TAB", flag);
@@ -486,13 +527,15 @@ public class PreferencesUser {
     setUserType(SIKULI_USER);
 
 // ***** capture hot key
-    setCaptureHotkey(50);
+    setCaptureHotkey(DEFAULT_CAPTURE_HOTKEY);
     setCaptureHotkeyModifiers(defaultCaptureHotkeyModifiers());
+    setCaptureHotkeyEnabled(true);
     setCaptureDelay(1.0);
 
 // ***** abort key
-    setStopHotkey(67);
+    setStopHotkey(DEFAULT_STOP_HOTKEY);
     setStopHotkeyModifiers(defaultStopHotkeyModifiers());
+    setStopHotkeyEnabled(true);
 
 // ***** indentation support
     setExpandTab(true);

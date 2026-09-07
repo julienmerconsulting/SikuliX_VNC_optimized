@@ -59,7 +59,7 @@
 -->
     <apertix.opencv.version>4.10.0-3</apertix.opencv.version>
     <legerix.version>5.5.0-8</legerix.version>
-    <versiontess4j>5.18.0</versiontess4j>
+    <octachorix.version>1.0.0</octachorix.version>
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd_HH:mm</maven.build.timestamp.format>
     <!--suppress UnresolvedMavenProperty -->
@@ -117,6 +117,14 @@
       <artifactId>commons-exec</artifactId>
       <version>1.6.0</version>
     </dependency>
+    <!-- Used directly (FileUtils, FilenameUtils) by Commons, Image, ScreenImage,
+         Recorder, GenericOsUtil, SikulixFileChooser. Came in transitively
+         through tess4j until Octachorix replaced it; IDE already pins 2.22.0. -->
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.22.0</version>
+    </dependency>
     <dependency>
       <groupId>net.java.dev.jna</groupId>
       <artifactId>jna-platform</artifactId>
@@ -128,9 +136,23 @@
       <version>0.11.7</version>
     </dependency>
     <dependency>
-      <groupId>net.sourceforge.tess4j</groupId>
-      <artifactId>tess4j</artifactId>
-      <version>${versiontess4j}</version>
+      <groupId>io.github.oculix-org</groupId>
+      <artifactId>octachorix</artifactId>
+      <version>${octachorix.version}</version>
+      <!--License GPLv3-->
+      <!-- Octachorix replaces tess4j: Tesseract C API binding that loads
+           libtesseract/libleptonica by ABSOLUTE PATH only (no short-name
+           resolution, no JNA version-max heuristic, no system fallback),
+           with a session-oriented API (one TessBaseAPI handle per Scribe,
+           initialised once, reused across reads). The natives and tessdata
+           still come from Legerix below. JNA comes from jna-platform above.
+           https://github.com/oculix-org/Octachorix -->
+      <exclusions>
+        <exclusion>
+          <groupId>net.java.dev.jna</groupId>
+          <artifactId>jna</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>

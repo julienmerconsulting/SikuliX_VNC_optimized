@@ -609,9 +609,10 @@ public class SikulixIDE extends JFrame {
     SidebarSubmenu fileSub = buildFileSubmenu();
     SidebarSubmenu editSub = buildSubmenuFrom(_editMenu);
     SidebarSubmenu runSub = buildRunSubmenu();
+    SidebarSubmenu viewSub = buildSubmenuFrom(_viewMenu);
     SidebarSubmenu toolsSub = buildToolsSubmenu();
     SidebarSubmenu helpSub = buildSubmenuFrom(_helpMenu);
-    sidebar.initNavigation(fileSub, editSub, runSub, toolsSub, helpSub);
+    sidebar.initNavigation(fileSub, editSub, runSub, viewSub, toolsSub, helpSub);
   }
 
   // Items that require an open script to be functional
@@ -840,6 +841,39 @@ public class SikulixIDE extends JFrame {
             lastWasSeparator = false;
           }
         }
+      } else if (item instanceof JCheckBoxMenuItem) {
+        // Toggle entry (View ▸ Show Thumbs). The original stays in its
+        // hidden JMenu on purpose: migrateAcceleratorsToRootPane() walks
+        // that menu after the sidebar is built, and the ViewAction reads
+        // the original's state. The sidebar gets a mirror that pushes its
+        // state into the original before replaying the original's
+        // listeners, and re-reads the original each time the popup opens,
+        // since the state also moves on tab switch (chkShowThumbs.setState).
+        final JCheckBoxMenuItem original = (JCheckBoxMenuItem) item;
+        final JCheckBoxMenuItem mirror = new JCheckBoxMenuItem(original.getText(), original.getState());
+        if (original.getAccelerator() != null) {
+          mirror.setAccelerator(original.getAccelerator());
+        }
+        mirror.addActionListener(e -> {
+          original.setState(mirror.getState());
+          for (ActionListener al : original.getActionListeners()) {
+            al.actionPerformed(new ActionEvent(original, ActionEvent.ACTION_PERFORMED, original.getActionCommand()));
+          }
+        });
+        sub.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+          @Override
+          public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
+            mirror.setState(original.getState());
+          }
+          @Override
+          public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {
+          }
+          @Override
+          public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) {
+          }
+        });
+        sub.add(mirror);
+        lastWasSeparator = false;
       } else if (!item.isEnabled()) {
         // Section header label (disabled bold item) — reproduce in submenu
         JMenuItem header = new JMenuItem(item.getText());
@@ -3316,15 +3350,18 @@ public class SikulixIDE extends JFrame {
   private JCheckBoxMenuItem chkShowThumbs;
 
   private void initViewMenu() throws NoSuchMethodException {
-    int scMask = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
     _viewMenu = new JMenu(_I("menuView"));
     _viewMenu.setMnemonic(java.awt.event.KeyEvent.VK_V);
 
     boolean prefMorePlainText = PreferencesUser.get().getPrefMorePlainText();
 
+    // No accelerator on purpose. The former Ctrl+T survived only through
+    // migrateAcceleratorsToRootPane(), which replays the listeners without
+    // flipping the check box, so the action re-read the unchanged state and
+    // did nothing: a shortcut that advertises itself and never works.
+    // The toggle lives in the sidebar View entry; that is the way to use it.
     chkShowThumbs = new JCheckBoxMenuItem(_I("menuViewShowThumbs"), !prefMorePlainText);
-    _viewMenu.add(createMenuItem(chkShowThumbs,
-            KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_T, scMask),
+    _viewMenu.add(createMenuItem(chkShowThumbs, null,
             new ViewAction(ViewAction.SHOW_THUMBS)));
 
 //TODO Message Area clear

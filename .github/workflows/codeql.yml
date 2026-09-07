@@ -4,7 +4,6 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master]
   schedule:
     # Weekly Monday 04:17 UTC — out of business hours, low CI contention.
     - cron: '17 4 * * 1'

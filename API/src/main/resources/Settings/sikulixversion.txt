@@ -1,6 +1,6 @@
 sikulixvproject=${project.version}
 sikulixbuild=${timestamp}
-versiontess4j=${versiontess4j}
+versionoctachorix=${octachorix.version}
 versionlegerix=${legerix.version}
 versionapertixopencv=${apertix.opencv.version}
 versionjython=${sikulixjythonversion}

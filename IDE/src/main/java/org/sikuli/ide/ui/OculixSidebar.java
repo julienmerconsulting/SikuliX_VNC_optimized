@@ -80,7 +80,14 @@ public class OculixSidebar extends JPanel {
     setMinimumSize(new Dimension(240, 0));
     putClientProperty(FlatClientProperties.STYLE, "background: darken(@background, 3%)");
 
-    mainPanel = new JPanel(new MigLayout("wrap 1, insets 8 14 8 14, gap 0", "[fill, grow]", ""));
+    // The main panel sits in a JScrollPane with no horizontal bar. A plain
+    // JPanel is not Scrollable, so the viewport lays it out at its own
+    // preferred width, and any child wider than the sidebar (a 30-char
+    // script path in the hero card was enough) widens the whole grid and
+    // pushes the right-aligned status values out of the visible area.
+    // Tracking the viewport width pins the content to the sidebar's width
+    // whatever it contains; children that cannot fit ellipsize instead.
+    mainPanel = new ViewportWidthPanel(new MigLayout("wrap 1, insets 8 14 8 14, gap 0", "[fill, grow]", ""));
     mainPanel.setOpaque(false);
 
     footerPanel = new JPanel(new MigLayout("wrap 1, insets 4 14 10 14, gap 6", "[fill, grow]", ""));
@@ -508,6 +515,42 @@ public class OculixSidebar extends JPanel {
   // ── Inner components ───────────────────────────────────────────
 
   /**
+   * A JPanel that always takes the width of the viewport it scrolls in.
+   * Vertical scrolling stays free; horizontal size is pinned, so no child
+   * can widen the sidebar's content beyond the sidebar itself.
+   */
+  static class ViewportWidthPanel extends JPanel implements Scrollable {
+    ViewportWidthPanel(LayoutManager layout) {
+      super(layout);
+    }
+
+    @Override
+    public Dimension getPreferredScrollableViewportSize() {
+      return getPreferredSize();
+    }
+
+    @Override
+    public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+      return 12;
+    }
+
+    @Override
+    public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+      return Math.max(12, visibleRect.height - 12);
+    }
+
+    @Override
+    public boolean getScrollableTracksViewportWidth() {
+      return true;
+    }
+
+    @Override
+    public boolean getScrollableTracksViewportHeight() {
+      return false;
+    }
+  }
+
+  /**
    * Wordmark card: soft rounded container around "OculiX IDE". Subtle ink-700
    * fill in dark mode, paper-200 fill in light, both with a 1px ink-500 /
    * paper-400 border. Gives the brand block presence without screaming.
@@ -560,20 +603,24 @@ public class OculixSidebar extends JPanel {
       setOpaque(false);
       setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
+      // "wmin 0" lets each label shrink below its preferred width instead of
+      // forcing the card, and the sidebar behind it, to grow. A JLabel that is
+      // narrower than its text paints "..." by itself; the tooltip on the
+      // path label keeps the full value reachable.
       nameLabel = new JLabel(_I("sidebarNoScript"));
       nameLabel.setFont(OculixFonts.uiBold(13));
       nameLabel.setForeground(UIManager.getColor("Label.foreground"));
-      add(nameLabel);
+      add(nameLabel, "wmin 0");
 
       pathLabel = new JLabel("");
       pathLabel.setFont(OculixFonts.mono(10));
       pathLabel.setForeground(OculixColors.OX_INK_300);
-      add(pathLabel);
+      add(pathLabel, "wmin 0");
 
       metaLabel = new JLabel("");
       metaLabel.setFont(OculixFonts.mono(10));
       metaLabel.setForeground(OculixColors.OX_INK_400);
-      add(metaLabel, "gaptop 4");
+      add(metaLabel, "gaptop 4, wmin 0");
     }
 
     void setHasScript(boolean v) {

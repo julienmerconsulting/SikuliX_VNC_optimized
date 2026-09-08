@@ -14,13 +14,17 @@ import org.sikuli.script.ScreenImage;
 import se.vidstige.jadb.JadbDevice;
 import se.vidstige.jadb.JadbException;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -56,6 +60,14 @@ public class ADBDevice {
 
   private static ADBDevice adbDevice = null;
   private String adbExec = "";
+
+  // Persistent adb shell used by high-frequency input commands. JADB creates a
+  // fresh transport for every executeShell() call; keeping one adb shell alive
+  // removes that per-action handshake while preserving command ordering.
+  private Process inputShellProcess = null;
+  private BufferedWriter inputShellWriter = null;
+  private BufferedReader inputShellReader = null;
+  private long inputShellSequence = 0;
 
 
   public static int KEY_HOME = 3;
@@ -143,6 +155,9 @@ public class ADBDevice {
   }
 
   public static void reset() {
+    if (adbDevice != null) {
+      adbDevice.closeInputShell();
+    }
     adbDevice = null;
     ADBClient.reset();
   }
@@ -181,6 +196,23 @@ public class ADBDevice {
   public ScreenImage captureScreen(Rectangle rect) {
     BufferedImage bimg = captureDeviceScreen(rect.x, rect.y, rect.width, rect.height);
     return new ScreenImage(rect, bimg);
+  }
+
+  /**
+   * Lightweight PNG capture for visual polling.
+   * Avoids the raw RGBA/OpenCV capture path used by normal OculiX matching.
+   */
+  public BufferedImage capturePngFast() {
+    try (InputStream deviceOut = device.execute("screencap", "-p")) {
+      BufferedImage image = ImageIO.read(deviceOut);
+      if (image == null) {
+        log(-1, "capturePngFast: PNG decoding returned null");
+      }
+      return image;
+    } catch (Exception e) {
+      log(-1, "capturePngFast: %s", e);
+      return null;
+    }
   }
 
   public BufferedImage captureDeviceScreen() {
@@ -327,6 +359,138 @@ public class ADBDevice {
       log(-1, "execADB: %s (%s)", cmd, e);
     }
     return null;
+  }
+
+  /**
+   * Execute an Android {@code input ...} command through one persistent
+   * {@code adb -s <serial> shell} process. A unique marker is written after
+   * every command and read back before returning, so callers are synchronized
+   * with the end of the Android input command without Thread.sleep().
+   */
+  private synchronized boolean executePersistentInput(String... args) {
+    StringBuilder command = new StringBuilder("input");
+    for (String arg : args) {
+      command.append(' ').append(shellQuote(arg));
+    }
+
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        ensureInputShell();
+
+        String marker = "__OCULIX_INPUT_DONE_" + (++inputShellSequence) + "__:";
+        inputShellWriter.write(command.toString());
+        inputShellWriter.write("; echo " + marker + "$?");
+        inputShellWriter.newLine();
+        inputShellWriter.flush();
+
+        String line;
+        while ((line = inputShellReader.readLine()) != null) {
+          if (line.startsWith(marker)) {
+            if (!line.equals(marker + "0")) {
+              log(-1, "persistent input command failed: %s -> %s", command, line);
+            }
+            return true;
+          }
+        }
+
+        throw new IOException("persistent adb shell closed before completion marker");
+      } catch (IOException e) {
+        closeInputShell();
+        if (attempt == 1) {
+          log(-1, "persistent adb shell failed: %s", e);
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private void inputCommand(String... args) {
+    if (executePersistentInput(args)) {
+      return;
+    }
+
+    // Safety fallback: JADB path, but consume stdout to EOF so this path is
+    // still synchronous with command completion.
+    exec("input", args);
+  }
+
+  private synchronized void ensureInputShell() throws IOException {
+    if (inputShellProcess != null
+        && inputShellProcess.isAlive()
+        && inputShellWriter != null
+        && inputShellReader != null) {
+      return;
+    }
+
+    closeInputShell();
+
+    if (adbExec == null || adbExec.isEmpty()) {
+      throw new IOException("ADB executable is not configured");
+    }
+
+    List<String> cmd = new ArrayList<String>();
+    cmd.add(adbExec);
+
+    String serial = getDeviceSerial();
+    if (serial != null && !serial.isEmpty()) {
+      cmd.add("-s");
+      cmd.add(serial);
+    }
+
+    cmd.add("shell");
+
+    ProcessBuilder app = new ProcessBuilder(cmd);
+    app.directory(null);
+    app.redirectErrorStream(true);
+
+    inputShellProcess = app.start();
+    inputShellWriter = new BufferedWriter(
+        new OutputStreamWriter(inputShellProcess.getOutputStream(), "UTF-8"));
+    inputShellReader = new BufferedReader(
+        new InputStreamReader(inputShellProcess.getInputStream(), "UTF-8"));
+
+    log(lvl, "persistent adb shell started for %s", serial);
+  }
+
+  private synchronized void closeInputShell() {
+    if (inputShellWriter != null) {
+      try {
+        inputShellWriter.write("exit");
+        inputShellWriter.newLine();
+        inputShellWriter.flush();
+      } catch (IOException ignored) {
+      }
+    }
+
+    if (inputShellProcess != null) {
+      inputShellProcess.destroy();
+    }
+
+    try {
+      if (inputShellWriter != null) {
+        inputShellWriter.close();
+      }
+    } catch (IOException ignored) {
+    }
+
+    try {
+      if (inputShellReader != null) {
+        inputShellReader.close();
+      }
+    } catch (IOException ignored) {
+    }
+
+    inputShellProcess = null;
+    inputShellWriter = null;
+    inputShellReader = null;
+  }
+
+  private static String shellQuote(String value) {
+    if (value == null) {
+      return "''";
+    }
+    return "'" + value.replace("'", "'\"'\"'") + "'";
   }
 
   private Dimension getDisplayDimension() {
@@ -484,19 +648,11 @@ public class ADBDevice {
   }
 
   public void inputKeyEvent(int key) {
-    try {
-      device.executeShell("input", "keyevent", Integer.toString(key));
-    } catch (Exception e) {
-      log(-1, "inputKeyEvent: %d did not work: %s", key, e.getMessage());
-    }
+    inputCommand("keyevent", Integer.toString(key));
   }
 
   public void tap(int x, int y) {
-    try {
-      device.executeShell("input tap", Integer.toString(x), Integer.toString(y));
-    } catch (IOException | JadbException e) {
-      log(-1, "tap: %s", e);
-    }
+    inputCommand("tap", Integer.toString(x), Integer.toString(y));
   }
 
   public void swipe(int x1, int y1, int x2, int y2) {
@@ -507,25 +663,21 @@ public class ADBDevice {
    * Swipe gesture from (x1, y1) to (x2, y2) with optional duration.
    *
    * @param durationMs swipe duration in milliseconds; pass 0 to use the Android
-   *                   default (~150 ms). Typical UI swipes use 200-400 ms.
+   *                   default (~300 ms). Typical UI swipes use 50-300 ms.
    *                   Values above ~500 ms are interpreted as a drag by most
    *                   apps and may be intercepted — use {@link #dragAndDrop}
    *                   for intentional drag gestures.
    */
   public void swipe(int x1, int y1, int x2, int y2, int durationMs) {
-    try {
-      if (durationMs > 0) {
-        device.executeShell("input swipe",
-                Integer.toString(x1), Integer.toString(y1),
-                Integer.toString(x2), Integer.toString(y2),
-                Integer.toString(durationMs));
-      } else {
-        device.executeShell("input swipe",
-                Integer.toString(x1), Integer.toString(y1),
-                Integer.toString(x2), Integer.toString(y2));
-      }
-    } catch (IOException | JadbException e) {
-      log(-1, "swipe: %s", e);
+    if (durationMs > 0) {
+      inputCommand("swipe",
+              Integer.toString(x1), Integer.toString(y1),
+              Integer.toString(x2), Integer.toString(y2),
+              Integer.toString(durationMs));
+    } else {
+      inputCommand("swipe",
+              Integer.toString(x1), Integer.toString(y1),
+              Integer.toString(x2), Integer.toString(y2));
     }
   }
 
@@ -549,19 +701,15 @@ public class ADBDevice {
    *                   Android default. Typical drags use 500-1500 ms.
    */
   public void dragAndDrop(int x1, int y1, int x2, int y2, int durationMs) {
-    try {
-      if (durationMs > 0) {
-        device.executeShell("input draganddrop",
-                Integer.toString(x1), Integer.toString(y1),
-                Integer.toString(x2), Integer.toString(y2),
-                Integer.toString(durationMs));
-      } else {
-        device.executeShell("input draganddrop",
-                Integer.toString(x1), Integer.toString(y1),
-                Integer.toString(x2), Integer.toString(y2));
-      }
-    } catch (IOException | JadbException e) {
-      log(-1, "dragAndDrop: %s", e);
+    if (durationMs > 0) {
+      inputCommand("draganddrop",
+              Integer.toString(x1), Integer.toString(y1),
+              Integer.toString(x2), Integer.toString(y2),
+              Integer.toString(durationMs));
+    } else {
+      inputCommand("draganddrop",
+              Integer.toString(x1), Integer.toString(y1),
+              Integer.toString(x2), Integer.toString(y2));
     }
   }
 

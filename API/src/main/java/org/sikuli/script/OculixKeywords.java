@@ -7,9 +7,11 @@ import com.sikulix.ocr.OCREngine;
 import org.sikuli.basics.Settings;
 import org.sikuli.support.devices.IScreen;
 
+import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.sikuli.android.ADBScreen;
 
 /**
  * Composite keywords for OculiX — higher-level operations built on SikuliX primitives.
@@ -145,6 +147,142 @@ public class OculixKeywords {
     match.click();
     return MatchUtils.regionFromMatch(match);
   }
+
+// ── Android swipes ─────────────────────────────────────────────────────
+
+private static final int DEFAULT_ANDROID_SWIPE_DURATION_MS = 15;
+private int androidSwipeDurationMs = DEFAULT_ANDROID_SWIPE_DURATION_MS;
+
+private ADBScreen getADBScreen() {
+  if (!(screen instanceof ADBScreen)) {
+    throw new ScreenOperationException(
+        "Swipe is currently available only on ADBScreen"
+    );
+  }
+
+  return (ADBScreen) screen;
+}
+
+public int getAndroidSwipeDurationMs() {
+  return androidSwipeDurationMs;
+}
+
+public void setAndroidSwipeDurationMs(int durationMs) {
+  if (durationMs < 1) {
+    throw new IllegalArgumentException("Android swipe duration must be >= 1 ms");
+  }
+  androidSwipeDurationMs = durationMs;
+}
+
+// ── Public swipe keywords ───────────────────────────────────────────────
+
+public void swipeUp() {
+  swipeUp(1);
+}
+
+public void swipeDown() {
+  swipeDown(1);
+}
+
+public void swipeLeft() {
+  swipeLeft(1);
+}
+
+public void swipeRight() {
+  swipeRight(1);
+}
+
+public void swipeUp(int count) {
+  ADBScreen adb = getADBScreen();
+
+  for (int i = 0; i < count; i++) {
+
+    int x = region.getX() + region.getW() / 2;
+
+    int fromY =
+        region.getY() + (region.getH() * 4 / 5);
+
+    int toY =
+        region.getY() + (region.getH() / 5);
+
+    adb.getDevice().swipe(
+        x,
+        fromY,
+        x,
+        toY,
+        androidSwipeDurationMs
+    );
+  }
+}
+
+public void swipeDown(int count) {
+  ADBScreen adb = getADBScreen();
+
+  for (int i = 0; i < count; i++) {
+
+    int x = region.getX() + region.getW() / 2;
+
+    int fromY =
+        region.getY() + (region.getH() / 5);
+
+    int toY =
+        region.getY() + (region.getH() * 4 / 5);
+
+    adb.getDevice().swipe(
+        x,
+        fromY,
+        x,
+        toY,
+        androidSwipeDurationMs
+    );
+  }
+}
+
+public void swipeLeft(int count) {
+  ADBScreen adb = getADBScreen();
+
+  for (int i = 0; i < count; i++) {
+
+    int y = region.getY() + region.getH() / 2;
+
+    int fromX =
+        region.getX() + (region.getW() * 4 / 5);
+
+    int toX =
+        region.getX() + (region.getW() / 5);
+
+    adb.getDevice().swipe(
+        fromX,
+        y,
+        toX,
+        y,
+        androidSwipeDurationMs
+    );
+  }
+}
+
+public void swipeRight(int count) {
+  ADBScreen adb = getADBScreen();
+
+  for (int i = 0; i < count; i++) {
+
+    int y = region.getY() + region.getH() / 2;
+
+    int fromX =
+        region.getX() + (region.getW() / 5);
+
+    int toX =
+        region.getX() + (region.getW() * 4 / 5);
+
+    adb.getDevice().swipe(
+        fromX,
+        y,
+        toX,
+        y,
+        androidSwipeDurationMs
+    );
+  }
+}
 
   // ── Click Text (OCR) ─────────────────────────────────────────────────
 
@@ -594,7 +732,7 @@ public class OculixKeywords {
     int w = coords[2];
     int h = coords[3];
     // Click the center of the found text
-    Region textRegion = new Region(absX, absY, w, h);
+    Region textRegion = searchRegion.getScreen().newRegion(absX, absY, w, h);
     textRegion.click();
     return new int[]{absX, absY, w, h};
   }

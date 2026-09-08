@@ -26,11 +26,20 @@ public final class ScreenshotTool implements Tool {
   }
 
   @Override public JSONObject inputSchema() {
+    int nScreens = Screen.getNumberScreens();
+    String screenDesc = "Screen index to capture (0-based). "
+        + "Defaults to 0 (primary). This machine currently exposes " + nScreens
+        + " screen" + (nScreens == 1 ? "" : "s") + ". Ignored when 'region' is provided "
+        + "(the region already carries its own screen).";
     return new JSONObject()
         .put("type", "object")
         .put("properties", new JSONObject()
             .put("region", RegionSpec.jsonSchema()
-                .put("description", "Optional region to capture. If omitted, captures the full screen 0.")));
+                .put("description", "Optional region to capture. If omitted, captures the full screen at 'screen_index'."))
+            .put("screen_index", new JSONObject()
+                .put("type", "integer")
+                .put("minimum", 0)
+                .put("description", screenDesc)));
   }
 
   @Override public JSONObject call(JSONObject args) throws Exception {
@@ -41,8 +50,22 @@ public final class ScreenshotTool implements Tool {
       Region r = RegionSpec.fromJson(region);
       img = r.getScreen().capture(r);
     } else {
-      // No region (or empty object sent by some clients) — capture full screen 0
-      img = new Screen().capture();
+      // No region (or empty object sent by some clients) — capture full screen at screen_index.
+      // JSON-RPC callers sometimes serialise integers as strings, so accept both.
+      int idx = args.optInt("screen_index", -1);
+      if (idx < 0) {
+        String s = args.optString("screen_index", "").trim();
+        if (!s.isEmpty()) {
+          try { idx = Integer.parseInt(s); } catch (NumberFormatException ignore) {}
+        }
+      }
+      if (idx < 0) idx = 0;
+      int nScreens = Screen.getNumberScreens();
+      if (idx >= nScreens) {
+        throw new IllegalArgumentException("screen_index " + idx + " out of range; this machine has "
+            + nScreens + " screen" + (nScreens == 1 ? "" : "s") + " (valid indices: 0.." + (nScreens - 1) + ")");
+      }
+      img = new Screen(idx).capture();
     }
     BufferedImage bi = img.getImage();
 

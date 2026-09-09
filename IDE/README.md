@@ -1,79 +1,70 @@
-SikuliX IDE
-===
+# OculiX IDE
 
-Implements a GUI using Java, that allows to edit and run Sikuli scripts 
-(currently Jython and JRuby are supported). 
-It is an easy to use IDE focusing on the handling of the screenshots 
-and images used in the typical Sikuli workflows.
+The graphical environment for writing and running OculiX scripts: capture a
+region of the screen, drop the image straight into the code, run it, watch it
+work. Images appear inline in the editor as thumbnails rather than as file
+names, which is what makes a visual script readable.
 
-It can also be used to run scripts from commandline.
+It also runs scripts from the command line.
 
----
-**2.1.0 - Current development focus**
+**Java 17 or later, 64-bit.** Use [Eclipse Temurin](https://adoptium.net) or
+[Azul Zulu](https://www.azul.com/downloads/).
 
----
-The **IDE GUI features** are being completely revised including some changes in the Look&Feel:
-- Buttons and popup-menus
-- thumbnail-images and their behavior on click (features and options)
-- image preview feature (adjust pattern options and image optimization)
-- global preferences
-- per script preferences
-- auto-complete including auto-capture
-- recorder feature
-- generic support for right-click (context menus)
+## Running it
 
-... work in progress
+The jars are platform-specific, since each one carries the natives of its own
+platform:
 
----
-**Important information for the use of the 2.1.0 snapshot jars**
+| Platform | Jar |
+| --- | --- |
+| Windows | `oculixide-4.0.0-complete-win.jar` |
+| macOS | `oculixide-4.0.0-complete-mac.jar` |
+| Linux | `oculixide-4.0.0-complete-lux.jar` |
 
----
-**Java 11+ and 64-Bit support required**
+```bash
+java -jar oculixide-4.0.0-complete-win.jar
+```
 
-Make sure you are using Java 11 or later when running SikuliX IDE 2.1.0 (either from commandline with java command or by 
-double-clicking the jar-file).
+Double-clicking works too. Build one yourself with the matching profile:
 
-Recommendation: Use the packages from [AdoptOpenJDK](https://adoptopenjdk.net).
+```bash
+mvn -pl IDE -am package -DskipTests -Pcomplete-win-jar
+```
 
-**The jars are system-specific**
+## What is inside
 
-After download you will have jars, that only run on the system, they are built for:
- - Windows: sikulixwin-2.1.0-SNAPSHOT-*date*-*time*-*N*.jar
- - macOS: sikulixmac-2.1.0-SNAPSHOT-*date*-*time*-*N*.jar
- - Linux: sikulixlux-2.1.0-SNAPSHOT-*date*-*time*-*N*.jar
+- **Jython 2.7.4**, bundled: Python 2.7 syntax with full JVM interop, and
+  drop-in compatibility with existing SikuliX scripts.
+- **JRuby 9.4.14.0**, bundled. The 9.4 line is pinned on purpose: JRuby 10
+  requires Java 21, and OculiX targets 17.
+- **Other runners**: Robot Framework, PowerShell, AppleScript, plain text,
+  and `.skl` / `.zip` script bundles.
+- **OpenCV 4.10**, via [Apertix](https://github.com/oculix-org/Apertix), for
+  template matching.
+- **Tesseract 5.5 and Leptonica 1.87**, with five `tessdata_fast` language
+  models, via [Legerix](https://github.com/oculix-org/Legerix). Nothing to
+  install: no `apt install tesseract-ocr`, no `brew install tesseract`.
+  PaddleOCR can be plugged in as an opt-in HTTP service for CJK and
+  multilingual work.
 
-... where `*date*-*time*-*N*` is a timestamp of the time, the jar was created on OSSRH.
+## Around the editor
 
-Feel free, to rename the jar to whatever you need/want.
+- **Sidebar** with File, Edit, Run, View and Tools, the open scripts, the
+  status of the OCR engines and the last run.
+- **Image thumbnails** in the code, with a click for rename, optimize and
+  pattern promotion, and a similarity badge on patterns.
+- **Preferences** with a Hotkeys tab: the quick-capture and the stop/abort
+  hotkeys are both rebindable, each with its own enable switch, and a
+  validator refuses a binding that cannot work.
+- **Themes**, dark and light, and the interface translated into 23 locales.
 
-**Jython is included**
+Defaults: `Alt+Shift+2` captures, `Alt+Shift+C` aborts a running script. Both
+are global, so they work while a script has the focus.
 
-The content of `jython-2.7.2-slim.jar` available on Maven Central is included in the SikuliX IDE, 
-so Jython scripting is available out of the box.
+## Remote and mobile
 
-**JRuby supported, but not included**
+The IDE drives what the API drives: a VNC target through `VNCScreen`, with SSH
+tunnelling from Java alone, and an Android device through `ADBScreen` over USB
+or Wi-Fi. Neither is suspended, both are supported.
 
-If you want to use Ruby scripting via JRuby support, you have to take care, 
-that a JRuby jar (version 9.2.11+) is on the Java classpath when running the SikuliX IDE.
-
-**OpenCV support is included**
-
-The OpenCV libraries and the Java interface are included in the SikuliX IDE. It is based on the contents of 
-[OpenPnP::OpenCV](https://github.com/openpnp/opencv) and currently on `OpenCV version 4.5`.
-
-`Note on Linux`: The included libraries are built and tested on recent Ubuntu versions. In case of problems 
-or for not compatible Linux flavours you have to find a solution. Feel free, to post an issue 
-with complete information about your environment and your trials.
-
-**OCR support via Tesseract**
-
-OCR support is included via the package [Tess4J](https://github.com/nguyenq/tess4j) and currently
-on `version 4.5.4` based on the `Tesseract` libraries `version 4.1.1` and `Leptonica` libraries `version 1.79`.
-- Windows: the Tesseract pre-built libraries are included and automatically made available at runtime.
-- macOS: preferably use HomeBrew to `brew install tesseract`, which should install `version 4.1.1` 
-  and take care for any dependencies
-- Linux: use a suitable way, to get the Tesseract and Leptonica libraries available on the system library path.
-
-**VNC and Android support suspended**
-
-The features are currently not available and might come back later.
+Full documentation at [oculix.org](https://oculix.org).

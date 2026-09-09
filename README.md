@@ -5,12 +5,12 @@
 # OculiX
 
 **The open-source reference for visual automation.**
-*Twenty years of lineage. MIT-licensed. Trusted in production by 91+ organizations worldwide.*
+*Twenty years of lineage. MIT-licensed. Trusted in production by 149 organizations worldwide.*
 
-[![Java](https://img.shields.io/badge/Java-11%2B-orange?style=flat-square&logo=openjdk)](https://adoptium.net)
+[![Java](https://img.shields.io/badge/Java-17%2B-orange?style=flat-square&logo=openjdk)](https://adoptium.net)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12878/badge)](https://www.bestpractices.dev/projects/12878)
-[![Version](https://img.shields.io/badge/Version-3.0.3-blue?style=flat-square)](https://github.com/oculix-org/Oculix/releases)
+[![Version](https://img.shields.io/badge/Version-4.0.0-blue?style=flat-square)](https://github.com/oculix-org/Oculix/releases)
 [![Docs](https://img.shields.io/badge/Docs-oculix.org-blueviolet?style=flat-square)](https://oculix.org)
 [![Maven Central](https://img.shields.io/badge/Maven%20Central-io.github.oculix--org-blue?style=flat-square&logo=apachemaven)](https://central.sonatype.com/namespace/io.github.oculix-org)
 
@@ -22,7 +22,7 @@
 
 ## Trusted in production
 
-| 91 | 14k+ | 3.4k | MIT |
+| 149 | 14k+ | 3.4k | MIT |
 |---|---|---|---|
 | enterprise organizations | clones every two weeks | Maven downloads / quarter | open source, forever |
 
@@ -42,12 +42,13 @@ You don't need to be a developer to use it. If you can take a screenshot, you ca
 
 ```python
 # Open the app, export today's report, save it — every morning at 8 AM.
-from oculix import click, type, wait
+from sikuli import *
 
 click("file_menu.png")
 click("export_to_csv.png")
-wait("save_dialog.png", timeout=10)
-type("filename_field.png", "report_today.csv")
+wait("save_dialog.png", 10)
+click("filename_field.png")
+type("report_today.csv")
 click("save_button.png")
 ```
 
@@ -118,6 +119,19 @@ Optional MCP module: Ed25519-signed, SHA-256-chained JSONL audit journal. Every 
 
 ---
 
+## The modules
+
+| Module | Artifact | What it is |
+|---|---|---|
+| **API** | `oculixapi` | The library: `Screen`, `Region`, `Pattern`, `Match`, and everything that finds and acts. Also VNC, SSH tunnelling and Android. |
+| **IDE** | `oculixide` | The editor: capture, inline image thumbnails, run, and the script runners. |
+| **Reporter** | `oculixreporter` | Opt-in single-file HTML reports with embedded screenshots, failure diagnosis and flaky detection. |
+| **MCP** | `oculix-mcp-server` | The same tools over Model Context Protocol, with a signed append-only audit journal. |
+
+Natives come from two sibling projects: [Apertix](https://github.com/oculix-org/Apertix) for OpenCV, [Legerix](https://github.com/oculix-org/Legerix) for Tesseract, Leptonica and the bundled language models.
+
+---
+
 ## How it compares
 
 OculiX sits in the **process automation** space alongside RPA and visual automation tools.
@@ -138,7 +152,7 @@ OculiX sits in the **process automation** space alongside RPA and visual automat
 
 ## Quick install
 
-**Prerequisite:** Java 11 or later — [Eclipse Temurin](https://adoptium.net) or [Azul Zulu](https://www.azul.com/downloads/).
+**Prerequisite:** Java 17 or later — [Eclipse Temurin](https://adoptium.net) or [Azul Zulu](https://www.azul.com/downloads/).
 
 **Maven:**
 
@@ -146,7 +160,7 @@ OculiX sits in the **process automation** space alongside RPA and visual automat
 <dependency>
     <groupId>io.github.oculix-org</groupId>
     <artifactId>oculixapi</artifactId>
-    <version>3.0.3</version>
+    <version>4.0.0</version>
 </dependency>
 ```
 

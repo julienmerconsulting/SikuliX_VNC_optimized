@@ -4,9 +4,13 @@ name: Build and Release
 # Runs only on explicit dispatch or when something is pushed to the
 # release/oculix branch. Guards against running on a pre-release version
 # (pom.xml version must be plain X.Y.Z, no -rc/-beta/-alpha suffix).
-# Produces all three modules (API, IDE, MCP) for Windows, macOS and Linux,
-# and publishes a GitHub release with the "latest" pointer pointing here -
-# so users pulling /releases/latest land on this stable release.
+# Produces the API and IDE fat jars for Windows, macOS and Linux, plus the
+# two platform-independent modules, MCP and Reporter, and publishes a GitHub
+# release with the "latest" pointer pointing here - so users pulling
+# /releases/latest land on this stable release.
+#
+# Reporter is a GitHub asset only. Its pom sets maven.deploy.skip under the
+# release profile, so the Maven Central publication stays untouched by this.
 
 on:
   workflow_dispatch:
@@ -96,8 +100,31 @@ jobs:
           IDE/target/*complete-lux*.jar
           MCP/target/oculix-mcp-server.jar
 
+  # Reporter carries no natives, so it is built once instead of in each of the
+  # three OS jobs. It is a thin jar on purpose: oculixapi is `provided` and the
+  # framework integrations are `optional`, so it goes on the classpath next to
+  # the API jar the user already has.
+  build-reporter:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    - name: Install API to local repo
+      run: mvn -B -pl API install -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
+    - name: Build Reporter JAR
+      run: mvn -B -pl Reporter package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: reporter-jar
+        path: Reporter/target/oculixreporter-*.jar
+
   release:
-    needs: [build-windows, build-macos, build-linux]
+    needs: [build-windows, build-macos, build-linux, build-reporter]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -143,6 +170,11 @@ jobs:
         else
           echo "::warning::MCP jar not found in any artifact"
         fi
+
+        # Reporter is cross-platform too, and comes from its own single build,
+        # so there is nothing to deduplicate and no rename to do: the version
+        # is already in the file name.
+        find reporter-jar -name "oculixreporter-*.jar" -exec cp {} release-assets/ \;
 
         cd release-assets
         for f in *-complete-win.jar; do mv "$f" "${f%-complete-win.jar}-windows.jar"; done

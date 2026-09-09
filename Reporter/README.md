@@ -8,23 +8,41 @@ Opt-in. Existing code is untouched until you wrap a `Screen`.
 
 ## Getting it
 
-Reporter is not published to Maven Central: its pom skips the deploy step, so
-the artifact ships as `oculixreporter-4.0.0.jar` on the
-[GitHub release](https://github.com/oculix-org/Oculix/releases). Put it on the
-classpath next to the API jar you already have.
+As a Maven dependency:
 
-It is a thin jar on purpose. `oculixapi` is a `provided` dependency, and the
-JUnit, TestNG and Selenium integrations are `optional`, so nothing is pulled in
-for a framework you do not use.
+```xml
+<dependency>
+    <groupId>io.github.oculix-org</groupId>
+    <artifactId>oculixreporter</artifactId>
+    <version>4.0.0</version>
+    <scope>test</scope>
+</dependency>
+```
+
+Or as a plain jar, `oculixreporter-4.0.0.jar`, from the
+[GitHub release](https://github.com/oculix-org/Oculix/releases), to drop on the
+classpath of a project that has no Maven build.
+
+Either way you also need `oculixapi`, which Reporter declares as `provided` and
+therefore never pulls in for you. That is deliberate: you already have the API,
+and a second copy of it inside a fat jar would be a liability, not a service.
+
+The three test-framework integrations are `optional`, so nothing arrives for a
+framework you do not use. The core, `OculixReporter` and `ReportedScreen`,
+imports only the JDK and the OculiX API. JUnit is needed for the JUnit
+extension, TestNG for the TestNG listener, and Selenium for the Selenium
+listener and the driver wrapper.
 
 Building it from the source tree:
 
 ```bash
 mvn -pl API install -DskipTests
-mvn -pl Reporter package -DskipTests
+mvn -pl Reporter verify
 ```
 
-**Java 17 or later**, like every OculiX module.
+**Java 17 or later at runtime.** The module itself compiles to class file
+version 55, but it runs against `oculixapi`, which is built for 17, so 17 is
+the real floor.
 
 ## Using it
 

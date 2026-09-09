@@ -6,12 +6,22 @@ later, and see what the run saw.
 
 Opt-in. Existing code is untouched until you wrap a `Screen`.
 
-```xml
-<dependency>
-    <groupId>io.github.oculix-org</groupId>
-    <artifactId>oculixreporter</artifactId>
-    <version>4.0.0</version>
-</dependency>
+## Getting it
+
+Reporter is not published to Maven Central: its pom skips the deploy step, so
+the artifact ships as `oculixreporter-4.0.0.jar` on the
+[GitHub release](https://github.com/oculix-org/Oculix/releases). Put it on the
+classpath next to the API jar you already have.
+
+It is a thin jar on purpose. `oculixapi` is a `provided` dependency, and the
+JUnit, TestNG and Selenium integrations are `optional`, so nothing is pulled in
+for a framework you do not use.
+
+Building it from the source tree:
+
+```bash
+mvn -pl API install -DskipTests
+mvn -pl Reporter package -DskipTests
 ```
 
 **Java 17 or later**, like every OculiX module.

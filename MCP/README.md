@@ -41,12 +41,14 @@ Rotation markers are signed by the outgoing key before a new key takes over, so 
 `oculix-mcp-server.jar` is a fat jar (`java -jar` runnable), but here is what it does and does not bundle:
 
 - **Apertix / OpenCV 4.10 natives**: bundled for Windows x86_64, Linux x86_64, macOS x64/aarch64. Template matching works out of the box.
-- **Tesseract natives for Linux and macOS**: NOT bundled (see [oculix-org/oculix#110](https://github.com/oculix-org/Oculix/issues/110)). Install Tesseract via your system package manager. On Windows, `tess4j` ships the natives so no extra install is needed.
+- **Tesseract 5.5, Leptonica and five language models**: bundled for every platform via [Legerix](https://github.com/oculix-org/Legerix). Nothing to install: no `apt install tesseract-ocr`, no `brew install tesseract`. This closed [#110](https://github.com/oculix-org/Oculix/issues/110).
 - **PaddleOCR**: runs as a separate Python microservice (`paddleocr-server`, Flask). The MCP server talks to it via HTTP on `127.0.0.1:5000` by default. If PaddleOCR is not reachable, the server falls back to Tesseract transparently.
 
 ---
 
 ## Quick start
+
+**Prerequisite:** Java 17 or later — [Eclipse Temurin](https://adoptium.net) or [Azul Zulu](https://www.azul.com/downloads/). Every OculiX module compiles with `release 17`.
 
 ### 1. Build
 

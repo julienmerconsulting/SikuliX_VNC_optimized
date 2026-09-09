@@ -9,8 +9,9 @@ name: Build and Release
 # release with the "latest" pointer pointing here - so users pulling
 # /releases/latest land on this stable release.
 #
-# Reporter is a GitHub asset only. Its pom sets maven.deploy.skip under the
-# release profile, so the Maven Central publication stays untouched by this.
+# Reporter ships here as a downloadable jar. Its publication to Maven Central
+# is a separate chain entirely, driven by plublish-maven.yml, and neither
+# workflow depends on the other.
 
 on:
   workflow_dispatch:
@@ -115,13 +116,36 @@ jobs:
         distribution: 'temurin'
     - name: Install API to local repo
       run: mvn -B -pl API install -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
-    - name: Build Reporter JAR
-      run: mvn -B -pl Reporter package -DskipTests | egrep -v "^\[INFO\].*?Download.*?http"
+    # Version read from the module's own pom, after the API is installed so the
+    # model resolves. Never typed in: a hardcoded number here would either fail
+    # the next bump or, worse, name a jar that no release contains.
+    - name: Get Reporter version from its POM
+      id: version
+      run: echo "VERSION=$(mvn -B -q -pl Reporter help:evaluate -Dexpression=project.version -DforceStdout)" >> $GITHUB_OUTPUT
+    # verify, not package: the module has tests and they run headless.
+    - name: Build and verify Reporter
+      run: mvn -B -pl Reporter verify | egrep -v "^\[INFO\].*?Download.*?http"
+    # Staged by exact name rather than uploaded with a glob. The release
+    # profile attaches -sources and -javadoc jars to the same directory, and
+    # while that profile is not active here, a glob that could ever match them
+    # is a trap waiting for the day it is.
+    - name: Stage the one jar we ship
+      run: |
+        VERSION="${{ steps.version.outputs.VERSION }}"
+        JAR="Reporter/target/oculixreporter-${VERSION}.jar"
+        if [ ! -f "$JAR" ]; then
+          echo "::error::Reporter build produced no ${JAR}"
+          ls -l Reporter/target || true
+          exit 1
+        fi
+        mkdir -p reporter-stage
+        cp "$JAR" reporter-stage/
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: reporter-jar
-        path: Reporter/target/oculixreporter-*.jar
+        path: reporter-stage/oculixreporter-${{ steps.version.outputs.VERSION }}.jar
+        if-no-files-found: error
 
   release:
     needs: [build-windows, build-macos, build-linux, build-reporter]
@@ -173,8 +197,17 @@ jobs:
 
         # Reporter is cross-platform too, and comes from its own single build,
         # so there is nothing to deduplicate and no rename to do: the version
-        # is already in the file name.
-        find reporter-jar -name "oculixreporter-*.jar" -exec cp {} release-assets/ \;
+        # is already in the file name. It has to be THIS version, and there has
+        # to be exactly one candidate. Taking the first match of a glob is how
+        # a release ends up shipping last month's jar under this month's tag.
+        REPORTER_JAR="reporter-jar/oculixreporter-${VERSION}.jar"
+        REPORTER_COUNT=$(find reporter-jar -name "oculixreporter-*.jar" | wc -l)
+        if [ ! -f "$REPORTER_JAR" ] || [ "$REPORTER_COUNT" -ne 1 ]; then
+          echo "::error::expected exactly one Reporter jar named oculixreporter-${VERSION}.jar, found ${REPORTER_COUNT} candidate(s)"
+          find reporter-jar -type f || true
+          exit 1
+        fi
+        cp "$REPORTER_JAR" release-assets/
 
         cd release-assets
         for f in *-complete-win.jar; do mv "$f" "${f%-complete-win.jar}-windows.jar"; done

@@ -10,6 +10,7 @@ import org.sikuli.basics.*;
 import org.sikuli.idesupport.IDEDesktopSupport;
 import org.sikuli.idesupport.IDETaskbarSupport;
 import org.sikuli.support.FileManager;
+import org.sikuli.support.NativeProvenance;
 import org.sikuli.support.ide.ExtensionManager;
 import org.sikuli.support.ide.IButton;
 import org.sikuli.support.ide.IDESupport;
@@ -458,6 +459,54 @@ public class SikulixIDE extends JFrame {
     Commons.startLog(3, "IDE ready: on Java %d (%4.1f sec)", Commons.getJavaVersion(), Commons.getSinceStart());
   }
 
+  /**
+   * Offers to add the missing OCR native links, when the user has not already answered.
+   *
+   * <p>The API decides <em>what</em> is needed (see {@code NativeProvenance}); this only asks. Runs
+   * once the window is up rather than during startup, so the first thing a user sees is the IDE
+   * and not a dialog about shared libraries. Silent unless there is something to fix — on a
+   * healthy install this is a directory listing and nothing more.
+   */
+  private static void offerOcrAliasRepair() {
+    try {
+      // Captured once: a user sits between the check and the repair, which is the longest window
+      // this pattern can have, and the field it would otherwise re-read is mutable static state.
+      java.nio.file.Path tierDir = NativeProvenance.getExtractionDir();
+      if (PreferencesUser.get().getOcrAliasPolicy() != PreferencesUser.OCR_ALIAS_ASK
+          || NativeProvenance.missingAliases(tierDir).isEmpty()) {
+        return;
+      }
+      JCheckBox remember = new JCheckBox(SikuliIDEI18N._I("msgOcrAliasRemember"), true);
+      Object[] message = {SikuliIDEI18N._I("msgOcrAliasExplain"), remember};
+      Object[] options = {
+          SikuliIDEI18N._I("btnOcrAliasRepair"),
+          SikuliIDEI18N._I("btnOcrAliasNotNow"),
+          SikuliIDEI18N._I("btnOcrAliasNever")};
+      int choice = JOptionPane.showOptionDialog(ideWindow, message,
+          SikuliIDEI18N._I("dlgOcrAliasTitle"), JOptionPane.DEFAULT_OPTION,
+          JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+      if (choice == 0) {
+        // Remembering matters more than the one-off repair: the cache is keyed by version, so the
+        // links are gone again after the next update unless we are allowed to re-add them.
+        if (remember.isSelected()) {
+          PreferencesUser.get().setOcrAliasPolicy(PreferencesUser.OCR_ALIAS_AUTO);
+        }
+        int made = NativeProvenance.createAliases(tierDir);
+        if (made > 0) {
+          Commons.startLog(3, "[OculiX] %s", SikuliIDEI18N._I("msgOcrAliasDone"));
+        }
+      } else if (choice == 2) {
+        PreferencesUser.get().setOcrAliasPolicy(PreferencesUser.OCR_ALIAS_NEVER);
+        Commons.startLog(3, "[OculiX] %s\n%s", SikuliIDEI18N._I("msgOcrAliasDeclined"),
+            NativeProvenance.manualCommand(tierDir));
+      }
+      // "Not now" and a closed dialog both leave the preference alone, so the offer returns next
+      // start. Declining once should not be treated as declining forever.
+    } catch (Throwable e) {
+      Commons.startLog(3, "[OculiX] OCR alias offer skipped: %s", e.getMessage());
+    }
+  }
+
   public static void showAfterStart() {
     while (!ideIsReady.get()) {
       Commons.pause(100);
@@ -470,6 +519,7 @@ public class SikulixIDE extends JFrame {
     if (!sikulixIDE.contexts.isEmpty()) {
       sikulixIDE.getActiveContext().focus();
     }
+    offerOcrAliasRepair();
     if (Sikulix.shouldExecuteOnStart) {
       // Mirrors the -r flow at Sikulix.start verbatim — same loadOpenCV +
       // resolveRelativeFiles + runScripts sequence — minus the

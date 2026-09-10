@@ -23,6 +23,12 @@ public class PreferencesUser {
   public final static int AUTO_NAMING_TIMESTAMP = 0;
   public final static int AUTO_NAMING_OCR = 1;
   public final static int AUTO_NAMING_OFF = 2;
+  // What to do when the bundled OCR natives lack the unversioned filename JNA looks for.
+  // ASK is the default: this writes into a cache directory we did not create, so it is the
+  // user's call rather than ours to make quietly.
+  public final static int OCR_ALIAS_ASK = 0;
+  public final static int OCR_ALIAS_AUTO = 1;
+  public final static int OCR_ALIAS_NEVER = 2;
   public final static int HORIZONTAL = 0;
   public final static int VERTICAL = 1;
   public final static int UNKNOWN = -1;
@@ -296,6 +302,15 @@ public class PreferencesUser {
 
   public int getAutoNamingMethod() {
     return pref.getInt("AUTO_NAMING", AUTO_NAMING_OCR);
+  }
+
+  // ***** OCR native aliases
+  public void setOcrAliasPolicy(int p) {
+    pref.putInt("OCR_ALIAS_POLICY", p);
+  }
+
+  public int getOcrAliasPolicy() {
+    return pref.getInt("OCR_ALIAS_POLICY", OCR_ALIAS_ASK);
   }
 
   public void setDefaultThumbHeight(int h) {

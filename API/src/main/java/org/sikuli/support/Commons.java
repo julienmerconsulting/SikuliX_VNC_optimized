@@ -11,6 +11,7 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.sikuli.basics.Debug;
 import org.sikuli.basics.HotkeyManager;
+import org.sikuli.basics.PreferencesUser;
 import org.sikuli.basics.Settings;
 import org.sikuli.script.*;
 import org.sikuli.support.devices.HelpDevice;
@@ -1518,7 +1519,14 @@ public class Commons {
     try {
       Class<?> legerix = Class.forName(libLegerixClassref);
       try {
-        legerix.getMethod("loadNatives").invoke(null);
+        // loadNatives() returns the tier directory it extracted to. We used to discard it; it is
+        // the only handle we have on what was actually unpacked, so record it for NativeProvenance.
+        Object tierDir = legerix.getMethod("loadNatives").invoke(null);
+        if (tierDir instanceof java.nio.file.Path) {
+          NativeProvenance.recordExtraction((java.nio.file.Path) tierDir);
+          NativeProvenance.auditExtraction(legerix);
+          applyOcrAliasPolicy();
+        }
         nativesLoaded = true;
       } catch (Throwable e) {
         // Common on Windows when Legerix's bundled tesseract/leptonica DLLs
@@ -1563,7 +1571,11 @@ public class Commons {
     }
     if (nativesLoaded) {
       libTesseractLoaded = true;
+      // Report the path, not just the version. A version string describes the file Legerix
+      // extracted, which is not necessarily the one OCR will bind — see NativeProvenance. The
+      // binding itself cannot be checked until tess4j has run once.
       startLog(3, "[OculiX] Tesseract loaded via Legerix (Tesseract " + version
+          + ", natives=" + NativeProvenance.getExtractionDir()
           + ", tessdata=" + libTesseractDataPath + ")");
     } else if (libTesseractDataPath != null) {
       // Tess4J ships its own self-contained Tesseract DLLs/dylibs/sos and will
@@ -1574,6 +1586,34 @@ public class Commons {
           + "Legerix-bundled tessdata (" + libTesseractDataPath + ")");
     } else {
       startLog(3, "[OculiX] No Tesseract available — OCR will require a system install.");
+    }
+  }
+
+  /**
+   * Acts on the user's stored choice about repairing missing OCR native aliases.
+   *
+   * <p>Re-checked on every startup rather than once at install: the cache is keyed by version, so
+   * an upgrade extracts a fresh directory and any alias made previously is gone. The same reason a
+   * package manager re-points its "latest" link after each build rather than assuming it holds.
+   *
+   * <p>ASK does nothing here — the IDE prompts, and headless callers get the diagnosis without a
+   * dialog they cannot answer.
+   */
+  private static void applyOcrAliasPolicy() {
+    // Capture the directory once and pass it to every call below. Checking and repairing are two
+    // calls, and the field between them is a mutable static that lazy init can re-point — so the
+    // list would be computed for one directory and the links written into another.
+    java.nio.file.Path dir = NativeProvenance.getExtractionDir();
+    if (NativeProvenance.missingAliases(dir).isEmpty()) {
+      return;
+    }
+    int policy = PreferencesUser.get().getOcrAliasPolicy();
+    if (policy == PreferencesUser.OCR_ALIAS_AUTO) {
+      NativeProvenance.createAliases(dir);
+    } else if (policy == PreferencesUser.OCR_ALIAS_NEVER) {
+      startLog(3, "[OculiX] bundled OCR natives lack the unversioned name JNA looks for; "
+          + "repair is disabled by preference. To do it by hand:\n"
+          + NativeProvenance.manualCommand(dir));
     }
   }
 

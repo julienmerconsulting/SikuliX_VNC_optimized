@@ -1518,7 +1518,13 @@ public class Commons {
     try {
       Class<?> legerix = Class.forName(libLegerixClassref);
       try {
-        legerix.getMethod("loadNatives").invoke(null);
+        // loadNatives() returns the tier directory it extracted to. We used to discard it; it is
+        // the only handle we have on what was actually unpacked, so record it for NativeProvenance.
+        Object tierDir = legerix.getMethod("loadNatives").invoke(null);
+        if (tierDir instanceof java.nio.file.Path) {
+          NativeProvenance.recordExtraction((java.nio.file.Path) tierDir);
+          NativeProvenance.auditExtraction(legerix);
+        }
         nativesLoaded = true;
       } catch (Throwable e) {
         // Common on Windows when Legerix's bundled tesseract/leptonica DLLs
@@ -1563,7 +1569,11 @@ public class Commons {
     }
     if (nativesLoaded) {
       libTesseractLoaded = true;
+      // Report the path, not just the version. A version string describes the file Legerix
+      // extracted, which is not necessarily the one OCR will bind — see NativeProvenance. The
+      // binding itself cannot be checked until tess4j has run once.
       startLog(3, "[OculiX] Tesseract loaded via Legerix (Tesseract " + version
+          + ", natives=" + NativeProvenance.getExtractionDir()
           + ", tessdata=" + libTesseractDataPath + ")");
     } else if (libTesseractDataPath != null) {
       // Tess4J ships its own self-contained Tesseract DLLs/dylibs/sos and will

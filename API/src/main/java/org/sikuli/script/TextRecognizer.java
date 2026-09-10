@@ -16,6 +16,7 @@ import org.sikuli.basics.Debug;
 import org.sikuli.basics.Settings;
 import org.sikuli.support.runner.ProcessRunner;
 import org.sikuli.support.Commons;
+import org.sikuli.support.NativeProvenance;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -168,6 +169,7 @@ public class TextRecognizer {
           + " The tesseract CLI may be present on your system, but the\n"
           + " shared library JNA needs could not be loaded."
           + " Original error: \n" + e.getMessage() + "\n"
+          + NativeProvenance.explainLinkFailure()
           + " Try:\n  " + installCmd;
       Debug.error(msg);
       throw new SikuliXception("Tesseract native library failed to load (JNA).");
@@ -441,6 +443,9 @@ public class TextRecognizer {
       Debug.error("OCR: read: Tess4J: doOCR: %s", e.getMessage());
       return "";
     }
+    // First real OCR is the earliest point the binding can be observed: tess4j resolves the
+    // short name during its own static init, so anything before this proves nothing. Runs once.
+    NativeProvenance.verifyBinding();
     return text;
   }
 
